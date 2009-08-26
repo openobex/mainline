@@ -114,7 +114,7 @@ endif ( OPENOBEX_BLUETOOTH )
 #
 set ( prefix      "${CMAKE_INSTALL_PREFIX}" )
 set ( exec_prefix "\${prefix}" )
-set ( libdir      "\${prefix}/lib" )
+set ( libdir      "\${prefix}/lib${LIB_SUFFIX}" )
 set ( includedir  "\${prefix}/include" )
 if ( OPENOBEX_USB AND UNIX AND NOT WIN32 )
    set ( REQUIRES "libusb" )
@@ -128,7 +128,7 @@ foreach ( file openobex openobex-glib )
 endforeach ( file )
 
 if ( NOT PKGCONFIG_INSTALL_DIR )
-  set ( PKGCONFIG_INSTALL_DIR lib/pkgconfig
+  set ( PKGCONFIG_INSTALL_DIR lib${LIB_SUFFIX}/pkgconfig
         CACHE PATH "Where to install .pc files to" FORCE )
 endif ( NOT PKGCONFIG_INSTALL_DIR )
 mark_as_advanced ( PKGCONFIG_INSTALL_DIR )

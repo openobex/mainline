@@ -183,8 +183,8 @@ set_property ( TARGET openobex PROPERTY
 
 install ( TARGETS openobex
   RUNTIME       DESTINATION bin
-  LIBRARY       DESTINATION lib
-  ARCHIVE       DESTINATION lib
+  LIBRARY       DESTINATION lib${LIB_SUFFIX}
+  ARCHIVE       DESTINATION lib${LIB_SUFFIX}
   PUBLIC_HEADER DESTINATION include/openobex
   COMPONENT library
 )
