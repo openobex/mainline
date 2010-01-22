@@ -498,6 +498,7 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 
 			/* Remove from tx-queue */
 			object->tx_headerq = slist_remove(object->tx_headerq, h);
+			object->totallen -= h->length;
 			buf_free(h->buf);
 			free(h);
 		} else if (h->length > self->mtu_tx) {
