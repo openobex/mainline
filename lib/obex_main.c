@@ -249,7 +249,7 @@ int obex_data_indication(obex_t *self, uint8_t *buf, int buflen)
 
 		/* Check if we are still connected */
 		/* do not error if the data is from non-empty but partial buffer (custom transport) */
-		if (buf == NULL && buflen == 0 && actual <= 0)	{
+		if (buf == NULL && buflen == 0 && actual < 0)	{
 			obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
 			return actual;
 		}
@@ -272,7 +272,7 @@ int obex_data_indication(obex_t *self, uint8_t *buf, int buflen)
 
 			/* Check if we are still connected */
 			/* do not error if the data is from non-empty but partial buffer (custom transport) */
-			if (buf == NULL && buflen == 0 && actual <= 0)	{
+			if (buf == NULL && buflen == 0 && actual < 0)	{
 				obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
 				return actual;
 			}
