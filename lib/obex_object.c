@@ -270,6 +270,13 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	return ret;
 }
 
+static uint8_t obex_object_getcmd (const obex_t *self, const obex_object_t *object)
+{
+	if (self->state & MODE_SRV)
+		return object->cmd;
+	else
+		return (object->opcode & ~OBEX_FINAL);
+}
 
 /*
  * Function send_stream(object, header, txmsg, tx_left)
@@ -281,13 +288,12 @@ static int send_stream(obex_t *self,
 				struct obex_header_element *h,
 				buf_t *txmsg, unsigned int tx_left)
 {
-	obex_object_t *object;
+	obex_object_t *object = self->object;
 	struct obex_byte_stream_hdr *body_txh;
 	int actual;	/* Number of bytes sent in this fragment */
+	uint8_t cmd = obex_object_getcmd(self, object);
 
 	DEBUG(4, "\n");
-
-	object = self->object;
 
 	/* Fill in length and header type later, but reserve space for it */
 	body_txh  = (struct obex_byte_stream_hdr*) buf_reserve_end(txmsg,
@@ -300,7 +306,7 @@ static int send_stream(obex_t *self,
 			/* Ask app for more data if no more */
 			object->s_offset = 0;
 			object->s_buf = NULL;
-			obex_deliver_event(self, OBEX_EV_STREAMEMPTY, object->cmd, 0, FALSE);
+			obex_deliver_event(self, OBEX_EV_STREAMEMPTY, cmd, 0, FALSE);
 			DEBUG(4, "s_len=%d, s_stop = %d\n",
 						object->s_len, object->s_stop);
 			/* End of stream ?*/
@@ -636,6 +642,7 @@ static void obex_object_receive_stream(obex_t *self, uint8_t hi,
 				uint8_t *source, unsigned int len)
 {
 	obex_object_t *object = self->object;
+	uint8_t cmd = obex_object_getcmd(self, object);
 
 	DEBUG(4, "\n");
 
@@ -652,13 +659,13 @@ static void obex_object_receive_stream(obex_t *self, uint8_t hi,
 	}
 
 	/* Notify app that data has arrived */
-	obex_deliver_event(self, OBEX_EV_STREAMAVAIL, object->cmd, 0, FALSE);
+	obex_deliver_event(self, OBEX_EV_STREAMAVAIL, cmd, 0, FALSE);
 
 	/* If send send EOS to app */
 	if (hi == OBEX_HDR_BODY_END && len != 0) {
 		object->s_buf = source;
 		object->s_len = 0;
-		obex_deliver_event(self, OBEX_EV_STREAMAVAIL, object->cmd, 0, FALSE);
+		obex_deliver_event(self, OBEX_EV_STREAMAVAIL, cmd, 0, FALSE);
 	}
 }
 
@@ -911,7 +918,7 @@ int obex_object_suspend(obex_object_t *object)
 int obex_object_resume(obex_t *self, obex_object_t *object)
 {
 	int ret;
-	uint8_t cmd;
+	uint8_t cmd = obex_object_getcmd(self, object);
 
 	if (!object->suspend)
 		return 0;
@@ -920,9 +927,6 @@ int obex_object_resume(obex_t *self, obex_object_t *object)
 
 	if (object->first_packet_sent && !object->continue_received)
 		return 0;
-
-	cmd = (self->state & MODE_SRV) ? object->cmd :
-						object->opcode & ~OBEX_FINAL;
 
 	ret = obex_object_send(self, object, TRUE, FALSE);
 
