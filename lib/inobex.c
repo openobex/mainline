@@ -148,6 +148,14 @@ static int inobex_listen(obex_t *self)
 {
 	DEBUG(4, "\n");
 
+	/* needed as compat for apps that call OBEX_TransportConnect
+	 * instead of InOBEX_TransportConnect (e.g. obexftp)
+	 */
+	if (self->trans.self.inet6.sin6_family == AF_INET)
+		inobex_prepare_listen(self,
+				       (struct sockaddr*) &self->trans.self.inet6,
+				       sizeof(self->trans.self.inet6));
+
 	self->serverfd = obex_create_socket(self, AF_INET6);
 	if (self->serverfd == INVALID_SOCKET) {
 		DEBUG(0, "Cannot create server-socket\n");
