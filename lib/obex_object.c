@@ -173,12 +173,7 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 		return 1;
 	}
 
-	if (flags & OBEX_FL_FIT_ONE_PACKET) {
-		/* In this command all headers must fit in one packet! */
-		DEBUG(3, "Fit one packet!\n");
-		maxlen = self->mtu_tx - object->totallen - sizeof(struct obex_common_hdr);
-	} else
-		maxlen = self->mtu_tx - sizeof(struct obex_common_hdr);
+	maxlen = obex_object_getspace(self, object, flags);
 
 	element = malloc(sizeof(*element));
 	if (element == NULL)
