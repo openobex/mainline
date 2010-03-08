@@ -107,8 +107,7 @@ int obex_transport_handle_input(obex_t *self, int timeout)
 			DEBUG(4, "No handleinput-callback exist!\n");
 			ret = -1;
 		}
-	} else if (self->trans.type == OBEX_TRANS_USB
-		   && self->fd == INVALID_SOCKET)
+	} else if (self->trans.type == OBEX_TRANS_USB)
 		ret = obex_data_indication(self, NULL, 0);
 	else {
 		struct timeval time;
