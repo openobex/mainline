@@ -30,8 +30,6 @@ OBEX_ObjectSetNonHdrData
 OBEX_ObjectSetHdrOffset
 OBEX_ObjectReadStream
 OBEX_ObjectGetCommand
-OBEX_UnicodeToChar
-OBEX_CharToUnicode
 OBEX_ResponseToString
 TcpOBEX_ServerRegister
 TcpOBEX_TransportConnect

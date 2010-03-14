@@ -28,4 +28,7 @@ extern int obex_protocol_type;
 #define OBEX_PROTOCOL_WIN95_IRXFER	1
 	/* win95 irxfer ( does not like palm creatorid header ) */
 
+int OBEX_UnicodeToChar(uint8_t *c, const uint8_t *uc, int size);
+int OBEX_CharToUnicode(uint8_t *uc, const uint8_t *c, int size);
+
 #endif

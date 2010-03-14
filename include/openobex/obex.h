@@ -110,9 +110,6 @@ OPENOBEX_SYMBOL(int) OBEX_ObjectSetHdrOffset(obex_object_t *object, unsigned int
 OPENOBEX_SYMBOL(int) OBEX_ObjectReadStream(obex_t *self, obex_object_t *object, const uint8_t **buf);
 OPENOBEX_SYMBOL(int) OBEX_ObjectGetCommand(obex_t *self, obex_object_t *object);
 
-OPENOBEX_SYMBOL(int) OBEX_UnicodeToChar(uint8_t *c, const uint8_t *uc, int size);
-OPENOBEX_SYMBOL(int) OBEX_CharToUnicode(uint8_t *uc, const uint8_t *c, int size);
-
 OPENOBEX_SYMBOL(char *) OBEX_ResponseToString(int rsp);
 
 /*
