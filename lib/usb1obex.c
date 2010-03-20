@@ -38,6 +38,19 @@
 #include "usbobex.h"
 #include "usbutils.h"
 
+static void usbobex_set_fd(int fd, short events, void *user_data)
+{
+	obex_t *self = user_data;
+	self->fd = fd;
+}
+
+static void usbobex_clear_fd(int fd, void *user_data)
+{
+	obex_t *self = user_data;
+	if (self->fd == fd)
+		self->fd = INVALID_SOCKET;
+}
+
 static int usbobex_init (obex_t *self)
 {
 	struct libusb_context *libusb_ctx = NULL;
@@ -49,6 +62,8 @@ static int usbobex_init (obex_t *self)
 	}
 
 	self->trans.data = libusb_ctx;
+	libusb_set_pollfd_notifiers(libusb_ctx, &usbobex_set_fd,
+				    &usbobex_clear_fd, self);
 	return 0;
 }
 
@@ -352,36 +367,6 @@ static void usbobex_free_interface(obex_interface_t *intf)
 }
 
 /*
- * Function usbobex_get_fd ()
- *
- *    Get the "poll out" file descriptor for the USB device,
- *    used to check for events in an async way
- *
- */
-static int usbobex_get_fd(obex_t *self)
-{
-	struct libusb_context *libusb_ctx = self->trans.data;
-	const struct libusb_pollfd **usbfds;
-	const struct libusb_pollfd *usbfd;
-	int i = 0;
-
-	DEBUG(4, "Getting the USB file descriptor");
-
-	usbfds = libusb_get_pollfds(libusb_ctx);
-	if (usbfds == NULL) {
-		DEBUG(4, "Could not get USB file descriptors");
-		return INVALID_SOCKET;
-	}
-
-	while ((usbfd = usbfds[i++]) != NULL) {
-		if (usbfd->events & POLLIN)
-			return usbfd->fd;
-	}
-
-	return INVALID_SOCKET;
-}
-
-/*
  * Function usbobex_connect_request (self)
  *
  *    Open the USB connection
@@ -422,7 +407,6 @@ static int usbobex_connect_request(obex_t *self)
 	}
 
 	self->trans.mtu = OBEX_MAXIMUM_MTU;
-	self->fd = usbobex_get_fd(self);
 	DEBUG(2, "transport mtu=%d\n", self->trans.mtu);
 	return 1;
 
