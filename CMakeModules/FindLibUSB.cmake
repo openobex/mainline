@@ -36,6 +36,7 @@ if ( PKGCONFIG_LIBUSB_FOUND )
     endif ( ${ibase}_LIBRARY )
     mark_as_advanced ( ${ibase}_LIBRARY )
   endforeach ( i )
+  set ( LibUSB_FOUND true )
 
 else ( PKGCONFIG_LIBUSB_FOUND )
   find_file ( LibUSB_HEADER_FILE
@@ -80,16 +81,15 @@ else ( PKGCONFIG_LIBUSB_FOUND )
     set ( LibUSB_LIBRARIES ${usb_LIBRARY} )
   endif ( usb_LIBRARY )
 
+  if ( LibUSB_INCLUDE_DIRS AND LibUSB_LIBRARIES )
+    set ( LibUSB_FOUND true )
+  endif ( LibUSB_INCLUDE_DIRS AND LibUSB_LIBRARIES )
+
+  if ( LibUSB_FOUND )
+    set ( CMAKE_REQUIRED_INCLUDES "${LibUSB_INCLUDE_DIRS}" )
+    check_include_file ( "{LibUSB_HEADER_FILE}" LibUSB_FOUND )
+  endif ( LibUSB_FOUND )
 endif ( PKGCONFIG_LIBUSB_FOUND )
-
-if ( LibUSB_INCLUDE_DIRS AND LibUSB_LIBRARIES )
-  set ( LibUSB_FOUND true )
-endif ( LibUSB_INCLUDE_DIRS AND LibUSB_LIBRARIES )
-
-if ( LibUSB_FOUND )
-  set ( CMAKE_REQUIRED_INCLUDES "${LibUSB_INCLUDE_DIRS}" )
-  check_include_file ( "{LibUSB_HEADER_FILE}" LibUSB_FOUND )
-endif ( LibUSB_FOUND )
 
 if ( LibUSB_FOUND )
   check_library_exists ( "${usb_LIBRARY}" usb_open "" LibUSB_FOUND )
