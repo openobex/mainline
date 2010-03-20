@@ -50,9 +50,9 @@ void find_obex_service_descriptor(const char *buffer, int buflen, obex_usb_intf_
 		}
 		switch (buffer[2]) {
 		case CDC_OBEX_SERVICE_ID_TYPE: /* we've found it */
-			if (buflen < 22) /* Check descriptor size */
+			if (buflen < 22) {/* Check descriptor size */
 				DEBUG(2, "Invalid service id descriptor");
-			else if (*service == NULL) {
+			} else if (*service == NULL) {
 				*service = malloc(sizeof(**service));
 				if (*service != NULL) {
 					const uint8_t default_uuid[16] = WMC_DEFAULT_OBEX_SERVER_UUID;

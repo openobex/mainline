@@ -455,7 +455,7 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 
 	/* Add nonheader-data first if any (SETPATH, CONNECT)*/
 	if (object->tx_nonhdr_data) {
-		DEBUG(4, "Adding %d bytes of non-headerdata\n", object->tx_nonhdr_data->data_size);
+		DEBUG(4, "Adding %lu bytes of non-headerdata\n", (unsigned long)object->tx_nonhdr_data->data_size);
 		buf_insert_end(txmsg, object->tx_nonhdr_data->data, object->tx_nonhdr_data->data_size);
 
 		buf_free(object->tx_nonhdr_data);
@@ -678,8 +678,8 @@ static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t h
 	DEBUG(4, "This is a body-header. Len=%d\n", len);
 
 	if (len > msg->data_size) {
-		DEBUG(1, "Header %d to big. HSize=%d Buffer=%d\n",
-				hi, len, msg->data_size);
+		DEBUG(1, "Header %d to big. HSize=%d Buffer=%lu\n",
+				hi, len, (unsigned long)msg->data_size);
 		return -1;
 	}
 
@@ -765,7 +765,7 @@ int obex_object_receive(obex_t *self, buf_t *msg)
 		if (!object->rx_nonhdr_data)
 			return -1;
 		buf_insert_end(object->rx_nonhdr_data, msg->data, object->headeroffset);
-		DEBUG(4, "Command has %d bytes non-headerdata\n", object->rx_nonhdr_data->data_size);
+		DEBUG(4, "Command has %lu bytes non-headerdata\n", (unsigned long)object->rx_nonhdr_data->data_size);
 		buf_remove_begin(msg, object->headeroffset);
 		object->headeroffset = 0;
 	}
@@ -824,8 +824,8 @@ int obex_object_receive(obex_t *self, buf_t *msg)
 
 		/* Make sure that the msg is big enough for header */
 		if (len > msg->data_size) {
-			DEBUG(1, "Header %d to big. HSize=%d Buffer=%d\n",
-					hi, len, msg->data_size);
+			DEBUG(1, "Header %d to big. HSize=%d Buffer=%lu\n",
+					hi, len, (unsigned long)msg->data_size);
 			source = NULL;
 			err = -1;
 		}

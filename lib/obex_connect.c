@@ -84,7 +84,7 @@ int obex_parse_connect_header(obex_t *self, buf_t *msg)
 			(opcode != (OBEX_CMD_CONNECT | OBEX_FINAL)))
 		return 1;
 
-	DEBUG(4, "Len: %d\n", msg->data_size);
+	DEBUG(4, "Len: %lu\n", (unsigned long)msg->data_size);
 	if (msg->data_size >= 7) {
 		/* Get what we need */
 		conn_hdr = (obex_connect_hdr_t *) ((msg->data) + 3);

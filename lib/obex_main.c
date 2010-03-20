@@ -214,7 +214,7 @@ int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 	hdr->len = htons((uint16_t)msg->data_size);
 
 	DUMPBUFFER(1, "Tx", msg);
-	DEBUG(1, "len = %d bytes\n", msg->data_size);
+	DEBUG(1, "len = %lu bytes\n", (unsigned long)msg->data_size);
 
 	actual = obex_transport_write(self, msg);
 	return actual;
@@ -280,13 +280,13 @@ int obex_data_indication(obex_t *self, uint8_t *buf, int buflen)
 	}
         else {
 		/* Wait until we have at least 3 bytes data */
-		DEBUG(3, "Need at least 3 bytes got only %d!\n", msg->data_size);
+	  DEBUG(3, "Need at least 3 bytes got only %lu!\n", (unsigned long)msg->data_size);
 		return actual;
         }
 
 
 	/* New data has been inserted at the end of message */
-	DEBUG(1, "Got %d bytes msg len=%d\n", actual, msg->data_size);
+	DEBUG(1, "Got %d bytes msg len=%lu\n", actual, (unsigned long)msg->data_size);
 
 	/*
 	 * Make sure that the buffer we have, actually has the specified
@@ -296,8 +296,8 @@ int obex_data_indication(obex_t *self, uint8_t *buf, int buflen)
 
 	/* Make sure we have a whole packet */
 	if (size > msg->data_size) {
-		DEBUG(3, "Need more data, size=%d, len=%d!\n",
-		      size, msg->data_size);
+		DEBUG(3, "Need more data, size=%d, len=%lu!\n",
+		      size, (unsigned long)msg->data_size);
 
 		/* I'll be back! */
 		return msg->data_size;
