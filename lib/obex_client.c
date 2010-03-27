@@ -91,7 +91,8 @@ int obex_client(obex_t *self, buf_t *msg, int final)
 			 * Jean II */
 			if (self->object->opcode == OBEX_CMD_CONNECT ||
 					obex_object_receive(self, msg) < 0) {
-				self->state = MODE_SRV | STATE_IDLE;
+				self->mode = MODE_SRV;
+				self->state = STATE_IDLE;
 				obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
 				return -1;
 			}
@@ -116,7 +117,8 @@ int obex_client(obex_t *self, buf_t *msg, int final)
 		ret = obex_object_send(self, self->object, TRUE, FALSE);
 		if (ret < 0) {
 			/* Error while sending */
-			self->state = MODE_CLI | STATE_IDLE;
+			self->mode = MODE_SRV;
+			self->state = STATE_IDLE;
 			obex_deliver_event(self, OBEX_EV_LINKERR, self->object->opcode, 0, TRUE);
 			break;
 		}
@@ -125,7 +127,7 @@ int obex_client(obex_t *self, buf_t *msg, int final)
 
 		obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->opcode, 0, FALSE);
 
-		self->state = MODE_CLI | STATE_REC;
+		self->state = STATE_REC;
 
 		break;
 
@@ -137,7 +139,8 @@ int obex_client(obex_t *self, buf_t *msg, int final)
 		if (self->object->opcode == OBEX_CMD_CONNECT) {
 			DEBUG(2, "We expect a connect-rsp\n");
 			if (obex_parse_connect_header(self, msg) < 0) {
-				self->state = MODE_SRV | STATE_IDLE;
+				self->mode = MODE_SRV;
+				self->state = STATE_IDLE;
 				obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
 				return -1;
 			}
@@ -152,7 +155,8 @@ int obex_client(obex_t *self, buf_t *msg, int final)
 
 		/* Receive any headers */
 		if (obex_object_receive(self, msg) < 0) {
-			self->state = MODE_SRV | STATE_IDLE;
+			self->mode = MODE_SRV;
+			self->state = STATE_IDLE;
 			obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
 			return -1;
 		}
@@ -183,7 +187,8 @@ int obex_client(obex_t *self, buf_t *msg, int final)
 		} else {
 			/* Notify app that client-operation is done! */
 			DEBUG(3, "Done! Rsp=%02x!\n", rsp);
-			self->state = MODE_SRV | STATE_IDLE;
+			self->mode = MODE_SRV;
+			self->state = STATE_IDLE;
 			if (self->object->abort) {
 				if (rsp == OBEX_RSP_SUCCESS)
 					obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode, rsp, TRUE);

@@ -53,7 +53,8 @@ struct obex {
 	socket_t fd;		/* Socket descriptor */
 	socket_t serverfd;
 	socket_t writefd;	/* write descriptor - only OBEX_TRANS_FD */
-	unsigned int state;
+	enum obex_state state;
+	enum obex_mode mode;
 
 	int keepserver;		/* Keep server alive */
 	int filterhint;		/* Filter devices based on hint bits */

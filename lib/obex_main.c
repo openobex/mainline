@@ -167,7 +167,7 @@ void obex_deliver_event(obex_t *self, int event, int cmd, int rsp, int del)
 	if (del == TRUE)
 		self->object = NULL;
 
-	if (self->state & MODE_SRV)
+	if (self->mode == MODE_SRV)
 		self->eventcb(self, object, OBEX_MODE_SERVER, event, cmd, rsp);
 	else
 		self->eventcb(self, object, OBEX_MODE_CLIENT, event, cmd, rsp);
@@ -309,15 +309,12 @@ int obex_data_indication(obex_t *self, uint8_t *buf, int buflen)
 	final = hdr->opcode & OBEX_FINAL; /* Extract final bit */
 
 	/* Dispatch to the mode we are in */
-	if(self->state & MODE_SRV) {
+	if(self->mode == MODE_SRV)
 		ret = obex_server(self, msg, final);
-		buf_reuse(msg);
-		
-	}
-	else	{
+	else
 		ret = obex_client(self, msg, final);
-		buf_reuse(msg);
-	}
+	buf_reuse(msg);
+
 	/* Check parse errors */
 	if(ret < 0)
 		actual = ret;

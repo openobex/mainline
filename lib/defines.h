@@ -18,11 +18,12 @@
 
 #define OBEX_VERSION	0x10      /* OBEX Protocol Version 1.1 */
 
-#define MODE_SRV	0x80
-#define MODE_CLI	0x00
+enum obex_mode {
+	MODE_SRV,
+	MODE_CLI,
+};
 
-enum
-{
+enum obex_state {
 	STATE_IDLE,
 	STATE_START,
 	STATE_SEND,

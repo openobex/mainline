@@ -129,7 +129,8 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 	self->fd = INVALID_SOCKET;
 	self->serverfd = INVALID_SOCKET;
 	self->writefd = INVALID_SOCKET;
-        self->state = MODE_SRV | STATE_IDLE;
+	self->mode = MODE_SRV;
+        self->state = STATE_IDLE;
 
 	/* Init transport */
 	self->trans.type = transport;
@@ -413,7 +414,8 @@ obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * 
 	self->serverfd = INVALID_SOCKET;
 	self->writefd = INVALID_SOCKET;
 	server->fd = INVALID_SOCKET;
-        self->state = MODE_SRV | STATE_IDLE;
+	self->mode = MODE_SRV;
+        self->state = STATE_IDLE;
 
 	return self;
 
@@ -550,7 +552,8 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 	obex_return_val_if_fail(object != NULL, -1);
 
 	self->object = object;
-        self->state = STATE_START | MODE_CLI;
+	self->mode = MODE_CLI;
+        self->state = STATE_START;
 
 	return obex_client(self, NULL, 0);
 }

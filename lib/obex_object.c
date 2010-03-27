@@ -267,7 +267,7 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 
 static uint8_t obex_object_getcmd (const obex_t *self, const obex_object_t *object)
 {
-	if (self->state & MODE_SRV)
+	if (self->mode == MODE_SRV)
 		return object->cmd;
 	else
 		return (object->opcode & ~OBEX_FINAL);
@@ -933,18 +933,15 @@ int obex_object_resume(obex_t *self, obex_object_t *object)
 		object->first_packet_sent = 1;
 		object->continue_received = 0;
 	} else {
-		if (self->state & MODE_SRV) {
+		if (self->mode == MODE_SRV) {
 			obex_deliver_event(self, OBEX_EV_REQDONE,
 							cmd, 0, TRUE);
-			self->state = MODE_SRV | STATE_IDLE;
+			self->state = STATE_IDLE;
 			return 0;
 		}
 	}
 
-	if (self->state & MODE_SRV)
-		self->state = MODE_SRV | STATE_REC;
-	else
-		self->state = MODE_CLI | STATE_REC;
+	self->state = STATE_REC;
 
 	return 0;
 }

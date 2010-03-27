@@ -52,7 +52,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 	cmd = request->opcode & ~OBEX_FINAL;
 	len = ntohs(request->len);
 
-	switch (self->state & ~MODE_SRV) {
+	switch (self->state) {
 	case STATE_IDLE:
 		/* Nothing has been recieved yet, so this is probably a new request */
 		DEBUG(4, "STATE_IDLE\n");
@@ -96,7 +96,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 			break;
 		}
 
-		self->state = MODE_SRV | STATE_REC;
+		self->state = STATE_REC;
 		/* no break! Fallthrough */
 
 	case STATE_REC:
@@ -107,7 +107,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 		if (cmd == OBEX_CMD_ABORT) {
 			DEBUG(1, "Got OBEX_ABORT request!\n");
 			obex_response_request(self, OBEX_RSP_SUCCESS);
-			self->state = MODE_SRV | STATE_IDLE;
+			self->state = STATE_IDLE;
 			obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode, cmd, TRUE);
 			/* This is not an Obex error, it is just that the peer
 			 * aborted the request, so return 0 - Jean II */
@@ -119,7 +119,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 			/* The cmd-field of this packet is not the
 			   same as int the first fragment. Bail out! */
 			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-			self->state = MODE_SRV | STATE_IDLE;
+			self->state = STATE_IDLE;
 			obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, cmd, TRUE);
 			return -1;
 		}
@@ -127,7 +127,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 		/* Get the headers... */
 		if (obex_object_receive(self, msg) < 0) {
 			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-			self->state = MODE_SRV | STATE_IDLE;
+			self->state = STATE_IDLE;
 			obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
 			return -1;
 		}
@@ -173,7 +173,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 			   headers that should be in the response */
 			if (!deny)
 				obex_deliver_event(self, OBEX_EV_REQ, cmd, 0, FALSE);
-			self->state = MODE_SRV | STATE_SEND;
+			self->state = STATE_SEND;
 			len = 3; /* Otherwise sanitycheck later will fail */
 		}
 		/* Note the conditional fallthrough! */
@@ -186,7 +186,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 		if (cmd == OBEX_CMD_ABORT) {
 			DEBUG(1, "Got OBEX_ABORT request!\n");
 			obex_response_request(self, OBEX_RSP_SUCCESS);
-			self->state = MODE_SRV | STATE_IDLE;
+			self->state = STATE_IDLE;
 			obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode, cmd, TRUE);
 			/* This is not an Obex error, it is just that the peer
 			 * aborted the request, so return 0 - Jean II */
@@ -219,7 +219,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 			if (cmd == OBEX_CMD_CONNECT ||
 					obex_object_receive(self, msg) < 0) {
 				obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-				self->state = MODE_SRV | STATE_IDLE;
+				self->state = STATE_IDLE;
 				obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
 				return -1;
 			}
@@ -258,7 +258,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 				DEBUG(2, "CMD_DISCONNECT done. Resetting MTU!\n");
 				self->mtu_tx = OBEX_MINIMUM_MTU;
 			}
-			self->state = MODE_SRV | STATE_IDLE;
+			self->state = STATE_IDLE;
 			obex_deliver_event(self, OBEX_EV_REQDONE, cmd, 0, TRUE);
 		}
 		break;
