@@ -1,5 +1,5 @@
 
-SUBDIRS = include lib glib apps ircp doc
+SUBDIRS = include lib glib apps doc
 
 pkgconfigdir = $(libdir)/pkgconfig
 

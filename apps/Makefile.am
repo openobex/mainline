@@ -11,7 +11,7 @@ AM_CFLAGS = @OPENOBEX_CFLAGS@
 INCLUDES = -I$(srcdir)/lib -I$(top_srcdir)/include @BLUETOOTH_CFLAGS@
 endif
 
-SUBDIRS = lib obex_test
+SUBDIRS = lib obex_test ircp
 
 EXTRA_DIST = CMakeLists.txt
 

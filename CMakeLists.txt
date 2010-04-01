@@ -159,7 +159,6 @@ endif ( BUILD_SHARED_LIBS )
 #
 add_custom_target ( openobex-apps )
 add_subdirectory ( apps )
-add_subdirectory ( ircp )
 
 
 #

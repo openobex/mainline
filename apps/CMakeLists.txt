@@ -2,6 +2,7 @@
 add_subdirectory ( lib )
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/lib )
 add_subdirectory ( obex_test )
+add_subdirectory ( ircp )
 
 set ( OPENOBEX_COMMON_APPS
   irxfer
