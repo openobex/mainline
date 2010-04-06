@@ -57,13 +57,14 @@ set ( openobex_PUBLIC_HEADER
 
 option ( ENABLE_DEBUG_MESSAGES "Enables debug messages printed during runtime" )
 if ( ENABLE_DEBUG_MESSAGES )
-  list ( APPEND openobex_COMPILE_DEFINITIONS OBEX_DEBUG )
+  set ( DEBUG_LEVEL 1 CACHE STRING "Amount of debug message (1-4)" )
+  list ( APPEND openobex_COMPILE_DEFINITIONS OBEX_DEBUG=${DEBUG_LEVEL} )
   if ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
      option ( DEBUG_USE_SYSLOG "Use SysLog facility instead of stderr for debug messages" )
   endif ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
-  if ( DEBUG_USE_SYSLOG )     
+  if ( DEBUG_USE_SYSLOG )
     list ( APPEND openobex_COMPILE_DEFINITIONS OBEX_SYSLOG )
-  endif ( DEBUG_USE_SYSLOG )     
+  endif ( DEBUG_USE_SYSLOG )
 endif ( ENABLE_DEBUG_MESSAGES )
 
 option ( ENABLE_DUMP_MESSAGES "Enables dumping of data" )
