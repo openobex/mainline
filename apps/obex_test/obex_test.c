@@ -348,6 +348,8 @@ int main (int argc, char *argv[])
 	while (!end) {
 		printf("> ");
 		num = scanf("%s", cmd);
+		if (num == EOF)
+			break;
 		switch (cmd[0] | 0x20)	{
 			case 'h':
 				printf("Commands:\n"
