@@ -170,6 +170,23 @@ int main (int argc, char *argv[])
 	char *port;
 	obex_ctrans_t custfunc;
 
+	if( (argc == 2) && (strcmp(argv[1], "-h") == 0 ) ) {
+		printf(
+			"Usage: obex_test [options]\n"
+			"\n"
+			"Options:\n"
+			"    -s [tty]           Use cable transport (Sony-Ericsson phones/DCU-11 cable)\n"
+			"    -r [tty]           Use cable transport for R320\n"
+			"    -i                 Use IP/TCP transport\n"
+			"    -b [addr] [chan]   Use bluetooth  transport\n"
+			"    -u [interface]     Use USB transport\n"
+			"    -h                 Print this help message\n"
+			"\n"
+			"If no transport is selected, IrDA is used.\n"
+		);
+		return 0;
+	}
+
 	if( (argc == 2 || argc ==3) && (strcmp(argv[1], "-s") == 0 ) )
 		cobex = TRUE;
 	if( (argc == 2 || argc ==3) && (strcmp(argv[1], "-r") == 0 ) ) {
@@ -332,6 +349,19 @@ int main (int argc, char *argv[])
 		printf("> ");
 		num = scanf("%s", cmd);
 		switch (cmd[0] | 0x20)	{
+			case 'h':
+				printf("Commands:\n"
+				       " c - connect\n"
+				       " d - disconnect\n"
+				       " g - get\n"
+				       " p - put\n"
+				       " t - set path\n"
+				       " s - server\n"
+				       " x - push\n"
+				       " h - help\n"
+				       " q - quit\n"
+				);
+			break;
 			case 'q':
 				end=1;
 			break;
