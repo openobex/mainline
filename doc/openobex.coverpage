@@ -20,19 +20,24 @@
 
 This library tries to implement a generic OBEX Session Protocol. It does not implement the OBEX Application FrameWork.
 
-When you read this it's very useful to have a copy of the OBEX specification. It is available for download on IrDA's website http://www.irda.org. Make sure you have obex.h and obex_const.h too. You might also find the OpenOBEX test-apps useful.
+When you read this it's very useful to have a copy of the OBEX specification.
+It was available for download on IrDA's website http://www.irda.org.
+Make sure you have obex.h and obex_const.h, too.
+You might also find the OpenOBEX test applications useful.
 
 	\section programming_sec Programming the library
 
 	\subsection preparations_sec Preparations
 
-To be able to use the OpenOBEX API you must include the file openobex/obex.h.
+To be able to use the OpenOBEX API you must include the files openobex/obex_const.h and openobex/obex.h.
 
 First of all you must create an OBEX instance by calling #OBEX_Init.
 In this call you specify what transport you want to use, an event callback, and optional flags.
 #OBEX_Init will return a handle which shall be passed to almost all other functions.
 
-To let the parser do some work you must call #OBEX_HandleInput. It will block for the specified timeout if there is no data to read. You can call #OBEX_GetFD if you want to do select() yourself.
+To let the parser do some work you must call #OBEX_HandleInput.
+It will block for at-most the specified timeout for read and write actions.
+You can call #OBEX_GetFD if you want to do select() yourself (this may not work with all transports).
 
 	\subsection callback_sec The event callback
 
@@ -44,32 +49,43 @@ void *obex_event_t(obex_t *handle, obex_object_t *obj, int mode, int event, int 
 Arguments:
   - handle : OBEX handle
   - obj : OBEX object
-  - mode : OBEX_CLI for client event or OBEX_SRV, for server event
-  - event : The event. See obex_const.h for possible events.
-  - obex_cmd : Command if any (depending on event type)
-  - obex_rsp : Response if any (depending on event type)
+  - mode : OBEX_MODE_CLIENT for client event or OBEX_MODE_SERVER, for server event
+  - event : The event. See obex_const.h for possible events (OBEX_EV_*)
+  - obex_cmd : Command if any (depending on event type). See obex_const.h for commands (OBEX_CMD_*)
+  - obex_rsp : Response if any (depending on event type). See obex_const.h for responses (OBEX_RSP_*)
 
 To this function events from the library will be passed to you, for example when an operation finishes.
 #OBEX_SetUserData and #OBEX_GetUserData are useful if you need to access your own private data from inside the event callback.
 
 	\subsection client_sec Client Operations
 
-First of all you must connect the transport using
-#OBEX_TransportConnect or one of
+First of all you must connect the transport. For this you can use the discovery API by calling functions
+in the following order:
+  * #OBEX_EnumerateInterfaces
+  * #OBEX_GetInterfaceByIndex
+  * #OBEX_InterfaceConnect
+This is supported for USB and IrDA (bluetooth not implemented, yet).
+
+Instead of the discovery API, you can also use the generic #OBEX_TransportConnect
+or one of the specialized:
   - #TcpOBEX_TransportConnect
   - #IrOBEX_TransportConnect
   - #BtOBEX_TransportConnect
   - #FdOBEX_TransportSetup.
 
-When the transport is connected you shall most likely also send an OBEX Connect, to let the library negotiate MTU etc. OBEX Connect is sent as any other OBEX command.
+When the transport is connected you shall most likely also send an OBEX Connect to let the library negotiate MTU etc.
+OBEX Connect is sent as any other OBEX command.
 
 When you are done sending your requests you shall end by sending an OBEX Disconnect request and then call #OBEX_TransportDisconnect.
 
-To send a request to you must first create an OBEX Object by calling #OBEX_ObjectNew with the command opcode as argument. Next you add headers to it using #OBEX_ObjectAddHeader. Finally you send away the request using #OBEX_Request.
+To send a request to you must first create an OBEX Object by calling #OBEX_ObjectNew with the command opcode as argument.
+Next you add headers to it using #OBEX_ObjectAddHeader. Finally you send away the request using #OBEX_Request.
 
-When the request has finished you'll get an #OBEX_EV_REQDONE event. You can get any headers sent in response (like in a OBEX Get) by calling #OBEX_ObjectGetNextHeader.
+When the request has finished you'll get an #OBEX_EV_REQDONE event.
+You can get any headers sent in response (like in a OBEX Get) by calling #OBEX_ObjectGetNextHeader.
 
 A Put would look something like this:
+
 	\subsubsection putexample_sec OBEX Put example
 	\code
 obex_object_t *object;
@@ -102,22 +118,30 @@ if(OBEX_Request(handle, object) &lt; 0) {
 
 	\subsection server_sec Server Operations
 
-To act as a server you must first tell the transport to receive incoming connections via the function
-#OBEX_ServerRegister. When an incoming connection is coming you'll get an
-#OBEX_EV_ACCEPTHINT event. If you ignore this event no more incoming connections
-will be accepted, but if you call #OBEX_ServerAccept you'll get back a new OBEX handle
-and the old handle will still be listening to connections.
+To act as a server you must first tell the transport to receive incoming connections via the
+generic function #OBEX_ServerRegister or one of the specialized:
+  - #TcpOBEX_ServerRegister
+  - #IrOBEX_ServerRegister
+  - #BtOBEX_ServerRegister.
 
-When an incoming request comes you'll first get an #OBEX_EV_REQHINT event. The supplied
-OBEX Object is allocated by the library so you do not need to create it yourself.
+When an incoming connection is coming you'll get an #OBEX_EV_ACCEPTHINT event.
+If you ignore this event no more incoming connections will be accepted but if you call #OBEX_ServerAccept,
+you'll get back a new OBEX handle and the old handle will still be listening to connections.
+
+When an incoming request comes, you will first get an #OBEX_EV_REQHINT event. The supplied
+OBEX object is allocated by the library so you do not need to create it yourself.
 
 The #OBEX_EV_REQHINT event comes before the parser start receiving the request,
 so you can cancel requests that your application does not support early.
 
 Set the response to the request using #OBEX_ObjectSetRsp.
 
-You can tell the parser to deliver the body-header as a stream when this event comes using
-#OBEX_ObjectReadStream.
+The #OBEX_EV_REQCHECK event allows to check non-header data and non-body headers. This is
+only called for multi-packet messages.
+
+You can tell the parser to deliver the body-header as a stream either at the time of
+#OBEX_EV_REQHINT or #OBEX_EV_REQCHECK using #OBEX_ObjectReadStream. If you use the
+latter event, you must support non-stream mode, too.
 
 When the request is received you'll get an #OBEX_EV_REQ event. Get the headers from
 the object by calling #OBEX_ObjectGetNextHeader. You can now change the response if you

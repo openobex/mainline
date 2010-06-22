@@ -36,18 +36,36 @@ extern "C" {
 
 #include <inttypes.h>
 
+/** OBEX object tag information
+ */
 typedef union {
+	/** use this when header type is #OBEX_HDR_TYPE_UINT32 */
 	uint32_t bq4;
+	/** use this when header type is #OBEX_HDR_TYPE_UINT8 */
 	uint8_t bq1;
+	/** use this when header type is #OBEX_HDR_TYPE_BYTES
+	 * or #OBEX_HDR_TYPE_UNICODE
+	 */
 	const uint8_t *bs;
 } obex_headerdata_t;
 
+/** Function definition for custom transports
+ */
 typedef struct {
+	/** connect to a server (client-only) */
 	int (*connect)(obex_t *handle, void *customdata);
+	/** disconnect (server/client) */
 	int (*disconnect)(obex_t *handle, void *customdata);
+	/** listen to incoming connections (server-only) */
 	int (*listen)(obex_t *handle, void *customdata);
+	/** remote connection input
+	 * This function is optional as it is an alternative to providing
+	 * the data with #handleinput.
+	 */
 	int (*read)(obex_t *handle, void *customdata, uint8_t *buf, int size);
+	/** remote connection output */
 	int (*write)(obex_t *handle, void *customdata, uint8_t *buf, int len);
+	/** directly called by #OBEX_HandleInput */
 	int (*handleinput)(obex_t *handle, void *customdata, int timeout);
 	void *customdata;
 } obex_ctrans_t;
@@ -110,10 +128,10 @@ typedef struct {
 	char *info;
 	/** Charset used for description */
 	uint8_t	charset;
-	/* Hint bits */
+	/** Hint bits */
 	uint8_t	hints[2];
 
-	/* service selector, filled by application, "OBEX" if NULL */
+	/** service selector, filled by application, "OBEX" if NULL */
 	const char *service;
 } obex_irda_intf_t;
 
