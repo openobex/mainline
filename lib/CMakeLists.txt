@@ -69,7 +69,7 @@ endif ( ENABLE_DEBUG_MESSAGES )
 
 option ( ENABLE_DUMP_MESSAGES "Enables dumping of data" )
 if ( ENABLE_DUMP_MESSAGES )
-  list ( APPEND openobex_COMPILE_DEFINITIONS OBEX_DUMP )
+  list ( APPEND openobex_COMPILE_DEFINITIONS OBEX_DUMP=3 )
 endif ( ENABLE_DUMP_MESSAGES )
 
 if ( OPENOBEX_IRDA )
