@@ -429,6 +429,10 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 
 	DEBUG(4, "\n");
 
+	/* Return finished if aborted */
+	if (object->abort)
+		return 1;
+
 	/* Don't do anything of object is suspended */
 	if (object->suspend)
 		return 0;
