@@ -8,11 +8,11 @@ obex_test_SOURCES = \
 	obex_test_server.c obex_test_server.h \
 	obex_test_cable.c obex_test_cable.h
 
-obex_test_LDADD = $(builddir)/../libmisc.a $(top_builddir)/lib/libopenobex.la @BLUETOOTH_LIBS@
+obex_test_LDADD = $(builddir)/../lib/libmisc.a $(top_builddir)/lib/libopenobex.la @BLUETOOTH_LIBS@
 
 AM_CFLAGS = @OPENOBEX_CFLAGS@
 
-INCLUDES = -I$(srcdir)/.. -I$(top_srcdir)/include @BLUETOOTH_CFLAGS@
+INCLUDES = -I$(srcdir)/../lib -I$(top_srcdir)/include @BLUETOOTH_CFLAGS@
 endif
 
 EXTRA_DIST = CMakeLists.txt

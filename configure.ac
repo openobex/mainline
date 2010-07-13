@@ -38,5 +38,5 @@ AC_OUTPUT(Makefile
           include/Makefile include/openobex/Makefile
           lib/Makefile
           glib/Makefile
-          apps/Makefile apps/obex_test/Makefile ircp/Makefile
+          apps/Makefile apps/lib/Makefile apps/obex_test/Makefile ircp/Makefile
           doc/Makefile openobex.pc openobex-glib.pc)

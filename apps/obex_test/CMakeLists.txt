@@ -1,5 +1,4 @@
 
-include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/.. )
 add_executable ( obex_test EXCLUDE_FROM_ALL
   obex_test.c obex_test.h
   obex_test_client.c obex_test_client.h
