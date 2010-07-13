@@ -6,9 +6,14 @@ add_subdirectory ( ircp )
 
 set ( OPENOBEX_COMMON_APPS
   irxfer
-  obex_tcp
   irobex_palm3
 )
+
+if ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
+  #obex_tcp uses functions that are only available
+  #under Windows7, so we do not compile for now.
+  list ( APPEND OPENOBEX_COMMON_APPS obex_tcp )
+endif ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
 
 foreach ( prog ${OPENOBEX_COMMON_APPS} )
   list ( APPEND ${prog}_LIBS openobex-apps-common )

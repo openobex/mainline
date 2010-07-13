@@ -25,6 +25,9 @@
 
 #ifdef HAVE_BLUETOOTH
 #include "../lib/bluez_compat.h"
+#ifdef _WIN32
+bdaddr_t bluez_compat_bdaddr_any = { BTH_ADDR_NULL };
+#endif
 #endif
 
 #include <openobex/obex.h>

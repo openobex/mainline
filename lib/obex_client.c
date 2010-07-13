@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static inline int msg_get_rsp(const buf_t *msg)
+static __inline int msg_get_rsp(const buf_t *msg)
 {
 	if (!msg)
 		return OBEX_RSP_BAD_REQUEST;
@@ -41,7 +41,7 @@ static inline int msg_get_rsp(const buf_t *msg)
 		return ((obex_common_hdr_t *)msg->data)->opcode & ~OBEX_FINAL;
 }
 
-static inline uint16_t msg_get_len(const buf_t *msg)
+static __inline uint16_t msg_get_len(const buf_t *msg)
 {
 	return ntohs(((obex_common_hdr_t *)msg->data)->len);
 }

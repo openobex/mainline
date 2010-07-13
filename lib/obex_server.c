@@ -34,12 +34,12 @@
 #include <stdio.h>
 #include <errno.h>
 
-static inline int msg_get_cmd(const buf_t *msg)
+static __inline int msg_get_cmd(const buf_t *msg)
 {
 	return ((obex_common_hdr_t *)msg->data)->opcode & ~OBEX_FINAL;
 }
 
-static inline uint16_t msg_get_len(const buf_t *msg)
+static __inline uint16_t msg_get_len(const buf_t *msg)
 {
 	return ntohs(((obex_common_hdr_t *)msg->data)->len);
 }
