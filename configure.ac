@@ -34,6 +34,9 @@ AC_PATH_USB1
 
 AC_ARG_OPENOBEX
 
-AC_OUTPUT(Makefile include/Makefile include/openobex/Makefile lib/Makefile
-				glib/Makefile apps/Makefile ircp/Makefile
-				doc/Makefile openobex.pc openobex-glib.pc)
+AC_OUTPUT(Makefile
+          include/Makefile include/openobex/Makefile
+          lib/Makefile
+          glib/Makefile
+          apps/Makefile apps/obex_test/Makefile ircp/Makefile
+          doc/Makefile openobex.pc openobex-glib.pc)

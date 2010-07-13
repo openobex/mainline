@@ -35,4 +35,4 @@ ircp/ircp
 apps/irxfer
 apps/irobex_palm3
 apps/obex_tcp
-apps/obex_test
+apps/obex_test/obex_test

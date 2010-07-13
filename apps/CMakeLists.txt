@@ -7,35 +7,26 @@ add_library ( openobex-apps-common STATIC EXCLUDE_FROM_ALL
   obex_put_common.c obex_put_common.h
 )
 
-set ( OPENOBEX_APPS
-  obex_test
+add_subdirectory ( obex_test )
+
+set ( OPENOBEX_COMMON_APPS
   irxfer
   obex_tcp
   irobex_palm3
 )
 
-foreach ( prog ${OPENOBEX_APPS} )
-  set ( ${prog}_SOURCES ${prog}.c )
-  set ( ${prog}_LIBS
-    openobex-apps-common
-    openobex
-  )
+foreach ( prog ${OPENOBEX_COMMON_APPS} )
+  list ( APPEND ${prog}_LIBS openobex-apps-common )
+  list ( APPEND OPENOBEX_APPS ${prog} )
 endforeach ( prog )
 
-list ( APPEND obex_test_SOURCES
-  obex_test.h
-  obex_test_client.c obex_test_client.h
-  obex_test_server.c obex_test_server.h
-  obex_test_cable.c obex_test_cable.h
-)
-
-list ( APPEND obex_test_LIBS
-  ${Bluetooth_LIBRARIES}
-)
+foreach ( prog ${OPENOBEX_APPS} )
+  set ( ${prog}_SOURCES ${prog}.c )
+  list ( APPEND ${prog}_LIBS openobex )
+endforeach ( prog )
 
 if ( WIN32 )
   list ( APPEND obex_tcp_LIBS ws2_32 )
-  list ( APPEND obex_test_LIBS ws2_32 )
 endif ( WIN32 )
 
 foreach ( prog ${OPENOBEX_APPS} )
