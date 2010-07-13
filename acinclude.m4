@@ -23,6 +23,7 @@ AC_DEFUN([COMPILER_FLAGS], [
 		CFLAGS+=" -Wredundant-decls"
 		CFLAGS+=" -Wcast-align"
 	fi
+	CPPFLAGS+=" -I${srcdir}/include"
 ])
 
 AC_DEFUN([AC_INIT_OPENOBEX], [
@@ -68,7 +69,7 @@ AC_DEFUN([AC_PATH_IRDA_LINUX], [
 	AC_CACHE_CHECK([for IrDA support], irda_found, [
 		AC_TRY_COMPILE([
 				#include <sys/socket.h>
-				#include "lib/irda.h"
+				#include <linux/irda.h>
 			], [
 				struct irda_device_list l;
 			], irda_found=yes, irda_found=no)

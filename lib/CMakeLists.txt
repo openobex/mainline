@@ -77,7 +77,6 @@ if ( OPENOBEX_IRDA )
   )
   list ( APPEND HEADERS
     irobex.h
-    irda.h
     irda_wrap.h
   )
 endif ( OPENOBEX_IRDA )

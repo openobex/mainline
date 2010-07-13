@@ -14,12 +14,13 @@ libopenobex_la_SOURCES = \
 	inobex.c inobex.h \
 	btobex.c btobex.h \
 	databuffer.c databuffer.h \
-	irda.h irda_wrap.h \
+	irda_wrap.h \
 	usbutils.c usbutils.h \
 	usbobex.c usb1obex.c usbobex.h \
 	bluez_compat.h \
 	visibility.h defines.h debug.h
 
+libopenobex_la_CPPFLAGS = @CPPFLAGS@
 libopenobex_la_CFLAGS = @CFLAG_VISIBILITY@ @USB1_CFLAGS@
 
 libopenobex_la_LDFLAGS = \
@@ -28,8 +29,6 @@ libopenobex_la_LDFLAGS = \
 	-export-symbols $(top_srcdir)/lib/obex.sym
 
 libopenobex_la_LIBADD = @USB_LIBS@ @USB1_LIBS@ @EXTRA_LIBS@
-
-INCLUDES = -I$(top_srcdir)/include
 
 EXTRA_DIST = obex.sym win32compat.c CMakeLists.txt openobex.rc.in
 

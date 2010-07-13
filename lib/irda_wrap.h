@@ -17,7 +17,7 @@
 
 #elif defined(HAVE_IRDA_LINUX)
 
-#include "irda.h"
+#include <linux/irda.h>
 
 #endif
 
