@@ -1196,8 +1196,7 @@ int CALLAPI OBEX_EnumerateInterfaces(obex_t *self)
 	obex_return_val_if_fail(self != NULL, -1);
 
 	OBEX_FreeInterfaces(self);
-	if (self->trans.ops.client.find_interfaces)
-		self->interfaces_number = self->trans.ops.client.find_interfaces(&self->interfaces);
+	obex_transport_enumerate(self);
 
 	return self->interfaces_number;
 }

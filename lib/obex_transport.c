@@ -282,3 +282,16 @@ int obex_transport_read(obex_t *self, int max, uint8_t *in, int len)
 
 	return actual;
 }
+
+void obex_transport_enumerate(struct obex *self)
+{
+	int i = 0;
+
+	if (self->interfaces)
+		return;
+
+	if (self->trans.ops.client.find_interfaces)
+		i = self->trans.ops.client.find_interfaces(self, &self->interfaces);
+
+	self->interfaces_number = i;
+}

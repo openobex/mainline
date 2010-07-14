@@ -242,7 +242,7 @@ static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
  *
  *    Find available USBOBEX interfaces on the system
  */
-static int usbobex_find_interfaces(obex_interface_t **interfaces)
+static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 {
 	struct obex_usb_intf_transport_t *current = NULL, *tmp = NULL;
 	int i, a, num;

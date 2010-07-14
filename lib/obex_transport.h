@@ -64,7 +64,7 @@ struct obex_transport_ops {
 	struct {
 		int (*connect)(obex_t*);
 		int (*disconnect)(obex_t*);
-		int (*find_interfaces)(obex_interface_t**);
+		int (*find_interfaces)(obex_t*, obex_interface_t**);
 		void (*free_interface)(obex_interface_t*);
 		int (*select_interface)(obex_t*, obex_interface_t*);
 	} client;
@@ -103,5 +103,6 @@ int obex_transport_listen(struct obex *self);
 void obex_transport_disconnect_server(struct obex *self);
 int obex_transport_write(struct obex *self, struct databuffer *msg);
 int obex_transport_read(struct obex *self, int count, uint8_t *buf, int buflen);
+void obex_transport_enumerate(struct obex *self);
 
 #endif /* OBEX_TRANSPORT_H */
