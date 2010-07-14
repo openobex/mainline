@@ -49,8 +49,8 @@ struct databuffer;
 #include "databuffer.h"
 
 struct obex_transport_ops {
-	int (*init)();
-	void (*cleanup)();
+	int (*init)(obex_t*);
+	void (*cleanup)(obex_t*);
 	int (*handle_input)(obex_t*, int);
 	int (*write)(obex_t*, buf_t*);
 	int (*read)(obex_t*, void*, int);
@@ -89,6 +89,8 @@ typedef union {
 typedef struct obex_transport {
 	int type;
 	struct obex_transport_ops ops;
+	void *data;		/* Private data for the transport */
+
 	int connected;		/* Link connection state */
 	unsigned int mtu;	/* Tx MTU of the link */
 	saddr_t	self;		/* Source address */

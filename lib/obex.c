@@ -186,7 +186,7 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 	}
 
 	if (self->trans.ops.init)
-		if (self->trans.ops.init() < 0)
+		if (self->trans.ops.init(self) < 0)
 			goto out_err;
 
 	/* Allocate message buffers */
@@ -254,7 +254,7 @@ void CALLAPI OBEX_Cleanup(obex_t *self)
 
 	OBEX_FreeInterfaces(self);
 	if (self->trans.ops.cleanup)
-		self->trans.ops.cleanup();	
+		self->trans.ops.cleanup(self);
 	free(self);
 
 #ifdef _WIN32

@@ -38,22 +38,27 @@
 #include "usbobex.h"
 #include "usbutils.h"
 
-struct libusb_context *libusb_ctx = NULL;
-static int usbobex_init ()
+static int usbobex_init (obex_t *self)
 {
+	struct libusb_context *libusb_ctx = NULL;
+
 	if (libusb_ctx == NULL) {
 		int err = libusb_init(&libusb_ctx);
 		if (err)
 			return -1;
 	}
+
+	self->trans.data = libusb_ctx;
 	return 0;
 }
 
-static void usbobex_cleanup ()
+static void usbobex_cleanup (obex_t *self)
 {
+	struct libusb_context *libusb_ctx = self->trans.data;
+
 	if (libusb_ctx) {
 		libusb_exit(libusb_ctx);
-		libusb_ctx = NULL;
+		self->trans.data = NULL;
 	}
 }
 
@@ -244,6 +249,7 @@ static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
  */
 static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 {
+	struct libusb_context *libusb_ctx = self->trans.data;
 	struct obex_usb_intf_transport_t *current = NULL, *tmp = NULL;
 	int i, a, num;
 	obex_interface_t *intf_array = NULL;
@@ -352,8 +358,9 @@ static void usbobex_free_interface(obex_interface_t *intf)
  *    used to check for events in an async way
  *
  */
-static int usbobex_get_fd(void)
+static int usbobex_get_fd(obex_t *self)
 {
+	struct libusb_context *libusb_ctx = self->trans.data;
 	const struct libusb_pollfd **usbfds;
 	const struct libusb_pollfd *usbfd;
 	int i = 0;
@@ -415,7 +422,7 @@ static int usbobex_connect_request(obex_t *self)
 	}
 
 	self->trans.mtu = OBEX_MAXIMUM_MTU;
-	self->fd = usbobex_get_fd();
+	self->fd = usbobex_get_fd(self);
 	DEBUG(2, "transport mtu=%d\n", self->trans.mtu);
 	return 1;
 
