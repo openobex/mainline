@@ -253,8 +253,10 @@ int obex_data_indication(obex_t *self, uint8_t *buf, int buflen)
 			obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
 			return actual;
 		}
-		buf += actual;
-		buflen -= actual;
+		if (buf && buflen) {
+			buf += actual;
+			buflen -= actual;
+		}
 	}
 
 	/* If we have 3 bytes data we can decide how big the packet is */

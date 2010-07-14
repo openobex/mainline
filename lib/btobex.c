@@ -45,6 +45,7 @@
 #ifdef _WIN32
 bdaddr_t bluez_compat_bdaddr_any = { BTH_ADDR_NULL };
 #endif
+
 /*
  * Function btobex_prepare_connect (self, service)
  *
@@ -82,7 +83,7 @@ void btobex_prepare_listen(obex_t *self, bdaddr_t *src, uint8_t channel)
  *    Listen for incoming connections.
  *
  */
-int btobex_listen(obex_t *self)
+static int btobex_listen(obex_t *self)
 {
 	DEBUG(3, "\n");
 
@@ -121,7 +122,7 @@ out_freesock:
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-int btobex_accept(obex_t *self)
+static int btobex_accept(obex_t *self)
 {
 	socklen_t addrlen = sizeof(struct sockaddr_rc);
 	//int mtu;
@@ -146,7 +147,7 @@ int btobex_accept(obex_t *self)
  *    Open the RFCOMM connection
  *
  */
-int btobex_connect_request(obex_t *self)
+static int btobex_connect_request(obex_t *self)
 {
 	int ret;
 	int mtu = 0;
@@ -194,7 +195,7 @@ out_freesock:
  *    Shutdown the RFCOMM link
  *
  */
-int btobex_disconnect_request(obex_t *self)
+static int btobex_disconnect_request(obex_t *self)
 {
 	int ret;
 	DEBUG(4, "\n");
@@ -213,7 +214,7 @@ int btobex_disconnect_request(obex_t *self)
  * Used when we start handling a incomming request, or when the
  * client just want to quit...
  */
-int btobex_disconnect_server(obex_t *self)
+static int btobex_disconnect_server(obex_t *self)
 {
 	int ret;
 	DEBUG(4, "\n");
@@ -221,5 +222,16 @@ int btobex_disconnect_server(obex_t *self)
 	self->serverfd = INVALID_SOCKET;
 	return ret;
 }
+
+void btobex_get_ops(struct obex_transport_ops *ops)
+{
+	ops->write = &obex_transport_do_send;
+	ops->read = &obex_transport_do_recv;
+	ops->server.listen = &btobex_listen;
+	ops->server.accept = &btobex_accept;
+	ops->server.disconnect = &btobex_disconnect_server;
+	ops->client.connect = &btobex_connect_request;
+	ops->client.disconnect = &btobex_disconnect_request;
+};
 
 #endif /* HAVE_BLUETOOTH */

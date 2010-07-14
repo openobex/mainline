@@ -29,6 +29,9 @@
 #include <netinet/in.h>
 #endif
 
+/* forward declaration for all transport includes */
+struct obex_transport_ops;
+
 #ifdef HAVE_IRDA
 #include "irda_wrap.h"
 #endif /*HAVE_IRDA*/
@@ -43,6 +46,32 @@
 
 struct obex;
 struct databuffer;
+#include "databuffer.h"
+
+struct obex_transport_ops {
+	int (*init)();
+	void (*cleanup)();
+	int (*handle_input)(obex_t*, int);
+	int (*write)(obex_t*, buf_t*);
+	int (*read)(obex_t*, void*, int);
+
+	struct {
+		int (*listen)(obex_t*);
+		int (*accept)(obex_t*); /* optional */
+		int (*disconnect)(obex_t*);
+	} server;
+
+	struct {
+		int (*connect)(obex_t*);
+		int (*disconnect)(obex_t*);
+		int (*find_interfaces)(obex_interface_t**);
+		void (*free_interface)(obex_interface_t*);
+		int (*select_interface)(obex_t*, obex_interface_t*);
+	} client;
+};
+int obex_transport_standard_handle_input(obex_t *self, int timeout);
+int obex_transport_do_send(obex_t *self, buf_t *msg);
+int obex_transport_do_recv(obex_t *self, void *buf, int buflen);
 
 typedef union {
 #ifdef HAVE_IRDA
@@ -58,9 +87,10 @@ typedef union {
 } saddr_t;
 
 typedef struct obex_transport {
-	int	type;
-	int connected;	/* Link connection state */
-	unsigned int	mtu;		/* Tx MTU of the link */
+	int type;
+	struct obex_transport_ops ops;
+	int connected;		/* Link connection state */
+	unsigned int mtu;	/* Tx MTU of the link */
 	saddr_t	self;		/* Source address */
 	saddr_t	peer;		/* Destination address */
 

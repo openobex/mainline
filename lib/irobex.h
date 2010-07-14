@@ -24,12 +24,7 @@
 
 #define MAX_DEVICES 10     /* Max devices to discover */
 
+void irobex_get_ops(struct obex_transport_ops* ops);
 void irobex_prepare_connect(obex_t *self, const char *service);
 void irobex_prepare_listen(obex_t *self, const char *service);
-int irobex_listen(obex_t *self);
-int irobex_connect_request(obex_t *self);
-int irobex_disconnect_request(obex_t *self);
-int irobex_accept(obex_t *self);
-int irobex_disconnect_server(obex_t *self);
-
 #endif

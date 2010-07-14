@@ -117,7 +117,7 @@ void irobex_prepare_listen(obex_t *self, const char *service)
  *    Listen for incoming connections.
  *
  */
-int irobex_listen(obex_t *self)
+static int irobex_listen(obex_t *self)
 {
 	DEBUG(3, "\n");
 
@@ -177,7 +177,7 @@ out_freesock:
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-int irobex_accept(obex_t *self)
+static int irobex_accept(obex_t *self)
 {
 	socklen_t addrlen = sizeof(struct sockaddr_irda);
 
@@ -340,7 +340,7 @@ static int irobex_discover_devices(obex_t *self)
  *    Open the TTP connection
  *
  */
-int irobex_connect_request(obex_t *self)
+static int irobex_connect_request(obex_t *self)
 {
 	int ret;
 
@@ -405,7 +405,7 @@ out_freesock:
  *    Shutdown the IrTTP link
  *
  */
-int irobex_disconnect_request(obex_t *self)
+static int irobex_disconnect_request(obex_t *self)
 {
 	int ret;
 
@@ -428,7 +428,7 @@ int irobex_disconnect_request(obex_t *self)
  * Used when we start handling a incomming request, or when the
  * client just want to quit...
  */
-int irobex_disconnect_server(obex_t *self)
+static int irobex_disconnect_server(obex_t *self)
 {
 	int ret;
 
@@ -439,5 +439,16 @@ int irobex_disconnect_server(obex_t *self)
 
 	return ret;
 }
+
+void irobex_get_ops(struct obex_transport_ops* ops)
+{
+	ops->write = &obex_transport_do_send;
+	ops->read = &obex_transport_do_recv;
+	ops->server.listen = &irobex_listen;
+	ops->server.accept = &irobex_accept;
+	ops->server.disconnect = &irobex_disconnect_server;
+	ops->client.connect = &irobex_connect_request;
+	ops->client.disconnect = &irobex_disconnect_request;
+};
 
 #endif /* HAVE_IRDA */

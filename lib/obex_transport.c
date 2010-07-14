@@ -26,26 +26,12 @@
 
 #include "obex_main.h"
 #include "databuffer.h"
-
-#ifdef HAVE_IRDA
-#include "irobex.h"
-#endif /*HAVE_IRDA*/
-
-#include "inobex.h"
-
-#ifdef HAVE_BLUETOOTH
-#include "btobex.h"
-#endif /*HAVE_BLUETOOTH*/
-
-#ifdef HAVE_USB
-#include "usbobex.h"
-#endif /*HAVE_USB*/
-
 #include "obex_transport.h"
 
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <errno.h>
 
 #if defined(_WIN32)
 #include <io.h>
@@ -59,33 +45,77 @@
  */
 static int obex_transport_accept(obex_t *self)
 {
-	int ret = -1;
-
 	DEBUG(4, "\n");
 
-	switch (self->trans.type) {
-#ifdef HAVE_IRDA
-	case OBEX_TRANS_IRDA:
-		ret = irobex_accept(self);
-		break;
-#endif /*HAVE_IRDA*/
-	case OBEX_TRANS_INET:
-		ret = inobex_accept(self);
-		break;
-#ifdef HAVE_BLUETOOTH
-	case OBEX_TRANS_BLUETOOTH:
-		ret = btobex_accept(self);
-		break;
-#endif /*HAVE_BLUETOOTH*/
-	case OBEX_TRANS_FD:
-		/* no real accept on a file */
-		ret = 0;
-		break;
+	if (self->trans.ops.server.accept)
+		return self->trans.ops.server.accept(self);
 
-	default:
-		DEBUG(4, "domain not implemented!\n");
-		break;
+	
+	errno = EINVAL;
+	return -1;
+}
+
+int obex_transport_standard_handle_input(obex_t *self, int timeout)
+{
+	struct timeval time = {timeout, 0};
+	fd_set fdset;
+	socket_t highestfd = 0;
+	int ret;
+
+	DEBUG(4, "\n");
+	obex_return_val_if_fail(self != NULL, -1);
+
+	/* Check of we have any fd's to do select on. */
+	if (self->fd == INVALID_SOCKET
+	    && self->serverfd == INVALID_SOCKET) {
+		DEBUG(0, "No valid socket is open\n");
+		return -1;
 	}
+
+	/* Add the fd's to the set. */
+	FD_ZERO(&fdset);
+	if (self->fd != INVALID_SOCKET) {
+		FD_SET(self->fd, &fdset);
+		if (self->fd > highestfd)
+			highestfd = self->fd;
+	}
+
+	if (self->serverfd != INVALID_SOCKET) {
+		FD_SET(self->serverfd, &fdset);
+		if (self->serverfd > highestfd)
+			highestfd = self->serverfd;
+	}
+
+	/* Wait for input */
+	if (timeout >= 0) {
+		ret = select((int)highestfd+1, &fdset, NULL, NULL, &time);
+	} else {
+		ret = select((int)highestfd+1, &fdset, NULL, NULL, NULL);
+	}
+
+	/* Check if this is a timeout (0) or error (-1) */
+	if (ret < 1)
+		return ret;
+
+	if (self->fd != INVALID_SOCKET && FD_ISSET(self->fd, &fdset)) {
+		DEBUG(4, "Data available on client socket\n");
+		ret = obex_data_indication(self, NULL, 0);
+
+	} else if (self->serverfd != INVALID_SOCKET && FD_ISSET(self->serverfd, &fdset)) {
+		DEBUG(4, "Data available on server socket\n");
+		/* Accept : create the connected socket */
+		ret = obex_transport_accept(self);
+
+		/* Tell the app to perform the OBEX_Accept() */
+		if (self->keepserver)
+			obex_deliver_event(self, OBEX_EV_ACCEPTHINT,
+					   0, 0, FALSE);
+		/* Otherwise, just disconnect the server */
+		if (ret >= 0 && !self->keepserver)
+			obex_transport_disconnect_server(self);
+
+	} else
+		ret = -1;
 
 	return ret;
 }
@@ -98,80 +128,10 @@ static int obex_transport_accept(obex_t *self)
  */
 int obex_transport_handle_input(obex_t *self, int timeout)
 {
-	int ret;
-
-	if (self->trans.type == OBEX_TRANS_CUSTOM) {
-		if (self->ctrans.handleinput)
-			ret = self->ctrans.handleinput(self, self->ctrans.customdata, timeout);
-		else {
-			DEBUG(4, "No handleinput-callback exist!\n");
-			ret = -1;
-		}
-	} else if (self->trans.type == OBEX_TRANS_USB)
-		ret = obex_data_indication(self, NULL, 0);
-	else {
-		struct timeval time;
-		fd_set fdset;
-		socket_t highestfd = 0;
-
-		DEBUG(4, "\n");
-		obex_return_val_if_fail(self != NULL, -1);
-
-		/* Check of we have any fd's to do select on. */
-		if (self->fd == INVALID_SOCKET
-				 && self->serverfd == INVALID_SOCKET) {
-			DEBUG(0, "No valid socket is open\n");
-			return -1;
-		}
-
-		time.tv_sec = timeout;
-		time.tv_usec = 0;
-
-		/* Add the fd's to the set. */
-		FD_ZERO(&fdset);
-		if (self->fd != INVALID_SOCKET) {
-			FD_SET(self->fd, &fdset);
-			if (self->fd > highestfd)
-				highestfd = self->fd;
-		}
-
-		if (self->serverfd != INVALID_SOCKET) {
-			FD_SET(self->serverfd, &fdset);
-			if (self->serverfd > highestfd)
-				highestfd = self->serverfd;
-		}
-
-		/* Wait for input */
-		if (timeout >= 0) {
-			ret = select((int)highestfd+1, &fdset, NULL, NULL, &time);
-		} else {
-			ret = select((int)highestfd+1, &fdset, NULL, NULL, NULL);
-		}
-
-		/* Check if this is a timeout (0) or error (-1) */
-		if (ret < 1)
-			return ret;
-
-		if (self->fd != INVALID_SOCKET && FD_ISSET(self->fd, &fdset)) {
-			DEBUG(4, "Data available on client socket\n");
-			ret = obex_data_indication(self, NULL, 0);
-		} else if (self->serverfd != INVALID_SOCKET && FD_ISSET(self->serverfd, &fdset)) {
-			DEBUG(4, "Data available on server socket\n");
-			/* Accept : create the connected socket */
-			ret = obex_transport_accept(self);
-
-			/* Tell the app to perform the OBEX_Accept() */
-			if (self->keepserver)
-				obex_deliver_event(self, OBEX_EV_ACCEPTHINT,
-						   0, 0, FALSE);
-			/* Otherwise, just disconnect the server */
-			if (ret >= 0 && !self->keepserver)
-				obex_transport_disconnect_server(self);
-		} else
-			ret = -1;
-	}
-
-	return ret;
+	if (self->trans.ops.handle_input)
+		return self->trans.ops.handle_input(self, timeout);
+	else
+		return obex_transport_standard_handle_input(self, timeout);
 }
 
 /*
@@ -187,53 +147,12 @@ int obex_transport_connect_request(obex_t *self)
 	if (self->trans.connected)
 		return 1;
 
-	switch (self->trans.type) {
-#ifdef HAVE_IRDA
-	case OBEX_TRANS_IRDA:
-		ret = irobex_connect_request(self);
-		break;
-#endif /*HAVE_IRDA*/
-	case OBEX_TRANS_INET:
-		/* needed as compat for apps that call OBEX_TransportConnect
-		 * instead of InOBEX_TransportConnect (e.g. obexftp)
-		 */
-		if (self->trans.peer.inet6.sin6_family == AF_INET)
-			inobex_prepare_connect(self,
-					       (struct sockaddr*) &self->trans.peer.inet6,
-					       sizeof(self->trans.peer.inet6));
-		ret = inobex_connect_request(self);
-		break;
-	case OBEX_TRANS_CUSTOM:
-		DEBUG(4, "Custom connect\n");
-		if (self->ctrans.connect)
-			ret = self->ctrans.connect(self, self->ctrans.customdata);
-		else {
-			DEBUG(4, "No connect-callback exist!\n");
-		}
-		DEBUG(4, "ret=%d\n", ret);
-		break;
-#ifdef HAVE_BLUETOOTH
-	case OBEX_TRANS_BLUETOOTH:
-		ret = btobex_connect_request(self);
-		break;
-#endif /*HAVE_BLUETOOTH*/
-	case OBEX_TRANS_FD:
-		/* no real connect on the file */
-		if (self->fd != INVALID_SOCKET && self->writefd != INVALID_SOCKET)
-			ret = 0;
-		break;
-#ifdef HAVE_USB
-	case OBEX_TRANS_USB:
-		ret = usbobex_connect_request(self);
-		break;
-#endif /*HAVE_USB*/
-	default:
-		DEBUG(4, "Transport not implemented!\n");
-		break;
-	}
-
-	if (ret >= 0)
-		self->trans.connected = TRUE;
+	if (self->trans.ops.client.connect) {
+		ret = self->trans.ops.client.connect(self);
+		if (ret >= 0)
+			self->trans.connected = TRUE;
+	} else
+		errno = EINVAL;
 
 	return ret;
 }
@@ -246,42 +165,11 @@ int obex_transport_connect_request(obex_t *self)
  */
 void obex_transport_disconnect_request(obex_t *self)
 {
+	if (self->trans.ops.client.disconnect)
+		self->trans.ops.client.disconnect(self);
+	else
+		errno = EINVAL;
 
-	switch (self->trans.type) {
-#ifdef HAVE_IRDA
-	case OBEX_TRANS_IRDA:
-		irobex_disconnect_request(self);
-		break;
-#endif /*HAVE_IRDA*/
-	case OBEX_TRANS_INET:
-		inobex_disconnect_request(self);
-		break;
-	case OBEX_TRANS_CUSTOM:
-		DEBUG(4, "Custom disconnect\n");
-		if (self->ctrans.disconnect)
-			self->ctrans.disconnect(self, self->ctrans.customdata);
-		else {
-			DEBUG(4, "No disconnect-callback exist!\n");
-		}
-		break;
-#ifdef HAVE_BLUETOOTH
-	case OBEX_TRANS_BLUETOOTH:
-		btobex_disconnect_request(self);
-		break;
-#endif /*HAVE_BLUETOOTH*/
-	case OBEX_TRANS_FD:
-		/* no real disconnect on a file */
-		self->fd = self->writefd = INVALID_SOCKET;
-		break;
-#ifdef HAVE_USB
-	case OBEX_TRANS_USB:
-		usbobex_disconnect_request(self);
-		break;
-#endif /*HAVE_USB*/
-	default:
-		DEBUG(4, "Transport not implemented!\n");
-		break;
-	}
 	self->trans.connected = FALSE;
 }
 
@@ -293,41 +181,12 @@ void obex_transport_disconnect_request(obex_t *self)
  */
 int obex_transport_listen(obex_t *self)
 {
-	int ret = -1;
-
-	switch (self->trans.type) {
-#ifdef HAVE_IRDA
-	case OBEX_TRANS_IRDA:
-		ret = irobex_listen(self);
-		break;
-#endif /*HAVE_IRDA*/
-	case OBEX_TRANS_INET:
-		ret = inobex_listen(self);
-		break;
-	case OBEX_TRANS_CUSTOM:
-		DEBUG(4, "Custom listen\n");
-		if (self->ctrans.listen)
-			ret = self->ctrans.listen(self, self->ctrans.customdata);
-		else {
-			DEBUG(4, "No listen-callback exist!\n");
-		}
-		break;
-#ifdef HAVE_BLUETOOTH
-	case OBEX_TRANS_BLUETOOTH:
-		ret = btobex_listen(self);
-		break;
-#endif /*HAVE_BLUETOOTH*/
-	case OBEX_TRANS_FD:
-	case OBEX_TRANS_USB:
-		/* no real listen on the file or USB */
-		ret = 0;
-		break;
-	default:
-		DEBUG(4, "Transport %d not implemented!\n", self->trans.type);
-		break;
+	if (self->trans.ops.server.listen)
+		return self->trans.ops.server.listen(self);
+	else {
+		errno = EINVAL;
+		return -1;
 	}
-
-	return ret;
 }
 
 /*
@@ -341,40 +200,18 @@ int obex_transport_listen(obex_t *self)
  */
 void obex_transport_disconnect_server(obex_t *self)
 {
-
-	switch (self->trans.type) {
-#ifdef HAVE_IRDA
-	case OBEX_TRANS_IRDA:
-		irobex_disconnect_server(self);
-		break;
-#endif /*HAVE_IRDA*/
-	case OBEX_TRANS_INET:
-		inobex_disconnect_server(self);
-		break;
-	case OBEX_TRANS_CUSTOM:
-		DEBUG(4, "Custom disconnect\n");
-		break;
-#ifdef HAVE_BLUETOOTH
-	case OBEX_TRANS_BLUETOOTH:
-		btobex_disconnect_server(self);
-		break;
-#endif /*HAVE_BLUETOOTH*/
-	case OBEX_TRANS_FD:
-	case OBEX_TRANS_USB:
-		/* no real server on a file or USB */;
-		break;
-	default:
-		DEBUG(4, "Transport not implemented!\n");
-		break;
-	}
+	if (self->trans.ops.server.disconnect)
+		self->trans.ops.server.disconnect(self);
 }
 
 /*
  * does fragmented write
  */
-static int do_write(int fd, buf_t *msg, unsigned int mtu,
-		            ssize_t (*write_func)(int, const void *, size_t))
+int obex_transport_do_send (obex_t *self, buf_t *msg)
 {
+	int fd = self->fd;
+	unsigned int mtu = self->trans.mtu;
+
 	int actual = -1;
 	int size;
 
@@ -386,7 +223,7 @@ static int do_write(int fd, buf_t *msg, unsigned int mtu,
 			size = msg->data_size;
 		DEBUG(1, "sending %d bytes\n", size);
 
-		actual = write_func(fd, msg->data, size);
+		actual = send(fd, msg->data, size, 0);
 		if (actual <= 0)
 			return actual;
 
@@ -397,20 +234,6 @@ static int do_write(int fd, buf_t *msg, unsigned int mtu,
 	return actual;
 }
 
-static ssize_t send_wrap (int s, const void *buf, size_t len)
-{
-	return send(s,buf,len,0);
-}
-
-static ssize_t write_wrap (int s, const void *buf, size_t len)
-{
-#ifdef _WIN32
-	return _write(s,buf,len);
-#else
-	return write(s,buf,len);
-#endif
-}
-
 /*
  * Function obex_transport_write ()
  *
@@ -419,60 +242,15 @@ static ssize_t write_wrap (int s, const void *buf, size_t len)
  */
 int obex_transport_write(obex_t *self, buf_t *msg)
 {
-	int actual = -1;
-#if defined(HAVE_USB) && defined(HAVE_USB1)
-	int usberror;
-#endif
+	if (self->trans.ops.write)
+		return self->trans.ops.write(self, msg);
+	else
+		return -1;
+}
 
-	DEBUG(4, "\n");
-
-	switch (self->trans.type) {
-#ifdef HAVE_IRDA
-	case OBEX_TRANS_IRDA:
-#endif /*HAVE_IRDA*/
-#ifdef HAVE_BLUETOOTH
-	case OBEX_TRANS_BLUETOOTH:
-#endif /*HAVE_BLUETOOTH*/
-	case OBEX_TRANS_INET:
-		actual = do_write(self->fd, msg, self->trans.mtu, &send_wrap);
-		break;
-	case OBEX_TRANS_FD:
-		actual = do_write(self->writefd, msg, self->trans.mtu, &write_wrap);
-		break;
-#ifdef HAVE_USB
-	case OBEX_TRANS_USB:
-		if (self->trans.connected != TRUE)
-			break;
-		DEBUG(4, "Endpoint %d\n", self->trans.self.usb.data_endpoint_write);
-#ifdef HAVE_USB1
-		usberror = libusb_bulk_transfer(self->trans.self.usb.dev,
-					self->trans.self.usb.data_endpoint_write,
-					(unsigned char *) msg->data, msg->data_size,
-					&actual, USB_OBEX_TIMEOUT);
-		if (usberror)
-			actual = usberror;
-#else
-		actual = usb_bulk_write(self->trans.self.usb.dev,
-					self->trans.self.usb.data_endpoint_write,
-					(char *) msg->data, msg->data_size,
-					USB_OBEX_TIMEOUT);
-#endif
-		break;
-#endif /*HAVE_USB*/
-	case OBEX_TRANS_CUSTOM:
-		DEBUG(4, "Custom write\n");
-		if (self->ctrans.write)
-			actual = self->ctrans.write(self, self->ctrans.customdata, msg->data, msg->data_size);
-		else {
-			DEBUG(4, "No write-callback exist!\n");
-		}
-		break;
-	default:
-		DEBUG(4, "Transport not implemented!\n");
-		break;
-	}
-
-	return actual;
+int obex_transport_do_recv (obex_t *self, void *buf, int buflen)
+{
+	return recv(self->fd, buf, buflen, 0);
 }
 
 /*
@@ -481,72 +259,26 @@ int obex_transport_write(obex_t *self, buf_t *msg)
  *    Do the reading
  *
  */
-int obex_transport_read(obex_t *self, int max, uint8_t *buf, int buflen)
+int obex_transport_read(obex_t *self, int max, uint8_t *in, int len)
 {
 	int actual = -1;
-	buf_t *msg = self->rx_msg;
-#if defined(HAVE_USB) && defined(HAVE_USB1)
-	int usberror;
-#endif
+	void * buf = buf_reserve_end(self->rx_msg, max);
 
 	DEBUG(4, "Request to read max %d bytes\n", max);
 
-	switch (self->trans.type) {
-#ifdef HAVE_IRDA
-	case OBEX_TRANS_IRDA:
-#endif /*HAVE_IRDA*/
-#ifdef HAVE_BLUETOOTH
-	case OBEX_TRANS_BLUETOOTH:
-#endif /*HAVE_BLUETOOTH*/
-	case OBEX_TRANS_INET:
-		actual = recv(self->fd, buf_reserve_end(msg, max), max, 0);
-		if (actual > 0)
-			buf_remove_end(msg, max - actual);
-		break;
-	case OBEX_TRANS_FD:
-#ifdef _WIN32
-		actual = _read(self->fd, buf_reserve_end(msg, max), max);
-#else
-		actual = read(self->fd, buf_reserve_end(msg, max), max);
-#endif
-		if (actual > 0)
-			buf_remove_end(msg, max - actual);
-		break;
-#ifdef HAVE_USB
-	case OBEX_TRANS_USB:
-		if (self->trans.connected != TRUE)
-			break;
-		DEBUG(4, "Endpoint %d\n", self->trans.self.usb.data_endpoint_read);
-#ifdef HAVE_USB1
-		usberror = libusb_bulk_transfer(self->trans.self.usb.dev,
-					self->trans.self.usb.data_endpoint_read,
-					buf_reserve_end(msg, self->mtu_rx),
-					self->mtu_rx, &actual,
-					USB_OBEX_TIMEOUT);
-		if (usberror)
-			actual = usberror;
-#else
-		actual = usb_bulk_read(self->trans.self.usb.dev,
-					self->trans.self.usb.data_endpoint_read,
-					buf_reserve_end(msg, self->mtu_rx),
-					self->mtu_rx, USB_OBEX_TIMEOUT);
-#endif
-		buf_remove_end(msg, self->mtu_rx - actual);
-		break;
-#endif /*HAVE_USB*/
-	case OBEX_TRANS_CUSTOM:
-		if (buflen > max) {
-			memcpy(buf_reserve_end(msg, max), buf, max);
+	if (self->trans.ops.read)
+		actual = self->trans.ops.read(self, buf, max);
+	else if (len) {
+		actual = len;
+		if (actual > max)
 			actual = max;
-		} else {
-			memcpy(buf_reserve_end(msg, buflen), buf, buflen);
-			actual = buflen;
-		}
-		break;
-	default:
-		DEBUG(4, "Transport not implemented!\n");
-		break;
+		memcpy(buf, in, actual);
 	}
+
+	if (actual <= 0)
+		buf_remove_end(self->rx_msg, max);
+	else if (0 < actual && actual < max)
+		buf_remove_end(self->rx_msg, max - actual);
 
 	return actual;
 }

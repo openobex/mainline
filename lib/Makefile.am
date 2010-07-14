@@ -13,6 +13,8 @@ libopenobex_la_SOURCES = \
 	irobex.c irobex.h \
 	inobex.c inobex.h \
 	btobex.c btobex.h \
+	fdobex.c fdobex.h \
+	customtrans.c customtrans.h \
 	databuffer.c databuffer.h \
 	irda_wrap.h \
 	usbutils.c usbutils.h \

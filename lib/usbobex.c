@@ -46,14 +46,16 @@
 #include "usbutils.h"
 
 /*
- * Function usbobex_prepare_connect (self, interface)
+ * Function usbobex_select_interface (self, interface)
  *
  *    Prepare for USB OBEX connect
  *
  */
-void usbobex_prepare_connect(obex_t *self, struct obex_usb_intf_transport_t *intf)
+static int usbobex_select_interface(obex_t *self, obex_interface_t *intf)
 {
-	self->trans.self.usb = *intf;
+	obex_return_val_if_fail(intf->usb.intf != NULL, -1);
+	self->trans.self.usb = *intf->usb.intf;
+	return 0;
 }
 
 /*
@@ -228,7 +230,7 @@ static struct obex_usb_intf_transport_t *check_intf(struct usb_device *dev,
  *
  *    Find available USBOBEX interfaces on the system
  */
-int usbobex_find_interfaces(obex_interface_t **interfaces)
+static int usbobex_find_interfaces(obex_interface_t **interfaces)
 {
 	struct usb_bus *busses;
 	struct usb_bus *bus;
@@ -313,31 +315,24 @@ cleanup_list:
 }
 
 /*
- * Function usbobex_free_interfaces ()
+ * Function usbobex_free_interface ()
  *
- *    Free the list of discovered USBOBEX interfaces on the system
+ *    Free a discovered USBOBEX interface on the system
  */
-void usbobex_free_interfaces(int num, obex_interface_t *intf)
+static void usbobex_free_interface(obex_interface_t *intf)
 {
-	int i;
-
-	if (intf == NULL)
-		return;
-
-	for (i = 0; i < num; i++) {
-		free(intf[i].usb.manufacturer);
-		free(intf[i].usb.product);
-		free(intf[i].usb.serial);
-		free(intf[i].usb.configuration);
-		free(intf[i].usb.control_interface);
-		free(intf[i].usb.data_interface_idle);
-		free(intf[i].usb.data_interface_active);
-		free(intf[i].usb.service);
-		free(intf[i].usb.intf->extra_descriptors);
-		free(intf[i].usb.intf);
+	if (intf) {
+		free(intf->usb.manufacturer);
+		free(intf->usb.product);
+		free(intf->usb.serial);
+		free(intf->usb.configuration);
+		free(intf->usb.control_interface);
+		free(intf->usb.data_interface_idle);
+		free(intf->usb.data_interface_active);
+		free(intf->usb.service);
+		free(intf->usb.intf->extra_descriptors);
+		free(intf->usb.intf);
 	}
-
-	free(intf);
 }
 
 /*
@@ -346,7 +341,7 @@ void usbobex_free_interfaces(int num, obex_interface_t *intf)
  *    Open the USB connection
  *
  */
-int usbobex_connect_request(obex_t *self)
+static int usbobex_connect_request(obex_t *self)
 {
 	int ret;
 
@@ -402,7 +397,7 @@ err1:
  *    Shutdown the USB link
  *
  */
-int usbobex_disconnect_request(obex_t *self)
+static int usbobex_disconnect_request(obex_t *self)
 {
 	int ret;
 	if (self->trans.connected == FALSE)
@@ -432,5 +427,61 @@ int usbobex_disconnect_request(obex_t *self)
 
 	return ret;
 }
+
+static int usbobex_handle_input(obex_t *self, int timeout)
+{
+	return obex_data_indication(self, NULL, 0);
+}
+
+static int usbobex_write(obex_t *self, buf_t *msg)
+{
+	if (self->trans.connected != TRUE)
+		return -1;
+
+	DEBUG(4, "Endpoint %d\n", self->trans.self.usb.data_endpoint_write);
+	return usb_bulk_write(self->trans.self.usb.dev,
+			      self->trans.self.usb.data_endpoint_write,
+			      (char *) msg->data, msg->data_size,
+			      USB_OBEX_TIMEOUT);
+}
+
+static int usbobex_read (obex_t *self, void *buf, int buflen)
+{
+	int actual;
+
+	if (self->trans.connected != TRUE)
+		return -1;
+
+	/* USB can only read 0xFFFF bytes at once (equals mtu_rx) */
+	if (buflen < self->mtu_rx) {
+		buf_remove_end(self->rx_msg, buflen);
+		buf = buf_reserve_end(self->rx_msg, self->mtu_rx);
+	}
+
+	DEBUG(4, "Endpoint %d\n", self->trans.self.usb.data_endpoint_read);
+	actual = usb_bulk_read(self->trans.self.usb.dev,
+			       self->trans.self.usb.data_endpoint_read,
+			       buf, buflen, USB_OBEX_TIMEOUT);
+
+	if (buflen < self->mtu_rx) {
+		if (actual > buflen)
+			buflen = actual;
+		buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
+	}
+
+	return actual;
+}
+
+void usbobex_get_ops(struct obex_transport_ops* ops)
+{
+	ops->handle_input = &usbobex_handle_input;
+	ops->write = &usbobex_write;
+	ops->read = &usbobex_read;
+	ops->client.connect = &usbobex_connect_request;
+	ops->client.disconnect = &usbobex_disconnect_request;
+	ops->client.find_interfaces = &usbobex_find_interfaces;
+	ops->client.free_interface = &usbobex_free_interface;
+	ops->client.select_interface = &usbobex_select_interface;
+};
 
 #endif /* HAVE_USB */

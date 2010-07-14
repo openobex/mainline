@@ -21,13 +21,7 @@
 
 #ifndef INOBEX_H
 #define INOBEX_H
-
+void inobex_get_ops(struct obex_transport_ops* ops);
 void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen);
 void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen);
-int inobex_listen(obex_t *self);
-int inobex_accept(obex_t *self);
-int inobex_connect_request(obex_t *self);
-int inobex_disconnect_request(obex_t *self);
-int inobex_disconnect_server(obex_t *self);
-
 #endif

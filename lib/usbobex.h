@@ -100,9 +100,5 @@ struct cdc_union_desc {
 #define USB_MAX_STRING_SIZE		256
 #define USB_OBEX_TIMEOUT		10000 /* 10 seconds */
 
-void usbobex_prepare_connect(obex_t *self, struct obex_usb_intf_transport_t *intf);
-int usbobex_connect_request(obex_t *self);
-int usbobex_disconnect_request(obex_t *self);
-int usbobex_find_interfaces(obex_interface_t **interfaces);
-void usbobex_free_interfaces(int num, obex_interface_t *intf);
+void usbobex_get_ops(struct obex_transport_ops* ops);
 #endif

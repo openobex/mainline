@@ -23,13 +23,9 @@
 #define BTOBEX_H
 
 #include "bluez_compat.h"
+#include "obex_transport.h"
 
+void btobex_get_ops(struct obex_transport_ops* ops);
 void btobex_prepare_connect(obex_t *self, bdaddr_t *src, bdaddr_t *dst, uint8_t channel);
 void btobex_prepare_listen(obex_t *self, bdaddr_t *src, uint8_t channel);
-int btobex_listen(obex_t *self);
-int btobex_connect_request(obex_t *self);
-int btobex_disconnect_request(obex_t *self);
-int btobex_accept(obex_t *self);
-int btobex_disconnect_server(obex_t *self);
-
 #endif

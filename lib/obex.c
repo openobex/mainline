@@ -51,6 +51,8 @@ static unsigned long wsa_init = 0;
 #include "obex_client.h"
 #include "databuffer.h"
 
+#include "fdobex.h"
+#include "customtrans.h"
 #include "inobex.h"
 
 #ifdef HAVE_IRDA
@@ -138,17 +140,54 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 
 	/* Safe values.
 	 * Both self->mtu_rx and self->mtu_tx_max can be increased by app
-	 * self->mtu_tx will be whatever the other end sneds us - Jean II */
-	/* Set MTU to the maximum, if using USB transport - Alex Kanavin */
-	if (transport == OBEX_TRANS_USB) {
+	 * self->mtu_tx will be whatever the other end sends us - Jean II */
+	self->mtu_rx = OBEX_DEFAULT_MTU;
+	self->mtu_tx = OBEX_MINIMUM_MTU;
+	self->mtu_tx_max = OBEX_DEFAULT_MTU;
+
+	memset(&self->trans.ops, 0, sizeof(self->trans.ops));
+	switch (transport) {
+#ifdef HAVE_IRDA
+	case OBEX_TRANS_IRDA:
+		irobex_get_ops(&self->trans.ops);
+		break;
+#endif /*HAVE_IRDA*/
+
+	case OBEX_TRANS_INET:
+		inobex_get_ops(&self->trans.ops);
+		break;
+
+	case OBEX_TRANS_CUSTOM:
+		custom_get_ops(&self->trans.ops);
+		break;
+
+#ifdef HAVE_BLUETOOTH
+	case OBEX_TRANS_BLUETOOTH:
+		btobex_get_ops(&self->trans.ops);
+		break;
+#endif /*HAVE_BLUETOOTH*/
+
+	case OBEX_TRANS_FD:
+		fdobex_get_ops(&self->trans.ops);
+		break;
+
+#ifdef HAVE_USB
+	case OBEX_TRANS_USB:
+		usbobex_get_ops(&self->trans.ops);
+		/* Set MTU to the maximum, if using USB transport - Alex Kanavin */
 		self->mtu_rx = OBEX_MAXIMUM_MTU;
 		self->mtu_tx = OBEX_MINIMUM_MTU;
 		self->mtu_tx_max = OBEX_MAXIMUM_MTU;
-	} else {
-		self->mtu_rx = OBEX_DEFAULT_MTU;
-		self->mtu_tx = OBEX_MINIMUM_MTU;
-		self->mtu_tx_max = OBEX_DEFAULT_MTU;
+		break;
+#endif /*HAVE_USB*/
+
+	default:
+		goto out_err;
 	}
+
+	if (self->trans.ops.init)
+		if (self->trans.ops.init() < 0)
+			goto out_err;
 
 	/* Allocate message buffers */
 	/* It's safe to allocate them smaller than OBEX_MAXIMUM_MTU
@@ -169,11 +208,7 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 	return self;
 
 out_err:
-	if (self->tx_msg != NULL)
-		buf_free(self->tx_msg);
-	if (self->rx_msg != NULL)
-		buf_free(self->rx_msg);
-	free(self);
+	OBEX_Cleanup(self);
 	return NULL;
 }
 
@@ -218,7 +253,13 @@ void CALLAPI OBEX_Cleanup(obex_t *self)
 		buf_free(self->rx_msg);
 
 	OBEX_FreeInterfaces(self);
+	if (self->trans.ops.cleanup)
+		self->trans.ops.cleanup();	
 	free(self);
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
 }
 
 /**
@@ -1134,18 +1175,12 @@ int CALLAPI OBEX_InterfaceConnect(obex_t *self, obex_interface_t *intf)
 	}
 
 	obex_return_val_if_fail(intf != NULL, -1);
-	switch (self->trans.type) {
-	case OBEX_TRANS_USB:
-		obex_return_val_if_fail(intf->usb.intf != NULL, -1);
-#ifdef HAVE_USB
-		usbobex_prepare_connect(self, intf->usb.intf);
+	if (self->trans.ops.client.select_interface) {
+		if (self->trans.ops.client.select_interface(self, intf) == -1)
+			return -1;
 		return obex_transport_connect_request(self);
-#else
+	} else
 		return -ESOCKTNOSUPPORT;
-#endif /* HAVE_USB */
-	default:
-		return -ESOCKTNOSUPPORT;
-	}
 }
 
 /**
@@ -1161,15 +1196,8 @@ int CALLAPI OBEX_EnumerateInterfaces(obex_t *self)
 	obex_return_val_if_fail(self != NULL, -1);
 
 	OBEX_FreeInterfaces(self);
-	switch (self->trans.type) {
-	case OBEX_TRANS_USB:
-#ifdef HAVE_USB
-		self->interfaces_number = usbobex_find_interfaces(&self->interfaces);
-#endif
-		break;
-	default:
-		break;
-	}
+	if (self->trans.ops.client.find_interfaces)
+		self->interfaces_number = self->trans.ops.client.find_interfaces(&self->interfaces);
 
 	return self->interfaces_number;
 }
@@ -1202,20 +1230,18 @@ obex_interface_t * CALLAPI OBEX_GetInterfaceByIndex(obex_t *self, int i)
 LIB_SYMBOL
 void CALLAPI OBEX_FreeInterfaces(obex_t *self)
 {
+	int i = 0;
 	DEBUG(4, "\n");
 
 	obex_return_if_fail(self != NULL);
 
-	switch (self->trans.type) {
-	case OBEX_TRANS_USB:
-#ifdef HAVE_USB
-		usbobex_free_interfaces(self->interfaces_number, self->interfaces);
+	if (self->interfaces) {
+		if (self->trans.ops.client.free_interface)
+			for (; i < self->interfaces_number; ++i) {
+				self->trans.ops.client.free_interface(&self->interfaces[i]);
+			}
+		free(self->interfaces);
 		self->interfaces = NULL;
-#endif
-		break;
-	default:
-		break;
 	}
-
 	self->interfaces_number = 0;
 }

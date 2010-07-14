@@ -32,6 +32,8 @@ set ( SOURCES
   obex_transport.c
   databuffer.c
   inobex.c
+  fdobex.c
+  customtrans.c
 )
 
 set ( HEADERS
@@ -48,6 +50,8 @@ set ( HEADERS
   obex_incl.h
   visibility.h
   inobex.h
+  fdobex.h
+  customtrans.h
 )
 
 set ( openobex_PUBLIC_HEADER

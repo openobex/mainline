@@ -144,7 +144,7 @@ void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
  *    Wait for incomming connections
  *
  */
-int inobex_listen(obex_t *self)
+static int inobex_listen(obex_t *self)
 {
 	DEBUG(4, "\n");
 
@@ -191,7 +191,7 @@ int inobex_listen(obex_t *self)
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-int inobex_accept(obex_t *self)
+static int inobex_accept(obex_t *self)
 {
 	socklen_t addrlen = sizeof(struct sockaddr_in6);
 
@@ -210,12 +210,20 @@ int inobex_accept(obex_t *self)
 /*
  * Function inobex_connect_request (self)
  */
-int inobex_connect_request(obex_t *self)
+static int inobex_connect_request(obex_t *self)
 {
 	int ret;
 #ifndef _WIN32
 	char addr[INET6_ADDRSTRLEN];
 #endif
+
+	/* needed as compat for apps that call OBEX_TransportConnect
+	 * instead of InOBEX_TransportConnect (e.g. obexftp)
+	 */
+	if (self->trans.peer.inet6.sin6_family == AF_INET)
+		inobex_prepare_connect(self,
+				       (struct sockaddr*) &self->trans.peer.inet6,
+				       sizeof(self->trans.peer.inet6));
 
 	self->fd = obex_create_socket(self, AF_INET6);
 	if (self->fd == INVALID_SOCKET)
@@ -268,7 +276,7 @@ int inobex_connect_request(obex_t *self)
  *    Shutdown the TCP/IP link
  *
  */
-int inobex_disconnect_request(obex_t *self)
+static int inobex_disconnect_request(obex_t *self)
 {
 	int ret;
 	DEBUG(4, "\n");
@@ -287,7 +295,7 @@ int inobex_disconnect_request(obex_t *self)
  * Used when we start handling a incomming request, or when the
  * client just want to quit...
  */
-int inobex_disconnect_server(obex_t *self)
+static int inobex_disconnect_server(obex_t *self)
 {
 	int ret;
 	DEBUG(4, "\n");
@@ -295,3 +303,14 @@ int inobex_disconnect_server(obex_t *self)
 	self->serverfd = INVALID_SOCKET;
 	return ret;
 }
+
+void inobex_get_ops(struct obex_transport_ops* ops)
+{
+	ops->write = &obex_transport_do_send;
+	ops->read = &obex_transport_do_recv;
+	ops->server.listen = &inobex_listen;
+	ops->server.accept = &inobex_accept;
+	ops->server.disconnect = &inobex_disconnect_server;
+	ops->client.connect = &inobex_connect_request;
+	ops->client.disconnect = &inobex_disconnect_request;
+};
