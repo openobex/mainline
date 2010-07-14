@@ -1049,21 +1049,19 @@ int CALLAPI IrOBEX_ServerRegister(obex_t *self, const char *service)
 LIB_SYMBOL
 int CALLAPI IrOBEX_TransportConnect(obex_t *self, const char *service)
 {
+	obex_interface_t *intf;
+	int err;
+
 	DEBUG(4, "\n");
 
-	obex_return_val_if_fail(self != NULL, -1);
+	err = OBEX_EnumerateInterfaces(self);
+	if (err <= 0)
+		return err;
 
-	if (self->object) {
-		DEBUG(1, "We are busy.\n");
-		return -EBUSY;
-	}
+	intf = OBEX_GetInterfaceByIndex(self, 0);
+	intf->irda.service = service;
 
-#ifdef HAVE_IRDA
-	irobex_prepare_connect(self, service);
-	return obex_transport_connect_request(self);
-#else
-	return -ESOCKTNOSUPPORT;
-#endif /* HAVE_IRDA */
+	return OBEX_InterfaceConnect(self, intf);
 }
 
 /**

@@ -99,8 +99,27 @@ typedef struct {
 	struct obex_usb_intf_transport_t *intf;
 } obex_usb_intf_t;
 
+/** IrDA-specific OBEX interface information */
+typedef struct {
+	/** Address of local interface */
+	uint32_t local;
+	/** Address of remote device */
+	uint32_t remote;
+	/** Description */
+	char *info;
+	/** Charset used for description */
+	uint8_t	charset;
+	/* Hint bits */
+	uint8_t	hints[2];
+
+	/* service selector, filled by application, "OBEX" if NULL */
+	const char *service;
+} obex_irda_intf_t;
+
 /** Generic OBEX interface information */
 typedef union {
+	/** IrDA-specific OBEX interface information */
+	obex_irda_intf_t irda;
 	/** USB-specific OBEX interface information */
 	obex_usb_intf_t usb;
 	//obex_bluetooth_intf_t bt; // to be added

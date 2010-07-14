@@ -31,6 +31,10 @@
 
 #include "irda_wrap.h"
 
+#ifndef EADDRNOTAVAIL
+#define EADDRNOTAVAIL WSAEADDRNOTAVAIL
+#endif
+
 #else /* _WIN32 */
 /* Linux case */
 
@@ -40,6 +44,7 @@
 #include <errno.h>		/* errno and EADDRNOTAVAIL */
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <stdlib.h>
 
 #include "irda_wrap.h"
 
@@ -63,15 +68,69 @@ static int irobex_no_addr(struct sockaddr_irda *addr)
 #ifndef _WIN32
 	return ((addr->sir_addr == 0x0) || (addr->sir_addr == 0xFFFFFFFF));
 #else
-	return ( ((addr->irdaDeviceID[0] == 0x00) &&
+	return (((addr->irdaDeviceID[0] == 0x00) &&
 		 (addr->irdaDeviceID[1] == 0x00) &&
 		 (addr->irdaDeviceID[2] == 0x00) &&
 		 (addr->irdaDeviceID[3] == 0x00)) ||
 		((addr->irdaDeviceID[0] == 0xFF) &&
 		 (addr->irdaDeviceID[1] == 0xFF) &&
 		 (addr->irdaDeviceID[2] == 0xFF) &&
-		 (addr->irdaDeviceID[3] == 0xFF)) );
+		 (addr->irdaDeviceID[3] == 0xFF)));
 #endif /* _WIN32 */
+}
+
+static int irobex_query_ias (obex_t *self, uint32_t addr, const char* class_name)
+{
+	int err;
+	struct irda_ias_set ias_query;
+	socklen_t len = sizeof(ias_query);
+
+	/* Ask if the requested service exist on this device */
+#ifndef _WIN32
+	ias_query.daddr = addr;
+	strncpy(ias_query.irda_class_name, class_name, IAS_MAX_CLASSNAME);
+	strncpy(ias_query.irda_attrib_name, "IrDA:TinyTP:LsapSel", IAS_MAX_ATTRIBNAME);
+#else
+	ias_query.irdaDeviceID[0] = (addr >> 24) & 0xFF;
+	ias_query.irdaDeviceID[1] = (addr >> 16) & 0xFF;
+	ias_query.irdaDeviceID[2] = (addr >> 8) & 0xFF;
+	ias_query.irdaDeviceID[3] = addr & 0xFF;
+	strncpy(ias_query.irdaClassName, class_name, IAS_MAX_CLASSNAME);
+	strncpy(ias_query.irdaAttribName, "IrDA:TinyTP:LsapSel", IAS_MAX_ATTRIBNAME);
+#endif
+	err = getsockopt(self->fd, SOL_IRLMP, IRLMP_IAS_QUERY, (void*)&ias_query, &len);
+	if (err == -1) {
+		if (errno != EADDRNOTAVAIL) {
+			DEBUG(1, " <can't query IAS>\n");
+		} else {
+			DEBUG(1, ", doesn't have %s\n", class_name);
+		}
+		return 0;
+	}
+	DEBUG(1, ", has service %s\n", class_name);
+
+	return 1;
+}
+
+static int irobex_select_interface(obex_t *self, obex_interface_t *intf)
+{
+	self->trans.peer.irda.sir_family = AF_IRDA;
+	strncpy(self->trans.peer.irda.sir_name, intf->irda.service,
+		sizeof(self->trans.peer.irda.sir_name));
+	self->trans.self.irda.sir_family = AF_IRDA;
+#ifndef _WIN32
+	self->trans.peer.irda.sir_lsap_sel = LSAP_ANY;
+	self->trans.peer.irda.sir_addr = intf->irda.remote;
+	self->trans.self.irda.sir_addr = intf->irda.local;
+#else
+	self->trans.peer.irda.irdaDeviceID[0] = (intf->irda.remote >> 24) & 0xFF;
+	self->trans.peer.irda.irdaDeviceID[1] = (intf->irda.remote >> 16) & 0xFF;
+	self->trans.peer.irda.irdaDeviceID[2] = (intf->irda.remote >> 8) & 0xFF;
+	self->trans.peer.irda.irdaDeviceID[3] = intf->irda.remote & 0xFF;
+	memset(self->trans.self.irda.irdaDeviceID, 0, sizeof(self->trans.self.irda.irdaDeviceID));
+#endif
+
+	return 0;
 }
 
 /*
@@ -82,12 +141,34 @@ static int irobex_no_addr(struct sockaddr_irda *addr)
  */
 void irobex_prepare_connect(obex_t *self, const char *service)
 {
-	self->trans.peer.irda.sir_family = AF_IRDA;
+	int fd = obex_create_socket(self, AF_IRDA);
+	int i = 0;
 
-	if (service)
-		strncpy(self->trans.peer.irda.sir_name, service, 25);
-	else
-		strcpy(self->trans.peer.irda.sir_name, "OBEX");
+	obex_transport_enumerate(self);
+	if (self->interfaces_number == 0) {
+		DEBUG(1, "No devices in range\n");
+		goto out_freesock;
+	}
+
+	if (service == NULL)
+		service = "OBEX";
+
+	/* Do we want to filter devices based on IAS ? */
+	if (self->filterias) {
+		for (; i < self->interfaces_number; ++i) {
+			obex_irda_intf_t *intf = &self->interfaces[i].irda;
+			if (irobex_query_ias(self, intf->remote, service))
+				break;
+		}
+		if (i >= self->interfaces_number)
+			goto out_freesock;
+	}
+	self->interfaces[i].irda.service = service;
+	irobex_select_interface(self, &self->interfaces[i]);
+	self->interfaces[i].irda.service = NULL;
+
+out_freesock:
+	obex_delete_socket(self, fd);
 }
 
 /*
@@ -100,14 +181,32 @@ void irobex_prepare_listen(obex_t *self, const char *service)
 {
 	/* Bind local service */
 	self->trans.self.irda.sir_family = AF_IRDA;
-
-	if (service == NULL)
-		strncpy(self->trans.self.irda.sir_name, "OBEX", 25);
-	else
-		strncpy(self->trans.self.irda.sir_name, service, 25);
-
 #ifndef _WIN32
 	self->trans.self.irda.sir_lsap_sel = LSAP_ANY;
+#endif /* _WIN32 */
+
+	if (service == NULL)
+		service = "OBEX";
+	strncpy(self->trans.peer.irda.sir_name, service,
+		sizeof(self->trans.peer.irda.sir_name));
+}
+
+static void irobex_set_hint_bit(obex_t *self)
+{
+#ifndef _WIN32
+	/* Hint be we advertise */
+	unsigned char hints[4] = { 
+		HINT_EXTENSION, HINT_OBEX, 0, 0,
+	};
+
+	/* Tell the stack about it.
+	 * This command is not supported by older kernels,
+	 * so ignore any errors!
+	 */
+	(void)setsockopt(self->serverfd, SOL_IRLMP, IRLMP_HINTS_SET,
+			 hints, sizeof(hints));
+#else /* _WIN32 */
+	/* The registry must be changed to set the hint bit. */
 #endif /* _WIN32 */
 }
 
@@ -133,27 +232,7 @@ static int irobex_listen(obex_t *self)
 		goto out_freesock;
 	}
 
-#ifndef _WIN32
-	/* Ask the IrDA stack to advertise the Obex hint bit - Jean II */
-	/* Under Linux, it's a regular socket option */
-	{
-		unsigned char hints[4];	/* Hint be we advertise */
-
-		/* We want to advertise the OBEX hint bit */
-		hints[0] = HINT_EXTENSION;
-		hints[1] = HINT_OBEX;
-
-		/* Tell the stack about it */
-		if (setsockopt(self->serverfd, SOL_IRLMP, IRLMP_HINTS_SET,
-			       hints, sizeof(hints))) {
-			/* This command is not supported by older kernels,
-			   so ignore any errors! */
-		}
-	}
-#else /* _WIN32 */
-	/* Ask the IrDA stack to advertise the Obex hint bit */
-	/* Under Windows, it's a complicated story */
-#endif /* _WIN32 */
+	irobex_set_hint_bit(self);
 
 	if (listen(self->serverfd, 1)) {
 		DEBUG(0, "Error doing listen\n");
@@ -167,6 +246,27 @@ out_freesock:
 	obex_delete_socket(self, self->serverfd);
 	self->serverfd = INVALID_SOCKET;
 	return -1;
+}
+
+static unsigned int irobex_get_mtu(obex_t *self)
+{
+#ifndef _WIN32
+	int mtu;
+	socklen_t len = sizeof(mtu);
+
+	/* Check what the IrLAP data size is */
+	if (getsockopt(self->fd, SOL_IRLMP, IRTTP_MAX_SDU_SIZE,
+		       (void *) &mtu, &len))
+		return 0;
+#else
+	DWORD mtu;
+	int len = sizeof(mtu);
+
+	if (getsockopt(self->fd, SOL_IRLMP, IRLMP_SEND_PDU_LEN,
+		       (char *) &mtu, &len))
+		return 0;
+#endif /* _WIN32 */
+	return (int)mtu;
 }
 
 /*
@@ -189,36 +289,14 @@ static int irobex_accept(obex_t *self)
 	if (self->fd == INVALID_SOCKET)
 		return -1;
 
-	{
-#ifndef _WIN32
-		int mtu;
-		socklen_t len = sizeof(mtu);
-
-		/* Check what the IrLAP data size is */
-		if (getsockopt(self->fd, SOL_IRLMP, IRTTP_MAX_SDU_SIZE,
-			       (void *) &mtu, &len))
-			return -1;
-#else
-		DWORD mtu;
-		int len = sizeof(mtu);
-
-		if (getsockopt(self->fd, SOL_IRLMP, IRLMP_SEND_PDU_LEN,
-			       (char *) &mtu, &len))
-			return -1;
-#endif /* _WIN32 */
-		self->trans.mtu = mtu;
-		DEBUG(3, "transport mtu=%d\n", mtu);
-	}
-
+	self->trans.mtu = irobex_get_mtu(self);
+	DEBUG(3, "transport mtu=%d\n", self->trans.mtu);
 
 	return 1;
 }
 
-/* Memory allocation for discovery */
-#define DISC_BUF_LEN	sizeof(struct irda_device_list) + \
-			sizeof(struct irda_device_info) * (MAX_DEVICES)
 /*
- * Function irobex_discover_devices (self)
+ * Function irobex_find_interfaces()
  *
  *    Try to discover some remote device(s) that we can connect to
  *
@@ -228,110 +306,115 @@ static int irobex_accept(obex_t *self)
  * is done "the right way", so that it's safe and we don't leak memory...
  * Jean II
  */
-static int irobex_discover_devices(obex_t *self)
+static int irobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 {
 	struct irda_device_list *list;
-	unsigned char buf[DISC_BUF_LEN];
-	int ret = -1;
-	socklen_t len;
-	uint32_t i;
+	struct irda_device_info *dev;
+	unsigned char buf[sizeof(*list) + ((MAX_DEVICES-1) * sizeof(*dev))];
+	socklen_t len = sizeof(buf);
+	int count = 0;
+	int fd = obex_create_socket(self, AF_IRDA);
+
+	if (fd == INVALID_SOCKET)
+		goto out;
 
 #ifndef _WIN32
-	/* Hint bit filtering. Linux case */
+	/* Hint bit filtering, if possible */
 	if (self->filterhint) {
-		unsigned char hints[4];	/* Hint be we filter on */
+		unsigned char hints[4] = {
+			HINT_EXTENSION, HINT_OBEX, 0, 0,
+		};
+		int err;
 
-		/* We want only devices that advertise OBEX hint */
-		hints[0] = HINT_EXTENSION;
-		hints[1] = HINT_OBEX;
 
 		/* Set the filter used for performing discovery */
-		if (setsockopt(self->fd, SOL_IRLMP, IRLMP_HINT_MASK_SET,
-			       hints, sizeof(hints))) {
-			perror("setsockopt:");
-			return -1;
+		err = setsockopt(fd, SOL_IRLMP, IRLMP_HINT_MASK_SET,
+				 hints, sizeof(hints));
+		if (err == -1) {
+			perror("setsockopt");
+			goto out;
 		}
 	}
-#endif /* _WIN32 */
-
-	/* Set the list to point to the correct place */
-	list = (struct irda_device_list *) buf;
-	len = DISC_BUF_LEN;
+#endif
 
 	/* Perform a discovery and get device list */
-	if (getsockopt(self->fd, SOL_IRLMP, IRLMP_ENUMDEVICES, (char *)buf, &len)) {
+	if (getsockopt(fd, SOL_IRLMP, IRLMP_ENUMDEVICES, (char *)buf, &len)) {
 		DEBUG(1, "Didn't find any devices!\n");
-		return -1;
+		return 0;
 	}
+
+	list = (struct irda_device_list *)buf;
+#ifndef _WIN32
+	count = (int)list->len;
+	dev = list->dev;
+#else
+	count = (int)list->numDevice;
+	dev = list->Device;
+#endif
+	if (count > 0) {
+		int i = 0;
+		uint32_t k = 0;
+		*interfaces = calloc(count, sizeof(**interfaces));
+
+		DEBUG(1, "Discovered %u devices:\n", count);
+		for (; i < count; ++i) {
+			obex_irda_intf_t *intf = &((*interfaces)+k)->irda;
 
 #ifndef _WIN32
-	/* Did we get any ? (in some rare cases, this test is true) */
-	if (list->len <= 0) {
-		DEBUG(1, "Didn't find any devices!\n");
-		return -1;
-	}
-
-	/* List all Obex devices : Linux case */
-	DEBUG(1, "Discovered %d devices :\n", list->len);
-	for (i = 0; i < list->len; i++) {
-		DEBUG(1, "  [%d] name:  %s, daddr: 0x%08x",
-		      i + 1, list->dev[i].info, list->dev[i].daddr);
-		/* fflush(stdout); */
-
-		/* Do we want to filter devices based on IAS ? */
-		if (self->filterias) {
-			int err;
-			struct irda_ias_set ias_query;
-			/* Ask if the requested service exist on this device */
-			len = sizeof(ias_query);
-			ias_query.daddr = list->dev[i].daddr;
-			strcpy(ias_query.irda_class_name,
-			       self->trans.peer.irda.sir_name);
-			strcpy(ias_query.irda_attrib_name,
-			       "IrDA:TinyTP:LsapSel");
-			err = getsockopt(self->fd, SOL_IRLMP, IRLMP_IAS_QUERY,
-					 &ias_query, &len);
-			/* Check if we failed */
-			if (err != 0) {
-				if (errno != EADDRNOTAVAIL)
-					DEBUG(1, " <can't query IAS>\n");
-				else {
-					DEBUG(1, ", doesn't have %s\n",
-					      self->trans.peer.irda.sir_name);
-				}
-				/* Go back to for(;;) */
-				continue;
-			}
-			DEBUG(1, ", has service %s\n",
-			      self->trans.peer.irda.sir_name);
-		} else {
-			DEBUG(1, "\n");
-		}
-
-		/* Pick this device */
-		self->trans.peer.irda.sir_addr = list->dev[i].daddr;
-		self->trans.self.irda.sir_addr = list->dev[i].saddr;
-		ret = 0;
-	}
+			intf->local = dev[i].saddr;
+			intf->remote = dev[i].daddr;
+			intf->charset = dev[i].charset;
+			/* allocate enough space to make sure the string is
+			 * zero-terminated
+			 */
+			intf->info = calloc(sizeof(dev[i].info)+2, 1);
+			if (intf->info)
+				memcpy(intf->info, dev[i].info, sizeof(dev[i].info));
+			intf->hints[0] = dev[i].hints[0];
+			intf->hints[1] = dev[i].hints[1];
 #else
-	/* List all Obex devices : Win32 case */
-	if (len > 0) {
-		DEBUG(1, "Discovered: (list len=%d)\n", list->numDevice);
+			if (self->filterhint &&
+			    ((dev[i].irdaDeviceHints1 & LM_HB_Extension) == 0 ||
+			     (dev[i].irdaDeviceHints2 & 0x20) == 0))
+				continue;
 
-		for (i = 0; i < (uint32_t)list->numDevice; ++i) {
-			DEBUG(1, "  name:  %s\n", list->Device[i].irdaDeviceName);
-			DEBUG(1, "  daddr: %08x\n", list->Device[i].irdaDeviceID);
-			memcpy(&self->trans.peer.irda.irdaDeviceID[0], &list->Device[i].irdaDeviceID[0], 4);
-			ret = 0;
+			intf->remote = dev[i].irdaDeviceID[3]
+				| dev[i].irdaDeviceID[2] << 8
+				| dev[i].irdaDeviceID[1] << 16
+				| dev[i].irdaDeviceID[0] << 24;
+			intf->charset = dev[i].irdaCharSet;
+			/* allocate enough space to make sure the
+			 * string is zero-terminated */
+			intf->info = calloc(sizeof(dev[i].irdaDeviceName)+2, 1);
+			if (intf->info)
+				memcpy(intf->info, dev[i].irdaDeviceName,
+				       sizeof(dev[i].irdaDeviceName));
+			intf->hints[0] = dev[i].irdaDeviceHints1;
+			intf->hints[1] = dev[i].irdaDeviceHints2;
+#endif
+			++k;
+			DEBUG(1, "  [%d] daddr: 0x%08x\n", i+1, intf->remote);
 		}
+		count = k;
 	}
-#endif /* _WIN32 */
 
-	if (ret <  0) {
+	if (count == 0) {
 		DEBUG(1, "didn't find any OBEX devices!\n");
 	}
 
-	return ret;
+out:
+	obex_delete_socket(self, fd);
+	return count;
+}
+
+static void irobex_free_interface(obex_interface_t *intf)
+{
+	if (intf) {
+		if (intf->irda.info) {
+			free(intf->irda.info);
+			intf->irda.info = NULL;
+		}
+	}
 }
 
 /*
@@ -342,25 +425,18 @@ static int irobex_discover_devices(obex_t *self)
  */
 static int irobex_connect_request(obex_t *self)
 {
-	int ret;
+	int ret = -1;
 
 	DEBUG(4, "\n");
+
+	/* Check if the application did supply a valid address. */
+	if (irobex_no_addr(&self->trans.peer.irda))
+		return -1;
 
 	if (self->fd  == INVALID_SOCKET) {
 		self->fd = obex_create_socket(self, AF_IRDA);
 		if (self->fd == INVALID_SOCKET)
 			return -1;
-	}
-
-	/* Check if the application did supply a valid address.
-	 * You need to use OBEX_TransportConnect() for that. Jean II */
-	if (irobex_no_addr(&self->trans.peer.irda)) {
-		/* Nope. Go find one... */
-		ret = irobex_discover_devices(self);
-		if (ret < 0) {
-			DEBUG(1, "No devices in range\n");
-			goto out_freesock;
-		}
 	}
 
 	ret = connect(self->fd, (struct sockaddr*) &self->trans.peer.irda,
@@ -370,26 +446,8 @@ static int irobex_connect_request(obex_t *self)
 		goto out_freesock;
 	}
 
-	{
-#ifndef _WIN32
-		int mtu = 0;
-		socklen_t len = sizeof(int);
-		/* Check what the IrLAP data size is */
-		ret = getsockopt(self->fd, SOL_IRLMP, IRTTP_MAX_SDU_SIZE,
-				 (void *) &mtu, &len);
-		if (ret < 0)
-			goto out_freesock;
-#else
-		DWORD mtu;
-		int len = sizeof(mtu);
-
-		if (getsockopt(self->fd, SOL_IRLMP, IRLMP_SEND_PDU_LEN,
-			       (char *) &mtu, &len))
-			return -1;
-#endif
-		self->trans.mtu = mtu;
-		DEBUG(3, "transport mtu=%d\n", mtu);
-	}
+	self->trans.mtu = irobex_get_mtu(self);
+	DEBUG(3, "transport mtu=%d\n", self->trans.mtu);
 
 	return 1;
 
@@ -449,6 +507,9 @@ void irobex_get_ops(struct obex_transport_ops* ops)
 	ops->server.disconnect = &irobex_disconnect_server;
 	ops->client.connect = &irobex_connect_request;
 	ops->client.disconnect = &irobex_disconnect_request;
+	ops->client.find_interfaces = &irobex_find_interfaces;
+	ops->client.free_interface = &irobex_free_interface;
+	ops->client.select_interface = &irobex_select_interface;
 };
 
 #endif /* HAVE_IRDA */

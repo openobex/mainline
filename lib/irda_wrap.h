@@ -10,6 +10,7 @@
 #include <af_irda.h>
 #define irda_device_info _WINDOWS_IRDA_DEVICE_INFO
 #define irda_device_list _WINDOWS_DEVICELIST
+#define irda_ias_set _WINDOWS_IAS_QUERY
 
 #define sockaddr_irda _SOCKADDR_IRDA
 #define sir_family irdaAddressFamily
