@@ -30,9 +30,6 @@
 #ifndef ESOCKTNOSUPPORT
 #define ESOCKTNOSUPPORT WSAESOCKTNOSUPPORT
 #endif
-static unsigned long wsa_init = 0;
-#define WSA_VER_MAJOR 2
-#define WSA_VER_MINOR 2
 
 #else /* _WIN32 */
 #include <fcntl.h>
@@ -99,24 +96,6 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 #endif
 
 	obex_return_val_if_fail(eventcb != NULL, NULL);
-
-#ifdef _WIN32
-	if (!wsa_init) {
-		WORD ver = MAKEWORD(WSA_VER_MAJOR,WSA_VER_MINOR);
-		WSADATA WSAData;
-		if (WSAStartup (ver, &WSAData) != 0) {
-			DEBUG(4, "WSAStartup failed (%d)\n",WSAGetLastError());
-			return NULL;
-		}
-		if (LOBYTE(WSAData.wVersion) != WSA_VER_MAJOR ||
-		    HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
-			DEBUG(4, "WSA version mismatch\n");
-			WSACleanup();
-			return NULL;
-		}
-	}
-	++wsa_init;
-#endif
 
 	self = malloc(sizeof(*self));
 	if (self == NULL)
@@ -256,10 +235,6 @@ void CALLAPI OBEX_Cleanup(obex_t *self)
 	if (self->trans.ops.cleanup)
 		self->trans.ops.cleanup(self);
 	free(self);
-
-#ifdef _WIN32
-	WSACleanup();
-#endif
 }
 
 /**

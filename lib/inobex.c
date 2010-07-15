@@ -26,6 +26,8 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#define WSA_VER_MAJOR 2
+#define WSA_VER_MINOR 2
 #else
 
 #include <sys/types.h>
@@ -73,6 +75,33 @@ static void map_ip4to6(struct sockaddr_in *in, struct sockaddr_in6 *out)
 		out->sin6_addr.s6_addr[15] = (unsigned char)((in->sin_addr.s_addr >> 24) & 0xFF);
 		break;
 	}
+}
+
+static int inobex_init (obex_t *self)
+{
+#ifdef _WIN32
+	WORD ver = MAKEWORD(WSA_VER_MAJOR,WSA_VER_MINOR);
+	WSADATA WSAData;
+	if (WSAStartup (ver, &WSAData) != 0) {
+		DEBUG(4, "WSAStartup failed (%d)\n",WSAGetLastError());
+		return -1;
+	}
+	if (LOBYTE(WSAData.wVersion) != WSA_VER_MAJOR ||
+	    HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
+		DEBUG(4, "WSA version mismatch\n");
+		WSACleanup();
+		return -1;
+	}
+#endif
+
+	return 0;
+}
+
+static void inobex_cleanup (obex_t *self)
+{
+#ifdef _WIN32
+	WSACleanup();
+#endif
 }
 
 /*
@@ -314,6 +343,8 @@ static int inobex_disconnect_server(obex_t *self)
 
 void inobex_get_ops(struct obex_transport_ops* ops)
 {
+	ops->init = &inobex_init;
+	ops->cleanup = &inobex_cleanup;
 	ops->write = &obex_transport_do_send;
 	ops->read = &obex_transport_do_recv;
 	ops->server.listen = &inobex_listen;

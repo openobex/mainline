@@ -44,7 +44,36 @@
 
 #ifdef _WIN32
 bdaddr_t bluez_compat_bdaddr_any = { BTH_ADDR_NULL };
+#define WSA_VER_MAJOR 2
+#define WSA_VER_MINOR 2
 #endif
+
+static int btobex_init (obex_t *self)
+{
+#ifdef _WIN32
+	WORD ver = MAKEWORD(WSA_VER_MAJOR,WSA_VER_MINOR);
+	WSADATA WSAData;
+	if (WSAStartup (ver, &WSAData) != 0) {
+		DEBUG(4, "WSAStartup failed (%d)\n",WSAGetLastError());
+		return -1;
+	}
+	if (LOBYTE(WSAData.wVersion) != WSA_VER_MAJOR ||
+	    HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
+		DEBUG(4, "WSA version mismatch\n");
+		WSACleanup();
+		return -1;
+	}
+#endif
+
+	return 0;
+}
+
+static void btobex_cleanup (obex_t *self)
+{
+#ifdef _WIN32
+	WSACleanup();
+#endif
+}
 
 /*
  * Function btobex_prepare_connect (self, service)
@@ -225,6 +254,8 @@ static int btobex_disconnect_server(obex_t *self)
 
 void btobex_get_ops(struct obex_transport_ops *ops)
 {
+	ops->init = &btobex_init;
+	ops->cleanup = &btobex_cleanup;
 	ops->write = &obex_transport_do_send;
 	ops->read = &obex_transport_do_recv;
 	ops->server.listen = &btobex_listen;

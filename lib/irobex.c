@@ -30,6 +30,8 @@
 #include <winsock2.h>
 
 #include "irda_wrap.h"
+#define WSA_VER_MAJOR 2
+#define WSA_VER_MINOR 2
 
 #ifndef EADDRNOTAVAIL
 #define EADDRNOTAVAIL WSAEADDRNOTAVAIL
@@ -56,6 +58,33 @@
 
 #include "obex_main.h"
 #include "irobex.h"
+
+static int irobex_init (obex_t *self)
+{
+#ifdef _WIN32
+	WORD ver = MAKEWORD(WSA_VER_MAJOR,WSA_VER_MINOR);
+	WSADATA WSAData;
+	if (WSAStartup (ver, &WSAData) != 0) {
+		DEBUG(4, "WSAStartup failed (%d)\n",WSAGetLastError());
+		return -1;
+	}
+	if (LOBYTE(WSAData.wVersion) != WSA_VER_MAJOR ||
+	    HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
+		DEBUG(4, "WSA version mismatch\n");
+		WSACleanup();
+		return -1;
+	}
+#endif
+
+	return 0;
+}
+
+static void irobex_cleanup (obex_t *self)
+{
+#ifdef _WIN32
+	WSACleanup();
+#endif
+}
 
 /*
  * Function irobex_no_addr (addr)
@@ -500,6 +529,8 @@ static int irobex_disconnect_server(obex_t *self)
 
 void irobex_get_ops(struct obex_transport_ops* ops)
 {
+	ops->init = &irobex_init;
+	ops->cleanup = &irobex_cleanup;
 	ops->write = &obex_transport_do_send;
 	ops->read = &obex_transport_do_recv;
 	ops->server.listen = &irobex_listen;
