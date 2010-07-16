@@ -42,17 +42,18 @@
  */
 int obex_insert_connectframe(obex_t *self, obex_object_t *object)
 {
-	obex_connect_hdr_t *conn_hdr;
+	obex_connect_hdr_t *hdr;
 
 	DEBUG(4, "\n");
 
-	object->tx_nonhdr_data = buf_new(4);
+	object->tx_nonhdr_data = buf_new(sizeof(*hdr));
 	if (!object->tx_nonhdr_data)
 		return -1;
-	conn_hdr = (obex_connect_hdr_t *) buf_reserve_end(object->tx_nonhdr_data, 4);
-	conn_hdr->version = OBEX_VERSION;
-	conn_hdr->flags = 0x00;              /* Flags */
-	conn_hdr->mtu = htons(self->mtu_rx); /* Max packet size */
+
+	hdr = (obex_connect_hdr_t *) buf_reserve_end(object->tx_nonhdr_data, sizeof(*hdr));
+	hdr->version = OBEX_VERSION;
+	hdr->flags = 0x00;              /* Flags */
+	hdr->mtu = htons(self->mtu_rx); /* Max packet size */
 	return 0;
 }
 
@@ -64,35 +65,26 @@ int obex_insert_connectframe(obex_t *self, obex_object_t *object)
  */
 int obex_parse_connect_header(obex_t *self, buf_t *msg)
 {
-	obex_connect_hdr_t *conn_hdr;
-	obex_common_hdr_t *common_hdr;
-	uint8_t version;
-	int flags;
-	uint16_t mtu;  /* Maximum send data unit */
-	uint8_t opcode;
-	uint16_t length;
+	obex_common_hdr_t *common_hdr = (obex_common_hdr_t *)msg->data;
+	obex_connect_hdr_t *conn_hdr = (obex_connect_hdr_t *)(common_hdr + 1);
+
+	/* Remember opcode and size for later */
+	uint8_t opcode = common_hdr->opcode;
+	//uint16_t length = ntohs(common_hdr->len);
 
 	DEBUG(4, "\n");
 
-	/* Remember opcode and size for later */
-	common_hdr = (obex_common_hdr_t *) msg->data;
-	opcode = common_hdr->opcode;
-	length = ntohs(common_hdr->len);
-
 	/* Parse beyond 3 bytes only if response is success */
-	if ( (opcode != (OBEX_RSP_SUCCESS | OBEX_FINAL)) &&
-			(opcode != (OBEX_CMD_CONNECT | OBEX_FINAL)))
+	if (opcode != (OBEX_RSP_SUCCESS | OBEX_FINAL) &&
+	    opcode != (OBEX_CMD_CONNECT | OBEX_FINAL))
 		return 1;
 
 	DEBUG(4, "Len: %lu\n", (unsigned long)msg->data_size);
-	if (msg->data_size >= 7) {
+	if (msg->data_size >= sizeof(*common_hdr)+sizeof(*conn_hdr)) {
 		/* Get what we need */
-		conn_hdr = (obex_connect_hdr_t *) ((msg->data) + 3);
-		version = conn_hdr->version;
-		flags   = conn_hdr->flags;
-		mtu     = ntohs(conn_hdr->mtu);
+		uint16_t mtu = ntohs(conn_hdr->mtu);
 
-		DEBUG(1, "version=%02x\n", version);
+		DEBUG(1, "version=%02x\n", conn_hdr->version);
 
 		/* Limit to some reasonable value (usually OBEX_DEFAULT_MTU) */
 		if (mtu < self->mtu_tx_max)

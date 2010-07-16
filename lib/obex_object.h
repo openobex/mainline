@@ -43,7 +43,6 @@ struct obex_header_element {
 	uint8_t hi;
 	unsigned int flags;
 	unsigned int length;
-	unsigned int offset;
 	int body_touched;
 	int stream;
 };
@@ -62,11 +61,11 @@ struct obex_object {
 
 	/* The opcode fields are used as
 	 * command when sending and response
-	 * when recieving
+	 * when receiving
 	 */
 	uint8_t opcode;			/* Opcode for normal packets */
 	uint8_t lastopcode;		/* Opcode for last packet */
-	unsigned int headeroffset;	/* Where to start parsing headers */
+	uint16_t headeroffset;		/* Where to start parsing headers */
 
 	int hinted_body_len;		/* Hinted body-length or 0 */
 	int totallen;			/* Size of all headers */

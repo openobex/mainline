@@ -284,17 +284,16 @@ static int send_stream(obex_t *self,
 				buf_t *txmsg, unsigned int tx_left)
 {
 	obex_object_t *object = self->object;
-	struct obex_byte_stream_hdr *body_txh;
+	struct obex_byte_stream_hdr *hdr;
 	int actual;	/* Number of bytes sent in this fragment */
 	uint8_t cmd = obex_object_getcmd(self, object);
 
 	DEBUG(4, "\n");
 
 	/* Fill in length and header type later, but reserve space for it */
-	body_txh  = (struct obex_byte_stream_hdr*) buf_reserve_end(txmsg,
-				sizeof(struct obex_byte_stream_hdr) );
-	tx_left -= sizeof(struct obex_byte_stream_hdr);
-	actual = sizeof(struct obex_byte_stream_hdr);
+	hdr = (struct obex_byte_stream_hdr *)buf_reserve_end(txmsg, sizeof(*hdr));
+	tx_left -= sizeof(*hdr);
+	actual = sizeof(*hdr);
 
 	do {
 		if (object->s_len == 0) {
@@ -342,17 +341,17 @@ static int send_stream(obex_t *self,
 	} while (tx_left > 0);
 
 	DEBUG(4, "txmsg full or no more stream-data. actual = %d\n", actual);
-	body_txh->hi = OBEX_HDR_BODY;
+	hdr->hi = OBEX_HDR_BODY;
 
 	if (object->s_stop && object->s_len == 0) {
 		/* We are done. Remove header from tx-queue */
 		object->tx_headerq = slist_remove(object->tx_headerq, h);
-		body_txh->hi = OBEX_HDR_BODY_END;
+		hdr->hi = OBEX_HDR_BODY_END;
 		buf_free(h->buf);
 		free(h);
 	}
 
-	body_txh->hl = htons((uint16_t)actual);
+	hdr->hl = htons((uint16_t)actual);
 
 	return actual;
 }
@@ -368,10 +367,10 @@ static int send_body(obex_object_t *object,
 				struct obex_header_element *h,
 				buf_t *txmsg, unsigned int tx_left)
 {
-	struct obex_byte_stream_hdr *body_txh;
+	struct obex_byte_stream_hdr *hdr;
 	unsigned int actual;
 
-	body_txh = (struct obex_byte_stream_hdr*) buf_reserve_end(txmsg, sizeof(struct obex_byte_stream_hdr));
+	hdr = (struct obex_byte_stream_hdr *) buf_reserve_end(txmsg, sizeof(*hdr));
 
 	if (!h->body_touched) {
 		/* This is the first time we try to send this header
@@ -379,28 +378,25 @@ static int send_body(obex_object_t *object,
 		   before the actual body-data. We shall send this in every fragment
 		   so we just remove it for now.*/
 
-		buf_remove_begin(h->buf,  sizeof(struct obex_byte_stream_hdr) );
+		buf_remove_begin(h->buf, sizeof(*hdr));
 		h->body_touched = TRUE;
 	}
 
-	if (tx_left < ( h->buf->data_size +
-			sizeof(struct obex_byte_stream_hdr) ) )	{
+	if (tx_left < (h->buf->data_size + sizeof(*hdr))) {
 		DEBUG(4, "Add BODY header\n");
-		body_txh->hi = OBEX_HDR_BODY;
-		body_txh->hl = htons((uint16_t)tx_left);
+		hdr->hi = OBEX_HDR_BODY;
+		hdr->hl = htons((uint16_t)tx_left);
 
-		buf_insert_end(txmsg, h->buf->data, tx_left
-				- sizeof(struct obex_byte_stream_hdr) );
+		buf_insert_end(txmsg, h->buf->data, tx_left - sizeof(*hdr));
 
-		buf_remove_begin(h->buf, tx_left
-				- sizeof(struct obex_byte_stream_hdr) );
+		buf_remove_begin(h->buf, tx_left - sizeof(*hdr));
 		/* We have completely filled the tx-buffer */
 		actual = tx_left;
 	} else {
 		DEBUG(4, "Add BODY_END header\n");
 
-		body_txh->hi = OBEX_HDR_BODY_END;
-		body_txh->hl = htons((uint16_t) (h->buf->data_size + sizeof(struct obex_byte_stream_hdr)));
+		hdr->hi = OBEX_HDR_BODY_END;
+		hdr->hl = htons((uint16_t)(h->buf->data_size + sizeof(*hdr)));
 		buf_insert_end(txmsg, h->buf->data, h->buf->data_size);
 		actual = h->buf->data_size;
 

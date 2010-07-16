@@ -45,12 +45,12 @@ int insert_uint_header(buf_t *msg, uint8_t identifier, uint32_t value)
 	DEBUG(4, "\n");
 	obex_return_val_if_fail(msg != NULL, -1);
 
-	hdr = (struct obex_uint_hdr *) buf_reserve_end(msg, sizeof(struct obex_uint_hdr));
+	hdr = (struct obex_uint_hdr *) buf_reserve_end(msg, sizeof(*hdr));
 
 	hdr->hi = identifier;
 	hdr->hv = htonl(value);
 
-	return sizeof(struct obex_uint_hdr);
+	return sizeof(*hdr);
 }
 
 /*
@@ -65,12 +65,12 @@ int insert_ubyte_header(buf_t *msg, uint8_t identifier, uint8_t value)
 	DEBUG(4, "\n");
 	obex_return_val_if_fail(msg != NULL, -1);
 
-	hdr = (struct obex_ubyte_hdr *) buf_reserve_end(msg, sizeof(struct obex_ubyte_hdr));
+	hdr = (struct obex_ubyte_hdr *) buf_reserve_end(msg, sizeof(*hdr));
 
 	hdr->hi = identifier;
 	hdr->hv = value;
 
-	return sizeof(struct obex_ubyte_hdr);
+	return sizeof(*hdr);
 }
 
 /*
@@ -88,13 +88,13 @@ int insert_unicode_header(buf_t *msg, uint8_t opcode, const uint8_t *text,
 	obex_return_val_if_fail(msg != NULL, -1);
 	obex_return_val_if_fail(text != NULL || size == 0, -1);
 
-	hdr = (struct obex_unicode_hdr *) buf_reserve_end(msg, size + sizeof(struct obex_unicode_hdr));
+	hdr = (struct obex_unicode_hdr *) buf_reserve_end(msg, size + sizeof(*hdr));
 
 	hdr->hi = opcode;
-	hdr->hl = htons((uint16_t)(size + sizeof(struct obex_unicode_hdr)));
+	hdr->hl = htons((uint16_t)(size + sizeof(*hdr)));
 	memcpy(hdr->hv, text, size);
 
-	return size + sizeof(struct obex_unicode_hdr);
+	return size + sizeof(*hdr);
 }
 
 /*
@@ -112,16 +112,16 @@ int insert_byte_stream_header(buf_t *msg, uint8_t opcode,
 	obex_return_val_if_fail(msg != NULL, -1);
 	obex_return_val_if_fail(stream != NULL || size == 0, -1);
 
-	hdr = (struct obex_byte_stream_hdr *) buf_reserve_end(msg, size + sizeof(struct obex_byte_stream_hdr));
+	hdr = (struct obex_byte_stream_hdr *) buf_reserve_end(msg, size + sizeof(*hdr));
 	if (hdr == 0) {
 		DEBUG(4, "put failed!\n");
 		return 0;
 	}
 
 	hdr->hi = opcode;
-	hdr->hl = htons(size + sizeof(struct obex_byte_stream_hdr));
+	hdr->hl = htons(size + sizeof(*hdr));
 
 	memcpy(hdr->hv, stream, size);
 
-	return size + sizeof(struct obex_byte_stream_hdr);
+	return size + sizeof(*hdr);
 }

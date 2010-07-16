@@ -207,13 +207,12 @@ void obex_response_request(obex_t *self, uint8_t opcode)
 int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 {
 	obex_common_hdr_t *hdr;
-	int actual = 0;
 
 	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail(msg != NULL, -1);
 
 	/* Insert common header */
-	hdr = (obex_common_hdr_t *) buf_reserve_begin(msg, sizeof(obex_common_hdr_t));
+	hdr = (obex_common_hdr_t *) buf_reserve_begin(msg, sizeof(*hdr));
 
 	hdr->opcode = opcode;
 	hdr->len = htons((uint16_t)msg->data_size);
@@ -221,8 +220,7 @@ int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 	DUMPBUFFER(1, "Tx", msg);
 	DEBUG(1, "len = %lu bytes\n", (unsigned long)msg->data_size);
 
-	actual = obex_transport_write(self, msg);
-	return actual;
+	return obex_transport_write(self, msg);
 }
 
 /*
