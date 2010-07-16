@@ -108,15 +108,8 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 	self->filterhint = (flags & OBEX_FL_FILTERHINT) ? TRUE : FALSE;
 	self->filterias  = (flags & OBEX_FL_FILTERIAS ) ? TRUE : FALSE;
 
-	self->trans.fd = INVALID_SOCKET;
-	self->trans.serverfd = INVALID_SOCKET;
-	self->trans.writefd = INVALID_SOCKET;
 	self->mode = MODE_SRV;
         self->state = STATE_IDLE;
-
-	/* Init transport */
-	self->trans.type = transport;
-	self->trans.connected = FALSE;
 
 	/* Safe values.
 	 * Both self->mtu_rx and self->mtu_tx_max can be increased by app
@@ -125,49 +118,8 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 	self->mtu_tx = OBEX_MINIMUM_MTU;
 	self->mtu_tx_max = OBEX_DEFAULT_MTU;
 
-	memset(&self->trans.ops, 0, sizeof(self->trans.ops));
-	switch (transport) {
-#ifdef HAVE_IRDA
-	case OBEX_TRANS_IRDA:
-		irobex_get_ops(&self->trans.ops);
-		break;
-#endif /*HAVE_IRDA*/
-
-	case OBEX_TRANS_INET:
-		inobex_get_ops(&self->trans.ops);
-		break;
-
-	case OBEX_TRANS_CUSTOM:
-		custom_get_ops(&self->trans.ops);
-		break;
-
-#ifdef HAVE_BLUETOOTH
-	case OBEX_TRANS_BLUETOOTH:
-		btobex_get_ops(&self->trans.ops);
-		break;
-#endif /*HAVE_BLUETOOTH*/
-
-	case OBEX_TRANS_FD:
-		fdobex_get_ops(&self->trans.ops);
-		break;
-
-#ifdef HAVE_USB
-	case OBEX_TRANS_USB:
-		usbobex_get_ops(&self->trans.ops);
-		/* Set MTU to the maximum, if using USB transport - Alex Kanavin */
-		self->mtu_rx = OBEX_MAXIMUM_MTU;
-		self->mtu_tx = OBEX_MINIMUM_MTU;
-		self->mtu_tx_max = OBEX_MAXIMUM_MTU;
-		break;
-#endif /*HAVE_USB*/
-
-	default:
+	if (obex_transport_init(self, transport) < 0)
 		goto out_err;
-	}
-
-	if (self->trans.ops.init)
-		if (self->trans.ops.init(self) < 0)
-			goto out_err;
 
 	/* Allocate message buffers */
 	/* It's safe to allocate them smaller than OBEX_MAXIMUM_MTU
@@ -222,8 +174,7 @@ void CALLAPI OBEX_Cleanup(obex_t *self)
 {
 	obex_return_if_fail(self != NULL);
 
-	obex_transport_disconnect_request(self);
-	obex_transport_disconnect_server(self);
+	obex_transport_cleanup(self);
 
 	if (self->tx_msg)
 		buf_free(self->tx_msg);
@@ -232,8 +183,7 @@ void CALLAPI OBEX_Cleanup(obex_t *self)
 		buf_free(self->rx_msg);
 
 	OBEX_FreeInterfaces(self);
-	if (self->trans.ops.cleanup)
-		self->trans.ops.cleanup(self);
+
 	free(self);
 }
 

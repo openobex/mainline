@@ -37,6 +37,87 @@
 #include <io.h>
 #endif
 
+#include "fdobex.h"
+#include "customtrans.h"
+#include "inobex.h"
+
+#ifdef HAVE_IRDA
+#include "irobex.h"
+#endif
+
+#ifdef HAVE_USB
+#include "usbobex.h"
+#endif
+
+#ifdef HAVE_BLUETOOTH
+#include "btobex.h"
+#endif
+
+int obex_transport_init(obex_t *self, int transport)
+{
+	struct obex_transport *trans = &self->trans;
+
+	trans->fd = INVALID_SOCKET;
+	trans->serverfd = INVALID_SOCKET;
+	trans->writefd = INVALID_SOCKET;
+
+	trans->connected = FALSE;
+
+	trans->type = transport;
+	memset(&trans->ops, 0, sizeof(trans->ops));
+	switch (transport) {
+#ifdef HAVE_IRDA
+	case OBEX_TRANS_IRDA:
+		irobex_get_ops(&trans->ops);
+		break;
+#endif /*HAVE_IRDA*/
+
+	case OBEX_TRANS_INET:
+		inobex_get_ops(&trans->ops);
+		break;
+
+	case OBEX_TRANS_CUSTOM:
+		custom_get_ops(&trans->ops);
+		break;
+
+#ifdef HAVE_BLUETOOTH
+	case OBEX_TRANS_BLUETOOTH:
+		btobex_get_ops(&trans->ops);
+		break;
+#endif /*HAVE_BLUETOOTH*/
+
+	case OBEX_TRANS_FD:
+		fdobex_get_ops(&trans->ops);
+		break;
+
+#ifdef HAVE_USB
+	case OBEX_TRANS_USB:
+		usbobex_get_ops(&trans->ops);
+		/* Set MTU to the maximum, if using USB transport - Alex Kanavin */
+		self->mtu_rx = OBEX_MAXIMUM_MTU;
+		self->mtu_tx = OBEX_MINIMUM_MTU;
+		self->mtu_tx_max = OBEX_MAXIMUM_MTU;
+		break;
+#endif /*HAVE_USB*/
+
+	default:
+		return -1;
+	}
+
+	if (trans->ops.init)
+		return trans->ops.init(self);
+	else
+		return 0;
+}
+
+void obex_transport_cleanup(obex_t *self)
+{
+	obex_transport_disconnect_request(self);
+	obex_transport_disconnect_server(self);
+	if (self->trans.ops.cleanup)
+		self->trans.ops.cleanup(self);	
+}
+
 /*
  * Function obex_transport_accept(self)
  *
