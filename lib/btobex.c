@@ -83,13 +83,15 @@ static void btobex_cleanup (obex_t *self)
  */
 void btobex_prepare_connect(obex_t *self, bdaddr_t *src, bdaddr_t *dst, uint8_t channel)
 {
-	self->trans.self.rfcomm.rc_family = AF_BLUETOOTH;
-	bacpy(&self->trans.self.rfcomm.rc_bdaddr, src);
-	self->trans.self.rfcomm.rc_channel = 0;
+	struct obex_transport *trans = &self->trans;
 
-	self->trans.peer.rfcomm.rc_family = AF_BLUETOOTH;
-	bacpy(&self->trans.peer.rfcomm.rc_bdaddr, dst);
-	self->trans.peer.rfcomm.rc_channel = channel;
+	trans->self.rfcomm.rc_family = AF_BLUETOOTH;
+	bacpy(&trans->self.rfcomm.rc_bdaddr, src);
+	trans->self.rfcomm.rc_channel = 0;
+
+	trans->peer.rfcomm.rc_family = AF_BLUETOOTH;
+	bacpy(&trans->peer.rfcomm.rc_bdaddr, dst);
+	trans->peer.rfcomm.rc_channel = channel;
 }
 
 /*
@@ -100,10 +102,12 @@ void btobex_prepare_connect(obex_t *self, bdaddr_t *src, bdaddr_t *dst, uint8_t 
  */
 void btobex_prepare_listen(obex_t *self, bdaddr_t *src, uint8_t channel)
 {
+	struct obex_transport *trans = &self->trans;
+
 	/* Bind local service */
-	self->trans.self.rfcomm.rc_family = AF_BLUETOOTH;
-	bacpy(&self->trans.self.rfcomm.rc_bdaddr, src);
-	self->trans.self.rfcomm.rc_channel = channel;
+	trans->self.rfcomm.rc_family = AF_BLUETOOTH;
+	bacpy(&trans->self.rfcomm.rc_bdaddr, src);
+	trans->self.rfcomm.rc_channel = channel;
 }
 
 /*
@@ -114,22 +118,24 @@ void btobex_prepare_listen(obex_t *self, bdaddr_t *src, uint8_t channel)
  */
 static int btobex_listen(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
+
 	DEBUG(3, "\n");
 
-	self->serverfd = obex_create_socket(self, AF_BLUETOOTH);
-	if (self->serverfd == INVALID_SOCKET) {
+	trans->serverfd = obex_create_socket(self, AF_BLUETOOTH);
+	if (trans->serverfd == INVALID_SOCKET) {
 		DEBUG(0, "Error creating socket\n");
 		return -1;
 	}
 
-	if (bind(self->serverfd, (struct sockaddr*) &self->trans.self.rfcomm,
-			sizeof(struct sockaddr_rc))) {
+	if (bind(trans->serverfd, (struct sockaddr*) &trans->self.rfcomm,
+		 sizeof(struct sockaddr_rc))) {
 		DEBUG(0, "Error doing bind\n");
 		goto out_freesock;
 	}
 
 
-	if (listen(self->serverfd, 1)) {
+	if (listen(trans->serverfd, 1)) {
 		DEBUG(0, "Error doing listen\n");
 		goto out_freesock;
 	}
@@ -138,8 +144,8 @@ static int btobex_listen(obex_t *self)
 	return 1;
 
 out_freesock:
-	obex_delete_socket(self, self->serverfd);
-	self->serverfd = INVALID_SOCKET;
+	obex_delete_socket(self, trans->serverfd);
+	trans->serverfd = INVALID_SOCKET;
 	return -1;
 }
 
@@ -153,19 +159,18 @@ out_freesock:
  */
 static int btobex_accept(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
 	socklen_t addrlen = sizeof(struct sockaddr_rc);
-	//int mtu;
-	//int len = sizeof(int);
 
 	// First accept the connection and get the new client socket.
-	self->fd = accept(self->serverfd,
-				(struct sockaddr *) &self->trans.peer.rfcomm,
-				&addrlen);
+	trans->fd = accept(trans->serverfd,
+			   (struct sockaddr *) &self->trans.peer.rfcomm,
+			   &addrlen);
 
-	if (self->fd == INVALID_SOCKET)
+	if (trans->fd == INVALID_SOCKET)
 		return -1;
 
-	self->trans.mtu = OBEX_DEFAULT_MTU;
+	trans->mtu = OBEX_DEFAULT_MTU;
 
 	return 0;
 }
@@ -178,19 +183,19 @@ static int btobex_accept(obex_t *self)
  */
 static int btobex_connect_request(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
 	int ret;
 	int mtu = 0;
-	//int len = sizeof(int);
 
 	DEBUG(4, "\n");
 
-	if (self->fd == INVALID_SOCKET) {
-		self->fd = obex_create_socket(self, AF_BLUETOOTH);
-		if (self->fd == INVALID_SOCKET)
+	if (trans->fd == INVALID_SOCKET) {
+		trans->fd = obex_create_socket(self, AF_BLUETOOTH);
+		if (trans->fd == INVALID_SOCKET)
 			return -1;
 	}
 
-	ret = bind(self->fd, (struct sockaddr*) &self->trans.self.rfcomm,
+	ret = bind(trans->fd, (struct sockaddr*) &trans->self.rfcomm,
 		   sizeof(struct sockaddr_rc));
 
 	if (ret < 0) {
@@ -198,7 +203,7 @@ static int btobex_connect_request(obex_t *self)
 		goto out_freesock;
 	}
 
-	ret = connect(self->fd, (struct sockaddr*) &self->trans.peer.rfcomm,
+	ret = connect(trans->fd, (struct sockaddr*) &trans->peer.rfcomm,
 		      sizeof(struct sockaddr_rc));
 	if (ret == -1) {
 		DEBUG(4, "ret=%d\n", ret);
@@ -206,15 +211,15 @@ static int btobex_connect_request(obex_t *self)
 	}
 
 	mtu = OBEX_DEFAULT_MTU;
-	self->trans.mtu = mtu;
+	trans->mtu = mtu;
 
 	DEBUG(2, "transport mtu=%d\n", mtu);
 
 	return 1;
 
 out_freesock:
-	obex_delete_socket(self, self->fd);
-	self->fd = INVALID_SOCKET;
+	obex_delete_socket(self, trans->fd);
+	trans->fd = INVALID_SOCKET;
 	return ret;
 }
 
@@ -226,12 +231,14 @@ out_freesock:
  */
 static int btobex_disconnect_request(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
 	int ret;
+
 	DEBUG(4, "\n");
-	ret = obex_delete_socket(self, self->fd);
+	ret = obex_delete_socket(self, trans->fd);
 	if (ret < 0)
 		return ret;
-	self->fd = INVALID_SOCKET;
+	trans->fd = INVALID_SOCKET;
 	return ret;
 }
 
@@ -245,10 +252,12 @@ static int btobex_disconnect_request(obex_t *self)
  */
 static int btobex_disconnect_server(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
 	int ret;
+
 	DEBUG(4, "\n");
-	ret = obex_delete_socket(self, self->serverfd);
-	self->serverfd = INVALID_SOCKET;
+	ret = obex_delete_socket(self, trans->serverfd);
+	trans->serverfd = INVALID_SOCKET;
 	return ret;
 }
 

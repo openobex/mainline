@@ -57,6 +57,7 @@ static int obex_transport_accept(obex_t *self)
 
 int obex_transport_standard_handle_input(obex_t *self, int timeout)
 {
+	struct obex_transport *trans = &self->trans;
 	struct timeval time = {timeout, 0};
 	fd_set fdset;
 	socket_t highestfd = 0;
@@ -66,24 +67,24 @@ int obex_transport_standard_handle_input(obex_t *self, int timeout)
 	obex_return_val_if_fail(self != NULL, -1);
 
 	/* Check of we have any fd's to do select on. */
-	if (self->fd == INVALID_SOCKET
-	    && self->serverfd == INVALID_SOCKET) {
+	if (trans->fd == INVALID_SOCKET
+	    && trans->serverfd == INVALID_SOCKET) {
 		DEBUG(0, "No valid socket is open\n");
 		return -1;
 	}
 
 	/* Add the fd's to the set. */
 	FD_ZERO(&fdset);
-	if (self->fd != INVALID_SOCKET) {
-		FD_SET(self->fd, &fdset);
-		if (self->fd > highestfd)
-			highestfd = self->fd;
+	if (trans->fd != INVALID_SOCKET) {
+		FD_SET(trans->fd, &fdset);
+		if (trans->fd > highestfd)
+			highestfd = trans->fd;
 	}
 
-	if (self->serverfd != INVALID_SOCKET) {
-		FD_SET(self->serverfd, &fdset);
-		if (self->serverfd > highestfd)
-			highestfd = self->serverfd;
+	if (trans->serverfd != INVALID_SOCKET) {
+		FD_SET(trans->serverfd, &fdset);
+		if (trans->serverfd > highestfd)
+			highestfd = trans->serverfd;
 	}
 
 	/* Wait for input */
@@ -97,11 +98,11 @@ int obex_transport_standard_handle_input(obex_t *self, int timeout)
 	if (ret < 1)
 		return ret;
 
-	if (self->fd != INVALID_SOCKET && FD_ISSET(self->fd, &fdset)) {
+	if (trans->fd != INVALID_SOCKET && FD_ISSET(trans->fd, &fdset)) {
 		DEBUG(4, "Data available on client socket\n");
 		ret = obex_data_indication(self, NULL, 0);
 
-	} else if (self->serverfd != INVALID_SOCKET && FD_ISSET(self->serverfd, &fdset)) {
+	} else if (trans->serverfd != INVALID_SOCKET && FD_ISSET(trans->serverfd, &fdset)) {
 		DEBUG(4, "Data available on server socket\n");
 		/* Accept : create the connected socket */
 		ret = obex_transport_accept(self);
@@ -209,8 +210,9 @@ void obex_transport_disconnect_server(obex_t *self)
  */
 int obex_transport_do_send (obex_t *self, buf_t *msg)
 {
-	int fd = self->fd;
-	unsigned int mtu = self->trans.mtu;
+	struct obex_transport *trans = &self->trans;
+	int fd = trans->fd;
+	unsigned int mtu = trans->mtu;
 
 	int actual = -1;
 	int size;
@@ -250,7 +252,8 @@ int obex_transport_write(obex_t *self, buf_t *msg)
 
 int obex_transport_do_recv (obex_t *self, void *buf, int buflen)
 {
-	return recv(self->fd, buf, buflen, 0);
+	struct obex_transport *trans = &self->trans;
+	return recv(trans->fd, buf, buflen, 0);
 }
 
 /*

@@ -25,8 +25,14 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#define socket_t SOCKET
 #else
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#define socket_t int
+#define INVALID_SOCKET -1
 #endif
 
 /* forward declaration for all transport includes */
@@ -92,6 +98,10 @@ typedef struct obex_transport {
 	int type;
 	struct obex_transport_ops ops;
 	void *data;		/* Private data for the transport */
+
+	socket_t fd;		/* Socket descriptor */
+	socket_t serverfd;
+	socket_t writefd;	/* write descriptor - only OBEX_TRANS_FD */
 
 	int connected;		/* Link connection state */
 	unsigned int mtu;	/* Tx MTU of the link */

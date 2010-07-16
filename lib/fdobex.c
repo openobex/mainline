@@ -10,9 +10,11 @@
 
 static int fdobex_connect_request(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
+
 	/* no real connect on the file */
-	if (self->fd != INVALID_SOCKET &&
-	    self->writefd != INVALID_SOCKET)
+	if (trans->fd != INVALID_SOCKET &&
+	    trans->writefd != INVALID_SOCKET)
 		return 0;
 	else {
 		errno = EINVAL;
@@ -22,16 +24,18 @@ static int fdobex_connect_request(obex_t *self)
 
 static int fdobex_disconnect_request(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
+
 	/* no real disconnect on a file */
-	self->fd = self->writefd = INVALID_SOCKET;
+	trans->fd = trans->writefd = INVALID_SOCKET;
 	return 0;
 }
 
 static int fdobex_write(obex_t *self, buf_t *msg)
 {
-	int fd = self->writefd;
-	unsigned int mtu = self->trans.mtu;
-
+	struct obex_transport *trans = &self->trans;
+	int fd = trans->writefd;
+	unsigned int mtu = trans->mtu;
 	int actual = -1;
 	int size;
 
@@ -60,10 +64,12 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 
 static int fdobex_read (obex_t *self, void *buf, int buflen)
 {
+	struct obex_transport *trans = &self->trans;
+
 #ifdef _WIN32
-	return  _read(self->fd, buf, buflen);
+	return  _read(trans->fd, buf, buflen);
 #else
-	return read(self->fd, buf, buflen);
+	return read(trans->fd, buf, buflen);
 #endif
 }
 

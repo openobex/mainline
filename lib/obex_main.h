@@ -25,16 +25,6 @@
 
 #include "obex_incl.h"
 
-#if defined(_WIN32)
-#  include <winsock2.h>
-#  define socket_t SOCKET
-#else
-#  include <sys/socket.h>
-#  include <sys/types.h>
-#  include <sys/time.h>
-#  define socket_t int
-#  define INVALID_SOCKET -1
-#endif
 #include <time.h>
 #include <inttypes.h>
 
@@ -50,9 +40,6 @@ struct obex {
 	uint16_t mtu_rx;			/* Maximum OBEX RX packet size */
 	uint16_t mtu_tx_max;		/* Maximum TX we can accept */
 
-	socket_t fd;		/* Socket descriptor */
-	socket_t serverfd;
-	socket_t writefd;	/* write descriptor - only OBEX_TRANS_FD */
 	enum obex_state state;
 	enum obex_mode mode;
 

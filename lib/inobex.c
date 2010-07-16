@@ -112,7 +112,9 @@ static void inobex_cleanup (obex_t *self)
  */
 void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen)
 {
+	struct obex_transport *trans = &self->trans;
 	struct sockaddr_in6 addr;
+
 	addr.sin6_family   = AF_INET6;
 	addr.sin6_port     = htons(OBEX_PORT);
 	addr.sin6_flowinfo = 0;
@@ -132,7 +134,7 @@ void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen)
 			saddr = (struct sockaddr*)(&addr);
 			break;
 	}
-	memcpy(&self->trans.peer.inet6, saddr, sizeof(self->trans.self.inet6));
+	memcpy(&trans->peer.inet6, saddr, sizeof(trans->self.inet6));
 }
 
 /*
@@ -143,7 +145,9 @@ void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen)
  */
 void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
 {
+	struct obex_transport *trans = &self->trans;
 	struct sockaddr_in6 addr;
+
 	addr.sin6_family   = AF_INET6;
 	addr.sin6_port     = htons(OBEX_PORT);
 	addr.sin6_flowinfo = 0;
@@ -164,7 +168,7 @@ void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
 			saddr = (struct sockaddr *) &addr;
 			break;
 		}
-	memcpy(&self->trans.self.inet6, saddr, sizeof(self->trans.self.inet6));
+	memcpy(&trans->self.inet6, saddr, sizeof(trans->self.inet6));
 }
 
 /*
@@ -175,18 +179,20 @@ void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
  */
 static int inobex_listen(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
+
 	DEBUG(4, "\n");
 
 	/* needed as compat for apps that call OBEX_TransportConnect
 	 * instead of InOBEX_TransportConnect (e.g. obexftp)
 	 */
-	if (self->trans.self.inet6.sin6_family == AF_INET)
+	if (trans->self.inet6.sin6_family == AF_INET)
 		inobex_prepare_listen(self,
-				       (struct sockaddr*) &self->trans.self.inet6,
-				       sizeof(self->trans.self.inet6));
+				       (struct sockaddr*) &trans->self.inet6,
+				       sizeof(trans->self.inet6));
 
-	self->serverfd = obex_create_socket(self, AF_INET6);
-	if (self->serverfd == INVALID_SOCKET) {
+	trans->serverfd = obex_create_socket(self, AF_INET6);
+	if (trans->serverfd == INVALID_SOCKET) {
 		DEBUG(0, "Cannot create server-socket\n");
 		return -1;
 	}
@@ -198,24 +204,25 @@ static int inobex_listen(obex_t *self)
 		 * You will certainly notice later if it failed.
 		 */
 		int v6only = 0;
-		(void)setsockopt(self->serverfd, IPPROTO_IPV6, IPV6_V6ONLY, (void*)&v6only, sizeof(v6only));
+		(void)setsockopt(trans->serverfd, IPPROTO_IPV6,
+				 IPV6_V6ONLY, (void*)&v6only, sizeof(v6only));
 	}
 #endif
 
-	//printf("TCP/IP listen %d %X\n", self->trans.self.inet.sin_port,
-	//       self->trans.self.inet.sin_addr.s_addr);
-	if (bind(self->serverfd, (struct sockaddr *) &self->trans.self.inet6,
-						sizeof(struct sockaddr_in6))) {
+	//printf("TCP/IP listen %d %X\n", trans->self.inet.sin_port,
+	//       trans->self.inet.sin_addr.s_addr);
+	if (bind(trans->serverfd, (struct sockaddr *) &trans->self.inet6,
+		 sizeof(struct sockaddr_in6))) {
 		DEBUG(0, "bind() Failed\n");
 		return -1;
 	}
 
-	if (listen(self->serverfd, 2)) {
+	if (listen(trans->serverfd, 2)) {
 		DEBUG(0, "listen() Failed\n");
 		return -1;
 	}
 
-	DEBUG(4, "Now listening for incomming connections. serverfd = %d\n", self->serverfd);
+	DEBUG(4, "Now listening for incomming connections. serverfd = %d\n", trans->serverfd);
 
 	return 1;
 }
@@ -230,17 +237,18 @@ static int inobex_listen(obex_t *self)
  */
 static int inobex_accept(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
 	socklen_t addrlen = sizeof(struct sockaddr_in6);
 
-	self->fd = accept(self->serverfd,
-			  (struct sockaddr *) &self->trans.peer.inet6,
-			  &addrlen);
+	trans->fd = accept(trans->serverfd,
+			   (struct sockaddr *) &self->trans.peer.inet6,
+			   &addrlen);
 
-	if (self->fd == INVALID_SOCKET)
+	if (trans->fd == INVALID_SOCKET)
 		return -1;
 
 	/* Just use the default MTU for now */
-	self->trans.mtu = OBEX_DEFAULT_MTU;
+	trans->mtu = OBEX_DEFAULT_MTU;
 	return 1;
 }
 
@@ -249,6 +257,7 @@ static int inobex_accept(obex_t *self)
  */
 static int inobex_connect_request(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
 	int ret;
 #ifndef _WIN32
 	char addr[INET6_ADDRSTRLEN];
@@ -257,13 +266,13 @@ static int inobex_connect_request(obex_t *self)
 	/* needed as compat for apps that call OBEX_TransportConnect
 	 * instead of InOBEX_TransportConnect (e.g. obexftp)
 	 */
-	if (self->trans.peer.inet6.sin6_family == AF_INET)
+	if (trans->peer.inet6.sin6_family == AF_INET)
 		inobex_prepare_connect(self,
-				       (struct sockaddr*) &self->trans.peer.inet6,
-				       sizeof(self->trans.peer.inet6));
+				       (struct sockaddr*) &trans->peer.inet6,
+				       sizeof(trans->peer.inet6));
 
-	self->fd = obex_create_socket(self, AF_INET6);
-	if (self->fd == INVALID_SOCKET)
+	trans->fd = obex_create_socket(self, AF_INET6);
+	if (trans->fd == INVALID_SOCKET)
 		return -1;
 #ifdef IPV6_V6ONLY
 	else {
@@ -273,36 +282,37 @@ static int inobex_connect_request(obex_t *self)
 		 * You will certainly notice later if it failed.
 		 */
 		int v6only = 0;
-		(void)setsockopt(self->fd, IPPROTO_IPV6, IPV6_V6ONLY, (void*)&v6only, sizeof(v6only));
+		(void)setsockopt(trans->fd, IPPROTO_IPV6, IPV6_V6ONLY,
+				 (void*)&v6only, sizeof(v6only));
 	}
 #endif
 
 	/* Set these just in case */
-	if (self->trans.peer.inet6.sin6_port == 0)
-		self->trans.peer.inet6.sin6_port = htons(OBEX_PORT);
+	if (trans->peer.inet6.sin6_port == 0)
+		trans->peer.inet6.sin6_port = htons(OBEX_PORT);
 
 #ifndef _WIN32
-	if (!inet_ntop(AF_INET6,&self->trans.peer.inet6.sin6_addr,
+	if (!inet_ntop(AF_INET6,&trans->peer.inet6.sin6_addr,
 		       addr,sizeof(addr))) {
 		DEBUG(4, "Adress problem\n");
-		obex_delete_socket(self, self->fd);
-		self->fd = INVALID_SOCKET;
+		obex_delete_socket(self, trans->fd);
+		trans->fd = INVALID_SOCKET;
 		return -1;
 	}
-	DEBUG(2, "peer addr = [%s]:%u\n",addr,ntohs(self->trans.peer.inet6.sin6_port));
+	DEBUG(2, "peer addr = [%s]:%u\n",addr,ntohs(trans->peer.inet6.sin6_port));
 #endif
 
-	ret = connect(self->fd, (struct sockaddr *) &self->trans.peer.inet6,
+	ret = connect(trans->fd, (struct sockaddr *) &trans->peer.inet6,
 		      sizeof(struct sockaddr_in6));
 	if (ret == -1) {
 		DEBUG(4, "Connect failed\n");
-		obex_delete_socket(self, self->fd);
-		self->fd = INVALID_SOCKET;
+		obex_delete_socket(self, trans->fd);
+		trans->fd = INVALID_SOCKET;
 		return ret;
 	}
 
-	self->trans.mtu = OBEX_DEFAULT_MTU;
-	DEBUG(3, "transport mtu=%d\n", self->trans.mtu);
+	trans->mtu = OBEX_DEFAULT_MTU;
+	DEBUG(3, "transport mtu=%d\n", trans->mtu);
 
 	return ret;
 }
@@ -315,12 +325,14 @@ static int inobex_connect_request(obex_t *self)
  */
 static int inobex_disconnect_request(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
 	int ret;
+
 	DEBUG(4, "\n");
-	ret = obex_delete_socket(self, self->fd);
+	ret = obex_delete_socket(self, trans->fd);
 	if (ret < 0)
 		return ret;
-	self->fd = INVALID_SOCKET;
+	trans->fd = INVALID_SOCKET;
 	return ret;
 }
 
@@ -334,10 +346,12 @@ static int inobex_disconnect_request(obex_t *self)
  */
 static int inobex_disconnect_server(obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
 	int ret;
+
 	DEBUG(4, "\n");
-	ret = obex_delete_socket(self, self->serverfd);
-	self->serverfd = INVALID_SOCKET;
+	ret = obex_delete_socket(self, trans->serverfd);
+	trans->serverfd = INVALID_SOCKET;
 	return ret;
 }
 

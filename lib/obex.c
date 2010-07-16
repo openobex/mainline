@@ -107,9 +107,10 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 	self->keepserver = (flags & OBEX_FL_KEEPSERVER) ? TRUE : FALSE;
 	self->filterhint = (flags & OBEX_FL_FILTERHINT) ? TRUE : FALSE;
 	self->filterias  = (flags & OBEX_FL_FILTERIAS ) ? TRUE : FALSE;
-	self->fd = INVALID_SOCKET;
-	self->serverfd = INVALID_SOCKET;
-	self->writefd = INVALID_SOCKET;
+
+	self->trans.fd = INVALID_SOCKET;
+	self->trans.serverfd = INVALID_SOCKET;
+	self->trans.writefd = INVALID_SOCKET;
 	self->mode = MODE_SRV;
         self->state = STATE_IDLE;
 
@@ -378,7 +379,8 @@ obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * 
 
 	/* We can accept only if both the server and the connection socket
 	 * are active */
-	if ((server->fd == INVALID_SOCKET) || (server->serverfd == INVALID_SOCKET))
+	if ((server->trans.fd == INVALID_SOCKET) ||
+	    (server->trans.serverfd == INVALID_SOCKET))
 		return(NULL);
 
 	/* If we have started receiving something, it's too late... */
@@ -433,10 +435,10 @@ obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * 
 
 	/* Now, that's the interesting bit !
 	 * We split the sockets apart, one for each instance */
-	self->fd = server->fd;
-	self->serverfd = INVALID_SOCKET;
-	self->writefd = INVALID_SOCKET;
-	server->fd = INVALID_SOCKET;
+	self->trans.fd = server->trans.fd;
+	self->trans.serverfd = INVALID_SOCKET;
+	self->trans.writefd = INVALID_SOCKET;
+	server->trans.fd = INVALID_SOCKET;
 	self->mode = MODE_SRV;
         self->state = STATE_IDLE;
 
@@ -549,9 +551,9 @@ LIB_SYMBOL
 int CALLAPI OBEX_GetFD(obex_t *self)
 {
 	obex_return_val_if_fail(self != NULL, -1);
-	if(self->fd == INVALID_SOCKET)
-		return self->serverfd;
-	return self->fd;
+	if(self->trans.fd == INVALID_SOCKET)
+		return self->trans.serverfd;
+	return self->trans.fd;
 }
 
 /**
@@ -1127,8 +1129,8 @@ int CALLAPI FdOBEX_TransportSetup(obex_t *self, int rfd, int wfd, int mtu)
 		DEBUG(1, "We are busy.\n");
 		return -EBUSY;
 	}
-	self->fd = rfd;
-	self->writefd = wfd;
+	self->trans.fd = rfd;
+	self->trans.writefd = wfd;
 	self->trans.mtu = mtu ? mtu : self->mtu_tx_max;
 	return obex_transport_connect_request(self);
 }

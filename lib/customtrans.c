@@ -6,83 +6,93 @@
 
 static int custom_init (obex_t *self)
 {
+	struct obex_transport *trans = &self->trans;
 	obex_ctrans_t *ctrans = malloc(sizeof(*ctrans));
 
 	if (!ctrans)
 		return -1;
 
 	memset(ctrans, 0, sizeof(*ctrans));
-	self->trans.data = ctrans;
+	trans->data = ctrans;
 	return 0;
 }
 
 static int custom_clone(obex_t *self, const obex_t *from)
 {
+	struct obex_transport *trans = &self->trans;
 	obex_ctrans_t *ctrans = malloc(sizeof(*ctrans));
 
 	if (!ctrans)
 		return -1;
 
 	memcpy(ctrans, from, sizeof(*ctrans));
-	self->trans.data = ctrans;
+	trans->data = ctrans;
 	return 0;	
 }
 
 static void custom_cleanup (obex_t *self)
 {
-	obex_ctrans_t *ctrans = self->trans.data;
+	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *ctrans = trans->data;
 
 	if (ctrans) {
 		free(ctrans);
-		self->trans.data = NULL;
+		trans->data = NULL;
 	}
 }
 
 void custom_set_data(obex_t *self, void *data)
 {
-	obex_ctrans_t *ctrans = self->trans.data;
+	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *ctrans = trans->data;
 
 	ctrans->customdata = data;
 }
 
 void* custom_get_data(obex_t *self)
 {
-	obex_ctrans_t *ctrans = self->trans.data;
+	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *ctrans = trans->data;
 
 	return ctrans->customdata;
 }
 
 static int custom_connect_request(obex_t *self)
 {
-	obex_ctrans_t *ctrans = self->trans.data;
+	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *ctrans = trans->data;
 
 	return ctrans->connect(self, ctrans->customdata);
 }
 
 static int custom_disconnect_request(obex_t *self)
 {
-	obex_ctrans_t *ctrans = self->trans.data;
+	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *ctrans = trans->data;
 
 	return ctrans->disconnect(self, ctrans->customdata);
 }
 
 static int custom_listen(obex_t *self)
 {
-	obex_ctrans_t *ctrans = self->trans.data;
+	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *ctrans = trans->data;
 
 	return ctrans->listen(self, ctrans->customdata);
 }
 
 static int custom_handle_input(obex_t *self, int timeout)
 {
-	obex_ctrans_t *ctrans = self->trans.data;
+	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *ctrans = trans->data;
 
 	return ctrans->handleinput(self, ctrans->customdata, timeout);
 }
 
 static int custom_write(obex_t *self, buf_t *msg)
 {
-	obex_ctrans_t *ctrans = self->trans.data;
+	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *ctrans = trans->data;
 
 	return ctrans->write(self, ctrans->customdata,
 			     msg->data, msg->data_size);
