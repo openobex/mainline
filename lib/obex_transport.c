@@ -118,6 +118,32 @@ void obex_transport_cleanup(obex_t *self)
 		self->trans.ops.cleanup(self);	
 }
 
+void obex_transport_clone(obex_t *self, obex_t *old)
+{
+	/* Copy transport data:
+	 * This includes the transport operations and either the
+	 * transport data can be cloned (means: implements the clone()
+	 * function) or they must be initialized.
+	 */
+	memcpy(&self->trans, &old->trans, sizeof(obex_transport_t));
+	self->trans.data = NULL;
+	if (self->trans.ops.clone)
+		self->trans.ops.clone(self, old);
+	else if (self->trans.ops.init)
+		self->trans.ops.init(self);
+}
+
+void obex_transport_split(obex_t *self, obex_t *server)
+{
+	/* Now, that's the interesting bit !
+	 * We split the sockets apart, one for each instance */
+	self->trans.fd = server->trans.fd;
+	server->trans.fd = INVALID_SOCKET;
+
+	self->trans.serverfd = INVALID_SOCKET;
+	self->trans.writefd = INVALID_SOCKET;
+}
+
 /*
  * Function obex_transport_accept(self)
  *

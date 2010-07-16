@@ -357,17 +357,7 @@ obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * 
 
 	self->keepserver = server->keepserver;
 
-	/* Copy transport data:
-	 * This includes the transport operations and either the transport data
-	 * can be cloned (means: implements the clone() function) or they must
-	 * be initialized.
-	 */
-	memcpy(&self->trans, &server->trans, sizeof(obex_transport_t));
-	self->trans.data = NULL;
-	if (self->trans.ops.clone)
-		self->trans.ops.clone(self, server);
-	else if (self->trans.ops.init)
-		self->trans.ops.init(self);
+	obex_transport_clone(self, server);
  
 	self->mtu_rx = server->mtu_rx;
 	self->mtu_tx = server->mtu_tx;
@@ -383,12 +373,7 @@ obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * 
 	if (self->tx_msg == NULL)
 		goto out_err;
 
-	/* Now, that's the interesting bit !
-	 * We split the sockets apart, one for each instance */
-	self->trans.fd = server->trans.fd;
-	self->trans.serverfd = INVALID_SOCKET;
-	self->trans.writefd = INVALID_SOCKET;
-	server->trans.fd = INVALID_SOCKET;
+	obex_transport_split(self, server);
 	self->mode = MODE_SRV;
         self->state = STATE_IDLE;
 
