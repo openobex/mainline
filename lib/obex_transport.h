@@ -121,7 +121,7 @@ void obex_transport_disconnect_request(struct obex *self);
 int obex_transport_listen(struct obex *self);
 void obex_transport_disconnect_server(struct obex *self);
 int obex_transport_write(struct obex *self, struct databuffer *msg);
-int obex_transport_read(struct obex *self, int count, uint8_t *buf, int buflen);
+int obex_transport_read(struct obex *self, int count);
 void obex_transport_enumerate(struct obex *self);
 
 #endif /* OBEX_TRANSPORT_H */

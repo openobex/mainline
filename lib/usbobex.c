@@ -435,7 +435,7 @@ static int usbobex_disconnect_request(obex_t *self)
 
 static int usbobex_handle_input(obex_t *self, int timeout)
 {
-	return obex_data_indication(self, NULL, 0);
+	return obex_data_indication(self);
 }
 
 static int usbobex_write(obex_t *self, buf_t *msg)

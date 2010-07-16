@@ -231,7 +231,7 @@ int obex_data_request(obex_t *self, buf_t *msg, int opcode)
  *    Read/Feed some input from device and find out which packet it is
  *
  */
-int obex_data_indication(obex_t *self, uint8_t *buf, int buflen)
+int obex_data_indication(obex_t *self)
 {
 	obex_common_hdr_t *hdr;
 	buf_t *msg;
@@ -247,39 +247,34 @@ int obex_data_indication(obex_t *self, uint8_t *buf, int buflen)
 	msg = self->rx_msg;
 	
 	/* First we need 3 bytes to be able to know how much data to read */
-	if(msg->data_size < 3)  {
-		actual = obex_transport_read(self, 3 - (msg->data_size), buf, buflen);
+	if(msg->data_size < sizeof(*hdr))  {
+		actual = obex_transport_read(self, sizeof(*hdr)-msg->data_size);
 		
 		DEBUG(4, "Got %d bytes\n", actual);
 
 		/* Check if we are still connected */
 		/* do not error if the data is from non-empty but partial buffer (custom transport) */
-		if (buf == NULL && buflen == 0 && actual < 0)	{
+		if (actual < 0) {
 			obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
 			return actual;
-		}
-		if (buf && buflen) {
-			buf += actual;
-			buflen -= actual;
 		}
 	}
 
 	/* If we have 3 bytes data we can decide how big the packet is */
-	if(msg->data_size >= 3) {
+	if(msg->data_size >= sizeof(*hdr)) {
 		hdr = (obex_common_hdr_t *) msg->data;
 		size = ntohs(hdr->len);
 
 		actual = 0;
 		if(msg->data_size < (int) ntohs(hdr->len)) {
 
-			actual = obex_transport_read(self, size - msg->data_size, buf,
-				buflen);
+			actual = obex_transport_read(self, size - msg->data_size);
 			/* hdr might not be valid anymore if the _read did a realloc */
 			hdr = (obex_common_hdr_t *) msg->data;
 
 			/* Check if we are still connected */
 			/* do not error if the data is from non-empty but partial buffer (custom transport) */
-			if (buf == NULL && buflen == 0 && actual < 0)	{
+			if (actual < 0) {
 				obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
 				return actual;
 			}

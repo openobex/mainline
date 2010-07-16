@@ -207,7 +207,7 @@ int obex_transport_standard_handle_input(obex_t *self, int timeout)
 
 	if (trans->fd != INVALID_SOCKET && FD_ISSET(trans->fd, &fdset)) {
 		DEBUG(4, "Data available on client socket\n");
-		ret = obex_data_indication(self, NULL, 0);
+		ret = obex_data_indication(self);
 
 	} else if (trans->serverfd != INVALID_SOCKET && FD_ISSET(trans->serverfd, &fdset)) {
 		DEBUG(4, "Data available on server socket\n");
@@ -369,21 +369,15 @@ int obex_transport_do_recv (obex_t *self, void *buf, int buflen)
  *    Do the reading
  *
  */
-int obex_transport_read(obex_t *self, int max, uint8_t *in, int len)
+int obex_transport_read(obex_t *self, int max)
 {
-	int actual = -1;
-	void * buf = buf_reserve_end(self->rx_msg, max);
+	int actual = 0;
+	void *buf = buf_reserve_end(self->rx_msg, max);
 
 	DEBUG(4, "Request to read max %d bytes\n", max);
 
 	if (self->trans.ops.read)
 		actual = self->trans.ops.read(self, buf, max);
-	else if (len) {
-		actual = len;
-		if (actual > max)
-			actual = max;
-		memcpy(buf, in, actual);
-	}
 
 	if (actual <= 0)
 		buf_remove_end(self->rx_msg, max);

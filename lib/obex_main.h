@@ -63,7 +63,7 @@ socket_t obex_create_socket(struct obex *self, int domain);
 int obex_delete_socket(struct obex *self, socket_t fd);
 
 void obex_deliver_event(struct obex *self, int event, int cmd, int rsp, int del);
-int obex_data_indication(struct obex *self, uint8_t *buf, int buflen);
+int obex_data_indication(struct obex *self);
 
 void obex_response_request(struct obex *self, uint8_t opcode);
 int obex_data_request(struct obex *self, struct databuffer *msg, int opcode);
