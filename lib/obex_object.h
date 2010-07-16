@@ -67,7 +67,7 @@ struct obex_object {
 	uint8_t lastopcode;		/* Opcode for last packet */
 	uint16_t headeroffset;		/* Where to start parsing headers */
 
-	int hinted_body_len;		/* Hinted body-length or 0 */
+	uint32_t hinted_body_len;	/* Hinted body-length or 0 */
 	int totallen;			/* Size of all headers */
 	int abort;			/* Request shall be aborted */
 
@@ -97,7 +97,11 @@ int obex_object_setcmd(struct obex_object *object, uint8_t cmd, uint8_t lastcmd)
 int obex_object_setrsp(struct obex_object *object, uint8_t rsp, uint8_t lastrsp);
 int obex_object_send(struct obex *self, struct obex_object *object,
 		     int allowfinalcmd, int forcefinalbit);
+
+int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg);
+int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter);
 int obex_object_receive(struct obex *self, struct databuffer *msg);
+
 int obex_object_readstream(struct obex *self, struct obex_object *object, const uint8_t **buf);
 int obex_object_suspend(struct obex_object *object);
 int obex_object_resume(struct obex *self, struct obex_object *object);

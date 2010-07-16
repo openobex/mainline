@@ -631,26 +631,25 @@ int obex_object_reparseheaders(obex_t *self, obex_object_t *object)
  *
  */
 static void obex_object_receive_stream(obex_t *self, uint8_t hi,
-				uint8_t *source, unsigned int len)
+				       const uint8_t *source, unsigned int len)
 {
 	obex_object_t *object = self->object;
 	uint8_t cmd = obex_object_getcmd(self, object);
 
 	DEBUG(4, "\n");
 
-	/* Spare the app this empty nonlast body-hdr */
-	if (hi == OBEX_HDR_BODY && len == 0)
-		return;
-
-	object->s_buf = source;
-	object->s_len = len;
-
 	if (object->abort) {
 		DEBUG(3, "Ignoring incomming data because request was aborted\n");
 		return;
 	}
 
+	/* Spare the app this empty nonlast body-hdr */
+	if (hi == OBEX_HDR_BODY && len == 0)
+		return;
+
 	/* Notify app that data has arrived */
+	object->s_buf = source;
+	object->s_len = len;
 	obex_deliver_event(self, OBEX_EV_STREAMAVAIL, cmd, 0, FALSE);
 
 	/* If send send EOS to app */
@@ -659,6 +658,9 @@ static void obex_object_receive_stream(obex_t *self, uint8_t hi,
 		object->s_len = 0;
 		obex_deliver_event(self, OBEX_EV_STREAMAVAIL, cmd, 0, FALSE);
 	}
+
+	object->s_buf = NULL;
+	object->s_len = 0;
 }
 
 /*
@@ -667,18 +669,12 @@ static void obex_object_receive_stream(obex_t *self, uint8_t hi,
  *    Handle receiving of body
  *
  */
-static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t hi,
-				uint8_t *source, unsigned int len)
+static int obex_object_receive_buffered(obex_t *self, uint8_t hi,
+					const uint8_t *source, unsigned int len)
 {
-	struct obex_header_element *element;
+	obex_object_t *object = self->object;
 
 	DEBUG(4, "This is a body-header. Len=%d\n", len);
-
-	if (len > msg->data_size) {
-		DEBUG(1, "Header %d to big. HSize=%d Buffer=%lu\n",
-				hi, len, (unsigned long)msg->data_size);
-		return -1;
-	}
 
 	if (!object->rx_body) {
 		int alloclen = OBEX_OBJECT_ALLOCATIONTRESHOLD + len;
@@ -687,7 +683,8 @@ static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t h
 			alloclen = object->hinted_body_len;
 
 		DEBUG(4, "Allocating new body-buffer. Len=%d\n", alloclen);
-		if (!(object->rx_body = buf_new(alloclen)))
+		object->rx_body = buf_new(alloclen);
+		if (!object->rx_body)
 			return -1;
 	}
 
@@ -706,52 +703,19 @@ static int obex_object_receive_body(obex_object_t *object, buf_t *msg, uint8_t h
 
 	buf_insert_end(object->rx_body, source, len);
 
-	if (hi == OBEX_HDR_BODY_END) {
-		DEBUG(4, "Body receive done\n");
-		element = malloc(sizeof(*element));
-		if (element != NULL) {
-			memset(element, 0, sizeof(*element));
-			element->length = object->rx_body->data_size;
-			element->hi = OBEX_HDR_BODY;
-			element->buf = object->rx_body;
-
-			/* Add element to rx-list */
-			object->rx_headerq = slist_append(object->rx_headerq, element);
-		} else
-			buf_free(object->rx_body);
-
-		object->rx_body = NULL;
-	} else {
-		DEBUG(4, "Normal body fragment...\n");
-	}
-
 	return 1;
 }
 
 /*
  * Function obex_object_receive()
  *
- *    Add any incoming headers to headerqueue.
- *
+ *    Process non-header data from an incoming message.
  */
-int obex_object_receive(obex_t *self, buf_t *msg)
+int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
 {
-	obex_object_t *object;
-	struct obex_header_element *element;
-	uint8_t *source = NULL;
-	unsigned int len, hlen;
-	uint8_t hi;
-	int err = 0;
-
-	union {
-		struct obex_unicode_hdr     *unicode;
-		struct obex_byte_stream_hdr *bstream;
-		struct obex_uint_hdr	    *uint;
-	} h;
-
+	obex_object_t *object = self->object;
 
 	DEBUG(4, "\n");
-	object = self->object;
 
 	/* Remove command from buffer */
 	buf_remove_begin(msg, sizeof(struct obex_common_hdr));
@@ -766,117 +730,235 @@ int obex_object_receive(obex_t *self, buf_t *msg)
 		buf_remove_begin(msg, object->headeroffset);
 		object->headeroffset = 0;
 	}
+	return 0;
+}
 
-	while ((msg->data_size > 0) && (!err)) {
-		hi = msg->data[0];
-		DEBUG(4, "Header: %02x\n", hi);
-		switch (hi & OBEX_HDR_TYPE_MASK) {
+static int obex_object_get_hdrdata(buf_t *msg, uint16_t offset, uint8_t **source,
+				   unsigned int *len, unsigned int *hlen)
+{
+	union {
+		struct obex_unicode_hdr     *unicode;
+		struct obex_byte_stream_hdr *bstream;
+	} h;
+	int err = 0;
+	uint8_t *msgdata = msg->data + offset;
+	uint8_t hi = msgdata[0];
 
-		case OBEX_HDR_TYPE_UNICODE:
-			h.unicode = (struct obex_unicode_hdr *) msg->data;
-			source = &msg->data[3];
-			hlen = ntohs(h.unicode->hl);
-			len = hlen - 3;
-			break;
+	switch (hi & OBEX_HDR_TYPE_MASK) {
+	case OBEX_HDR_TYPE_UNICODE:
+		h.unicode = (struct obex_unicode_hdr *) msgdata;
+		*source = &msgdata[3];
+		*hlen = ntohs(h.unicode->hl);
+		*len = *hlen - 3;
+		break;
 
-		case OBEX_HDR_TYPE_BYTES:
-			h.bstream = (struct obex_byte_stream_hdr *) msg->data;
-			source = &msg->data[3];
-			hlen = ntohs(h.bstream->hl);
-			len = hlen - 3;
+	case OBEX_HDR_TYPE_BYTES:
+		h.bstream = (struct obex_byte_stream_hdr *) msgdata;
+		*source = &msgdata[3];
+		*hlen = ntohs(h.bstream->hl);
+		*len = *hlen - 3;
+		break;
 
-			if (hi == OBEX_HDR_BODY || hi == OBEX_HDR_BODY_END) {
-				/* The body-header need special treatment */
-				if (object->s_srv)
-					obex_object_receive_stream(self, hi, source, len);
-				else {
-					if (obex_object_receive_body(object, msg, hi, source, len) < 0)
-						err = -1;
-				}
-				/* We have already handled this data! */
-				source = NULL;
-			}
-			break;
+	case OBEX_HDR_TYPE_UINT8:
+		*source = &msgdata[1];
+		*hlen = 2;
+		*len = 1;
+		break;
 
-		case OBEX_HDR_TYPE_UINT8:
-			source = &msg->data[1];
-			len = 1;
-			hlen = 2;
-			break;
+	case OBEX_HDR_TYPE_UINT32:
+		*source = &msgdata[1];
+		*hlen = 5;
+		*len = 4;
+		break;
 
-		case OBEX_HDR_TYPE_UINT32:
-			source = &msg->data[1];
-			len = 4;
-			hlen = 5;
-			break;
+	default:
+		DEBUG(1, "Badly formed header received\n");
+		err = -1;
+		break;
+	}
 
-		default:
-			DEBUG(1, "Badly formed header received\n");
-			source = NULL;
-			hlen = 0;
-			len = 0;
-			err = -1;
-			break;
+	return err;
+}
+
+static int obex_object_receive_body(obex_t *self, uint8_t hi,
+				    const uint8_t *source, unsigned int len)
+{
+	obex_object_t *object = self->object;
+
+	DEBUG(4, "\n");
+
+	if (object->s_srv) {
+		if (hi == OBEX_HDR_BODY || hi == OBEX_HDR_BODY_END) {
+			/* The body-header need special treatment */
+			obex_object_receive_stream(self, hi, source, len);
+			/* We have already handled this data! */
+			return 1;
 		}
 
+	} else {
+		if (hi == OBEX_HDR_BODY || hi == OBEX_HDR_BODY_END) {
+			if (obex_object_receive_buffered(self, hi, source, len) < 0)
+				return -1;
+
+			if (hi == OBEX_HDR_BODY) {
+				DEBUG(4, "Normal body fragment...\n");
+				/* We have already handled this data! */
+				return 1;
+			}
+
+		} else if (hi == OBEX_HDR_LENGTH && !object->rx_body) {
+			/* The length MAY be useful when receiving body. */
+			uint32_t value;
+			memcpy(&value, source, sizeof(value));
+			object->hinted_body_len = ntohl(value);
+			DEBUG(4, "Hinted body len is %d\n",
+			      object->hinted_body_len);
+		}
+	}
+	return 0;
+}
+
+static int obex_object_rcv_one_header(obex_t *self, uint8_t hi,
+				      const uint8_t *source, unsigned int len)
+{
+	struct obex_header_element *element;
+	obex_object_t *object = self->object;
+	int err = 0;
+
+	DEBUG(4, "\n");
+
+	element = malloc(sizeof(*element));
+	if (element == NULL) {
+		DEBUG(1, "Cannot allocate memory\n");
+		if (hi == OBEX_HDR_BODY_END && object->rx_body) {
+			buf_free(object->rx_body);
+			object->rx_body = NULL;
+		}
+		err = -1;
+
+	} else {
+		memset(element, 0, sizeof(*element));
+
+		if (hi == OBEX_HDR_BODY_END)
+			hi = OBEX_HDR_BODY;
+		element->hi = hi;
+
+		if (hi == OBEX_HDR_BODY && object->rx_body) {
+			DEBUG(4, "Body receive done\n");
+			element->length = object->rx_body->data_size;
+			element->buf = object->rx_body;
+			object->rx_body = NULL;
+
+		} else if (len == 0) {
+			/* If we get an emtpy we have to deal with it...
+			 * This might not be an optimal way, but it works. */
+			DEBUG(4, "Got empty header. Allocating dummy buffer anyway\n");
+			element->buf = buf_new(1);
+
+		} else {
+			element->length = len;
+			element->buf = buf_new(len);
+			if (element->buf) {
+				DEBUG(4, "Copying %d bytes\n", len);
+				buf_insert_end(element->buf, source, len);
+			}
+		}
+
+		if (!element->buf) {
+			DEBUG(1, "Cannot allocate memory\n");
+			free(element);
+			element = NULL;
+			err = -1;
+		}
+	}
+
+	if (element) {
+		/* Add element to rx-list */
+		object->rx_headerq = slist_append(object->rx_headerq, element);
+	}
+
+	return err;
+}
+
+/*
+ * Function obex_object_receive()
+ *
+ *    Process all data from an incoming message, including non-header data
+ *    and headers, and remove them from the message buffer.
+ */
+int obex_object_receive(obex_t *self, buf_t *msg)
+{
+	int hlen;
+
+	DEBUG(4, "\n");
+
+	if (obex_object_receive_nonhdr_data(self, msg) < 0)
+		return -1;
+
+	hlen = obex_object_receive_headers(self, msg, 0);
+	if (hlen < 0)
+		return hlen;
+
+	DEBUG(4, "Pulling %lu bytes\n", (unsigned long)msg->data_size);
+	buf_remove_begin(msg, msg->data_size);
+	return 0;
+}
+
+/*
+ * Function obex_object_receive_headers()
+ *
+ *    Add any incoming headers to headerqueue but does not remove them from
+ *    the message buffer.
+ *    Returns the total number of bytes of the added headers or -1;
+ */
+int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
+{
+	uint16_t offset = 0;
+	int consumed = 0;
+
+	DEBUG(4, "\n");
+
+	while (offset < msg->data_size) {
+		uint8_t hi = msg->data[offset];
+		uint8_t *source = NULL;
+		unsigned int len = 0;
+		unsigned int hlen = 0;
+		int err = 0;
+
+		DEBUG(4, "Header: %02x\n", hi);
+
+		err = obex_object_get_hdrdata(msg, offset, &source, &len, &hlen);
+
 		/* Make sure that the msg is big enough for header */
-		if (len > msg->data_size) {
+		if (len > (msg->data_size - offset)) {
 			DEBUG(1, "Header %d to big. HSize=%d Buffer=%lu\n",
-					hi, len, (unsigned long)msg->data_size);
+					hi, len, (unsigned long)msg->data_size - offset);
 			source = NULL;
 			err = -1;
 		}
 
 		if (source) {
-			/* The length MAY be useful when receiving body. */
-			if (hi == OBEX_HDR_LENGTH) {
-				h.uint = (struct obex_uint_hdr *) msg->data;
-				object->hinted_body_len = ntohl(h.uint->hv);
-				DEBUG(4, "Hinted body len is %d\n",
-							object->hinted_body_len);
-			}
-
-			element = malloc(sizeof(*element));
-			if (element != NULL) {
-				memset(element, 0, sizeof(*element));
-				element->length = len;
-				element->hi = hi;
-
-				/* If we get an emtpy we have to deal with it...
-				 * This might not be an optimal way, but it works. */
-				if (len == 0) {
-					DEBUG(4, "Got empty header. Allocating dummy buffer anyway\n");
-					element->buf = buf_new(1);
-				} else {
-					element->buf = buf_new(len);
-					if (element->buf) {
-						DEBUG(4, "Copying %d bytes\n", len);
-						buf_insert_end(element->buf, source, len);
-					}
-				}
-
-				if (element->buf) {
-					/* Add element to rx-list */
-					object->rx_headerq = slist_append(object->rx_headerq, element);
-				} else{
-					DEBUG(1, "Cannot allocate memory\n");
-					free(element);
-					err = -1;
-				}
-			} else {
-				DEBUG(1, "Cannot allocate memory\n");
+			int used = obex_object_receive_body(self, hi, source, len);
+			if (used != 0)
+				source = NULL;
+			if (used < 0)
 				err = -1;
-			}
+			if (used > 0)
+				consumed += hlen;
+		}
+
+		if (source) {
+			err = obex_object_rcv_one_header(self, hi, source, len);
+			consumed += hlen;
 		}
 
 		if (err)
 			return err;
 
-		DEBUG(4, "Pulling %d bytes\n", hlen);
-		buf_remove_begin(msg, hlen);
+		offset += hlen;
 	}
 
-	return 1;
+	return consumed;
 }
 
 /*
