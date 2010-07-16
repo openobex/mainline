@@ -59,6 +59,8 @@ int obex_debug;
 int obex_dump;
 #endif
 
+#include "cloexec.h"
+
 /*
  * Function obex_create_socket()
  *
@@ -68,17 +70,20 @@ int obex_dump;
 socket_t obex_create_socket(obex_t *self, int domain)
 {
 	socket_t fd;
-	int proto;
-	DEBUG(4, "\n");
+	int type = SOCK_STREAM;
+	int proto = 0;
 
-	proto = 0;
+	DEBUG(4, "\n");
 
 #ifdef HAVE_BLUETOOTH
 	if (domain == AF_BLUETOOTH)
 		proto = BTPROTO_RFCOMM;
 #endif /*HAVE_BLUETOOTH*/
 
-	fd = socket(domain, SOCK_STREAM, proto);
+	if (self->init_flags & OBEX_FL_CLOEXEC)
+		fd = socket_cloexec(domain, type, proto);
+	else
+		fd = socket(domain, type, proto);
 	return fd;
 }
 

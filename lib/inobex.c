@@ -42,6 +42,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "cloexec.h"
 
 #define OBEX_PORT 650
 
@@ -238,11 +239,13 @@ static int inobex_listen(obex_t *self)
 static int inobex_accept(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct sockaddr *addr = (struct sockaddr *)&self->trans.peer.inet6;
 	socklen_t addrlen = sizeof(struct sockaddr_in6);
 
-	trans->fd = accept(trans->serverfd,
-			   (struct sockaddr *) &self->trans.peer.inet6,
-			   &addrlen);
+	if (self->init_flags & OBEX_FL_CLOEXEC)
+		trans->fd = accept_cloexec(trans->serverfd, addr, &addrlen);
+	else
+		trans->fd = accept(trans->serverfd, addr, &addrlen);
 
 	if (trans->fd == INVALID_SOCKET)
 		return -1;

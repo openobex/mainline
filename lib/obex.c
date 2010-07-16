@@ -103,13 +103,9 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 	memset(self, 0, sizeof(*self));
 
 	self->eventcb = eventcb;
-
-	self->keepserver = (flags & OBEX_FL_KEEPSERVER) ? TRUE : FALSE;
-	self->filterhint = (flags & OBEX_FL_FILTERHINT) ? TRUE : FALSE;
-	self->filterias  = (flags & OBEX_FL_FILTERIAS ) ? TRUE : FALSE;
-
+	self->init_flags = flags;
 	self->mode = MODE_SRV;
-        self->state = STATE_IDLE;
+	self->state = STATE_IDLE;
 
 	/* Safe values.
 	 * Both self->mtu_rx and self->mtu_tx_max can be increased by app
@@ -355,7 +351,7 @@ obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * 
 	else
 		self->userdata = server->userdata;
 
-	self->keepserver = server->keepserver;
+	self->init_flags = server->init_flags;
 
 	obex_transport_clone(self, server);
  

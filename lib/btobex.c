@@ -48,6 +48,8 @@ bdaddr_t bluez_compat_bdaddr_any = { BTH_ADDR_NULL };
 #define WSA_VER_MINOR 2
 #endif
 
+#include "cloexec.h"
+
 static int btobex_init (obex_t *self)
 {
 #ifdef _WIN32
@@ -160,12 +162,14 @@ out_freesock:
 static int btobex_accept(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct sockaddr *addr = (struct sockaddr *)&self->trans.peer.rfcomm;
 	socklen_t addrlen = sizeof(struct sockaddr_rc);
 
 	// First accept the connection and get the new client socket.
-	trans->fd = accept(trans->serverfd,
-			   (struct sockaddr *) &self->trans.peer.rfcomm,
-			   &addrlen);
+	if (self->init_flags & OBEX_FL_CLOEXEC)
+		trans->fd = accept_cloexec(trans->serverfd, addr, &addrlen);
+	else
+		trans->fd = accept(trans->serverfd, addr, &addrlen);
 
 	if (trans->fd == INVALID_SOCKET)
 		return -1;

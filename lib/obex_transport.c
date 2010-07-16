@@ -215,11 +215,11 @@ int obex_transport_standard_handle_input(obex_t *self, int timeout)
 		ret = obex_transport_accept(self);
 
 		/* Tell the app to perform the OBEX_Accept() */
-		if (self->keepserver)
+		if (self->init_flags & OBEX_FL_KEEPSERVER)
 			obex_deliver_event(self, OBEX_EV_ACCEPTHINT,
 					   0, 0, FALSE);
 		/* Otherwise, just disconnect the server */
-		if (ret >= 0 && !self->keepserver)
+		else if (ret >= 0)
 			obex_transport_disconnect_server(self);
 
 	} else

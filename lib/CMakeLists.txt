@@ -52,12 +52,18 @@ set ( HEADERS
   inobex.h
   fdobex.h
   customtrans.h
+  cloexec.h
 )
 
 set ( openobex_PUBLIC_HEADER
   ${openobex_INCLUDE_DIRS}/openobex/obex.h
   ${openobex_INCLUDE_DIRS}/openobex/obex_const.h
 )
+
+if ( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
+  # Activates some functions not defined without
+  add_definitions ( -D_GNU_SOURCE )
+endif ( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
 
 option ( ENABLE_DEBUG_MESSAGES "Enables debug messages printed during runtime" )
 if ( ENABLE_DEBUG_MESSAGES )

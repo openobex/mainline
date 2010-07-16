@@ -143,9 +143,10 @@ typedef union {
 #define OBEX_EV_REQCHECK	11	/* First packet of an incoming request has been parsed */
 
 /* For OBEX_Init() */
-#define OBEX_FL_KEEPSERVER	0x02	/* Keep the server alive */
-#define OBEX_FL_FILTERHINT	0x04	/* Filter devices based on hint bit */
-#define OBEX_FL_FILTERIAS	0x08	/* Filter devices based on IAS entry */
+#define OBEX_FL_KEEPSERVER	(1 <<  1) /* Keep the server alive */
+#define OBEX_FL_FILTERHINT	(1 <<  2) /* Filter devices based on hint bit */
+#define OBEX_FL_FILTERIAS	(1 <<  3) /* Filter devices based on IAS entry */
+#define OBEX_FL_CLOEXEC		(1 <<  4) /* Set CLOEXEC flag on file descriptors */
 
 /* For OBEX_ObjectAddHeader */
 #define OBEX_FL_FIT_ONE_PACKET	0x01	/* This header must fit in one packet */

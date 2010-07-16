@@ -58,6 +58,7 @@
 
 #include "obex_main.h"
 #include "irobex.h"
+#include "cloexec.h"
 
 static int irobex_init (obex_t *self)
 {
@@ -186,7 +187,7 @@ void irobex_prepare_connect(obex_t *self, const char *service)
 		service = "OBEX";
 
 	/* Do we want to filter devices based on IAS ? */
-	if (self->filterias) {
+	if (self->init_flags & OBEX_FL_FILTERIAS) {
 		for (; i < self->interfaces_number; ++i) {
 			obex_irda_intf_t *intf = &self->interfaces[i].irda;
 			if (irobex_query_ias(self, intf->remote, service))
@@ -320,12 +321,14 @@ static unsigned int irobex_get_mtu(obex_t *self)
 static int irobex_accept(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct sockaddr *addr = (struct sockaddr *)&self->trans.peer.irda;
 	socklen_t addrlen = sizeof(struct sockaddr_irda);
 
 	// First accept the connection and get the new client socket.
-	trans->fd = accept(trans->serverfd,
-			   (struct sockaddr *) &self->trans.peer.irda,
-			   &addrlen);
+	if (self->init_flags & OBEX_FL_CLOEXEC)
+		trans->fd = accept_cloexec(trans->serverfd, addr, &addrlen);
+	else
+		trans->fd = accept(trans->serverfd, addr, &addrlen);
 
 	if (trans->fd == INVALID_SOCKET)
 		return -1;
@@ -361,7 +364,7 @@ static int irobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 
 #ifndef _WIN32
 	/* Hint bit filtering, if possible */
-	if (self->filterhint) {
+	if (self->init_flags & OBEX_FL_FILTERHINT) {
 		unsigned char hints[4] = {
 			HINT_EXTENSION, HINT_OBEX, 0, 0,
 		};
@@ -414,7 +417,7 @@ static int irobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 			intf->hints[0] = dev[i].hints[0];
 			intf->hints[1] = dev[i].hints[1];
 #else
-			if (self->filterhint &&
+			if (self->init_flags & OBEX_FL_FILTERHINT &&
 			    ((dev[i].irdaDeviceHints1 & LM_HB_Extension) == 0 ||
 			     (dev[i].irdaDeviceHints2 & 0x20) == 0))
 				continue;

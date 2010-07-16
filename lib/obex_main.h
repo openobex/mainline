@@ -43,9 +43,7 @@ struct obex {
 	enum obex_state state;
 	enum obex_mode mode;
 
-	int keepserver;		/* Keep server alive */
-	int filterhint;		/* Filter devices based on hint bits */
-	int filterias;		/* Filter devices based on IAS entry */
+	unsigned int init_flags;
 
 	struct databuffer *tx_msg;	/* Reusable transmit message */
 	struct databuffer *rx_msg;	/* Reusable receive message */
