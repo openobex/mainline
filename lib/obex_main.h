@@ -67,7 +67,6 @@ struct obex {
 	obex_event_t eventcb;		/* Event-callback */
 
 	obex_transport_t trans;		/* Transport being used */
-	obex_ctrans_t ctrans;
 
 	obex_interface_t *interfaces;	/* Array of discovered interfaces */
 	int interfaces_number;		/* Number of discovered interfaces */

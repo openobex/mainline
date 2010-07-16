@@ -207,8 +207,7 @@ int CALLAPI OBEX_RegisterCTransport(obex_t *self, obex_ctrans_t *ctrans)
 	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail(ctrans != NULL, -1);
 
-	memcpy(&self->ctrans, ctrans, sizeof(obex_ctrans_t));
-	return 1;
+	return custom_register(self, ctrans);
 }
 
 /**
@@ -406,10 +405,18 @@ obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * 
 
 	self->keepserver = server->keepserver;
 
-	/* Copy transport data */
+	/* Copy transport data:
+	 * This includes the transport operations and either the transport data
+	 * can be cloned (means: implements the clone() function) or they must
+	 * be initialized.
+	 */
 	memcpy(&self->trans, &server->trans, sizeof(obex_transport_t));
-	memcpy(&self->ctrans, &server->ctrans, sizeof(obex_ctrans_t));
-
+	self->trans.data = NULL;
+	if (self->trans.ops.clone)
+		self->trans.ops.clone(self, server);
+	else if (self->trans.ops.init)
+		self->trans.ops.init(self);
+ 
 	self->mtu_rx = server->mtu_rx;
 	self->mtu_tx = server->mtu_tx;
 	self->mtu_tx_max = server->mtu_tx_max;
@@ -920,7 +927,7 @@ LIB_SYMBOL
 void CALLAPI OBEX_SetCustomData(obex_t *self, void *data)
 {
 	obex_return_if_fail(self != NULL);
-	self->ctrans.customdata = data;
+	custom_set_data(self, data);
 }
 
 /**
@@ -932,7 +939,7 @@ LIB_SYMBOL
 void * CALLAPI OBEX_GetCustomData(obex_t *self)
 {
 	obex_return_val_if_fail(self != NULL, 0);
-	return self->ctrans.customdata;
+	return custom_get_data(self);
 }
 
 /**

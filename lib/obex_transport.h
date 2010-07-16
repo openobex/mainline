@@ -50,7 +50,9 @@ struct databuffer;
 
 struct obex_transport_ops {
 	int (*init)(obex_t*);
+	int (*clone)(obex_t*, const obex_t*);
 	void (*cleanup)(obex_t*);
+
 	int (*handle_input)(obex_t*, int);
 	int (*write)(obex_t*, buf_t*);
 	int (*read)(obex_t*, void*, int);
