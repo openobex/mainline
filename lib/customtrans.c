@@ -98,6 +98,23 @@ static int custom_write(obex_t *self, buf_t *msg)
 			     msg->data, msg->data_size);
 }
 
+static int custom_read(obex_t *self, void *buf, int size)
+{
+	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *ctrans = trans->data;
+
+	if (ctrans->read)
+		return ctrans->read(self, ctrans->customdata, buf, size);
+	else {
+		/* This is not an error as it may happen that
+		 * OBEX_CustomDataFeed() was not given enough data
+		 * for one OBEX packet. This would result in calling
+		 * this function.
+		 */
+		return 0;
+	}
+}
+
 int custom_register(obex_t *self, const obex_ctrans_t *in)
 {
 	obex_ctrans_t *ctrans = self->trans.data;
@@ -109,6 +126,7 @@ int custom_register(obex_t *self, const obex_ctrans_t *in)
 	memcpy(ctrans, in, sizeof(*ctrans));
 	ops->handle_input = &custom_handle_input;
 	ops->write = &custom_write;
+	ops->read = &custom_read;
 
 	if (ctrans->listen)
 		ops->server.listen = &custom_listen;

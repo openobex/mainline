@@ -43,12 +43,13 @@ typedef union {
 } obex_headerdata_t;
 
 typedef struct {
-	int (*connect)(obex_t *handle, void * customdata);
-	int (*disconnect)(obex_t *handle, void * customdata);
-	int (*listen)(obex_t *handle, void * customdata);
-	int (*write)(obex_t *handle, void * customdata, uint8_t *buf, int buflen);
-	int (*handleinput)(obex_t *handle, void * customdata, int timeout);
-	void * customdata;
+	int (*connect)(obex_t *handle, void *customdata);
+	int (*disconnect)(obex_t *handle, void *customdata);
+	int (*listen)(obex_t *handle, void *customdata);
+	int (*read)(obex_t *handle, void *customdata, uint8_t *buf, int size);
+	int (*write)(obex_t *handle, void *customdata, uint8_t *buf, int len);
+	int (*handleinput)(obex_t *handle, void *customdata, int timeout);
+	void *customdata;
 } obex_ctrans_t;
 
 /** USB-specific OBEX service information
