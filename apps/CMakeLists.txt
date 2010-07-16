@@ -8,6 +8,9 @@ set ( OPENOBEX_COMMON_APPS
   irxfer
   irobex_palm3
 )
+set ( OPENOBEX_APPS
+  obex_find
+)
 
 if ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
   #obex_tcp uses functions that are only available

@@ -159,6 +159,38 @@
   </refentry>
 
 
+  <refentry id="obex_find">
+    <refmeta>
+      <refentrytitle>obex_find</refentrytitle>
+      <manvolnum>1</manvolnum>
+      <refmiscinfo class="manual">User commands</refmiscinfo>
+    </refmeta>
+    <refnamediv>
+      <refname>obex_find</refname>
+      <refpurpose>Find connectable OBEX devices (IrDA, USB).</refpurpose>
+    </refnamediv>
+    <refsynopsisdiv>
+      <cmdsynopsis>
+	<command>obex_find</command>
+	<arg><option><replaceable>transport</replaceable>...</option></arg>
+      </cmdsynopsis>
+    </refsynopsisdiv>
+    <refsect1>
+      <title>Description</title>
+      <para>
+	obex_tcp is a small utility to find devices that support OBEX.
+	If no transport is specified, all OpenOBEX transports that have
+	search capability are tried. Currently, supported transports are
+	"irda" and "usb".
+      </para>
+      <para>
+	This program is designed to be an example application for the openobex
+	library.
+      </para>
+    </refsect1>
+  </refentry>
+
+
   <refentry id="obex_tcp">
     <refmeta>
       <refentrytitle>obex_tcp</refentrytitle>
