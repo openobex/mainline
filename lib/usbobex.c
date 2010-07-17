@@ -433,9 +433,15 @@ static int usbobex_disconnect_request(obex_t *self)
 	return ret;
 }
 
-static int usbobex_handle_input(obex_t *self, int timeout)
+static int usbobex_get_timeout(int timeout)
 {
-	return obex_data_indication(self);
+	if (timeout < 0 || timeout > INT_MAX/1000) {
+		/* libusb-0.x doesn't know about waiting infinitely
+		 * so we try with the largest value possible
+		 */
+		return INT_MAX;
+	}
+	return timeout*1000;
 }
 
 static int usbobex_write(obex_t *self, buf_t *msg)
@@ -449,10 +455,10 @@ static int usbobex_write(obex_t *self, buf_t *msg)
 	return usb_bulk_write(trans->self.usb.dev,
 			      trans->self.usb.data_endpoint_write,
 			      (char *) msg->data, msg->data_size,
-			      USB_OBEX_TIMEOUT);
+			      usbobex_get_timeout(trans->timeout));
 }
 
-static int usbobex_read (obex_t *self, void *buf, int buflen)
+static int usbobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct obex_transport *trans = &self->trans;
 	int actual;
@@ -461,23 +467,38 @@ static int usbobex_read (obex_t *self, void *buf, int buflen)
 		return -1;
 
 	/* USB can only read 0xFFFF bytes at once (equals mtu_rx) */
-	if (buflen < self->mtu_rx) {
-		buf_remove_end(self->rx_msg, buflen);
-		buf = buf_reserve_end(self->rx_msg, self->mtu_rx);
-	}
+	if (buflen < self->mtu_rx)
+		buf = buf_reserve_end(self->rx_msg, self->mtu_rx - buflen);
 
 	DEBUG(4, "Endpoint %d\n", trans->self.usb.data_endpoint_read);
 	actual = usb_bulk_read(trans->self.usb.dev,
 			       trans->self.usb.data_endpoint_read,
-			       buf, buflen, USB_OBEX_TIMEOUT);
+			       buf, buflen,
+			       usbobex_get_timeout(trans->timeout));
 
-	if (buflen < self->mtu_rx) {
+	if (actual < 0) {
+		if (buflen < self->mtu_rx)
+			buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
+		if (errno == ETIMEDOUT)
+			return 0;
+		else
+			return -1;
+	} else {
 		if (actual > buflen)
 			buflen = actual;
-		buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
+		if (buflen < self->mtu_rx)
+			buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
+		return actual;
 	}
+}
 
-	return actual;
+static int usbobex_handle_input(obex_t *self)
+{
+	int err = usbobex_read(self, NULL, 0);
+	if (err > 0)
+		return obex_data_indication(self);
+	else
+		return err;
 }
 
 void usbobex_get_ops(struct obex_transport_ops* ops)

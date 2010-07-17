@@ -33,7 +33,6 @@
 
 #else /* _WIN32 */
 #include <fcntl.h>
-#include <signal.h>
 #include <unistd.h>
 #endif /* _WIN32 */
 
@@ -127,11 +126,6 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int fla
 	self->tx_msg = buf_new(self->mtu_tx_max);
 	if (self->tx_msg == NULL)
 		goto out_err;
-
-#ifndef _WIN32
-	/* Ignore SIGPIPE. Otherwise send() will raise it and the app will quit */
-	signal(SIGPIPE, SIG_IGN);
-#endif
 
 	return self;
 

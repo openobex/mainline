@@ -59,7 +59,7 @@ struct obex_transport_ops {
 	int (*clone)(obex_t*, const obex_t*);
 	void (*cleanup)(obex_t*);
 
-	int (*handle_input)(obex_t*, int);
+	int (*handle_input)(obex_t*);
 	int (*write)(obex_t*, buf_t*);
 	int (*read)(obex_t*, void*, int);
 
@@ -77,7 +77,7 @@ struct obex_transport_ops {
 		int (*select_interface)(obex_t*, obex_interface_t*);
 	} client;
 };
-int obex_transport_standard_handle_input(obex_t *self, int timeout);
+int obex_transport_standard_handle_input(obex_t *self);
 int obex_transport_do_send(obex_t *self, buf_t *msg);
 int obex_transport_do_recv(obex_t *self, void *buf, int buflen);
 
@@ -102,6 +102,8 @@ typedef struct obex_transport {
 	socket_t fd;		/* Socket descriptor */
 	socket_t serverfd;
 	socket_t writefd;	/* write descriptor - only OBEX_TRANS_FD */
+
+	int timeout;		/* set timeout */
 
 	int connected;		/* Link connection state */
 	unsigned int mtu;	/* Tx MTU of the link */

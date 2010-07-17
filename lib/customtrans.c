@@ -81,12 +81,12 @@ static int custom_listen(obex_t *self)
 	return ctrans->listen(self, ctrans->customdata);
 }
 
-static int custom_handle_input(obex_t *self, int timeout)
+static int custom_handle_input(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
 	obex_ctrans_t *ctrans = trans->data;
 
-	return ctrans->handleinput(self, ctrans->customdata, timeout);
+	return ctrans->handleinput(self, ctrans->customdata, trans->timeout);
 }
 
 static int custom_write(obex_t *self, buf_t *msg)

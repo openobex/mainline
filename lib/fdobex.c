@@ -35,28 +35,46 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
 	int fd = trans->writefd;
-	unsigned int mtu = trans->mtu;
-	int actual = -1;
-	int size;
+	int actual = 0;
 
 	/* Send and fragment if necessary  */
 	while (msg->data_size) {
-		if (msg->data_size > mtu)
-			size = mtu;
-		else
-			size = msg->data_size;
+		int status = 1;
+		int size = msg->data_size;
+
+		if (msg->data_size > trans->mtu)
+			size = trans->mtu;
 		DEBUG(1, "sending %d bytes\n", size);
 
+		if (trans->timeout >= 0) {
+			/* setup everything to check for blocking writes */
+			fd_set fdset;
+			struct timeval time = {trans->timeout, 0};
+
+			FD_ZERO(&fdset);
+			FD_SET(fd, &fdset);
+			status = select((int)fd+1, NULL, &fdset, NULL, &time);
+			if (status == 0) {
+				errno = ETIMEDOUT;
+				status = -1;
+			}
+		}
+
+		/* call write() if no error */
+		if (status > 0) {
 #ifdef _WIN32
-		actual = _write(fd, msg->data, size);
+			status = _write(fd, msg->data, size);
 #else
-		actual = write(fd, msg->data, size);
+			status = write(fd, msg->data, size);
 #endif
-		if (actual <= 0)
-			return actual;
+		}
+
+		if (status < 0)
+			return -1;
 
 		/* Hide sent data */
-		buf_remove_begin(msg, actual);
+		buf_remove_begin(msg, status);
+		actual += status;
 	}
 
 	return actual;

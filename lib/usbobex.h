@@ -98,7 +98,6 @@ struct cdc_union_desc {
 0x20, 0x0c, 0x9a, 0x66 }
 
 #define USB_MAX_STRING_SIZE		256
-#define USB_OBEX_TIMEOUT		10000 /* 10 seconds */
 
 void usbobex_get_ops(struct obex_transport_ops* ops);
 #endif

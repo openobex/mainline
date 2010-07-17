@@ -31,6 +31,7 @@
 #include <errno.h>		/* errno and EADDRNOTAVAIL */
 #include <stdlib.h>
 #include <poll.h>		/* POLLIN */
+#include <limits.h>
 
 #include <libusb.h>
 
@@ -464,9 +465,20 @@ static int usbobex_disconnect_request(obex_t *self)
 	return 1;
 }
 
-static int usbobex_handle_input(obex_t *self, int timeout)
+static unsigned int usbobex_get_timeout(int timeout)
 {
-	return obex_data_indication(self);
+	/* uses closest to zero, 0 itself means infinite */
+	if (timeout == 0) {
+		return 1;
+
+	} else if (timeout > 0) {
+		if ((unsigned int)timeout > UINT_MAX/1000)
+			return UINT_MAX;
+		else
+			return timeout * 1000;
+
+	}
+	return 0;
 }
 
 static int usbobex_write(obex_t *self, buf_t *msg)
@@ -480,44 +492,60 @@ static int usbobex_write(obex_t *self, buf_t *msg)
 	DEBUG(4, "Endpoint %d\n", trans->self.usb.data_endpoint_write);
 	actual = libusb_bulk_transfer(trans->self.usb.dev,
 				      trans->self.usb.data_endpoint_write,
-				      (unsigned char *) msg->data, msg->data_size,
-				      &actual, USB_OBEX_TIMEOUT);
+				      (unsigned char *) msg->data,
+				      msg->data_size, &actual,
+				      usbobex_get_timeout(trans->timeout));
 	if (actual)
 		return -1;
 
 	return msg->data_size;
 }
 
-static int usbobex_read (obex_t *self, void *buf, int buflen)
+static int usbobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct obex_transport *trans = &self->trans;
 	int usberror;
-	int actual;
+	int actual = 0;
 
 	if (trans->connected != TRUE)
 		return -1;
 
 	/* USB can only read 0xFFFF bytes at once (equals mtu_rx) */
-	if (buflen < self->mtu_rx) {
-		buf_remove_end(self->rx_msg, buflen);
-		buf = buf_reserve_end(self->rx_msg, self->mtu_rx);
-	}
+	if (buflen < self->mtu_rx)
+		buf = buf_reserve_end(self->rx_msg, self->mtu_rx - buflen);
 
 	DEBUG(4, "Endpoint %d\n", trans->self.usb.data_endpoint_read);
 	usberror = libusb_bulk_transfer(trans->self.usb.dev,
 					trans->self.usb.data_endpoint_read,
 					buf, self->mtu_rx, &actual,
-					USB_OBEX_TIMEOUT);
-	if (usberror)
-		return -1;
-
-	if (buflen < self->mtu_rx) {
+					usbobex_get_timeout(trans->timeout));
+	switch (usberror) {
+	case 0:
 		if (actual > buflen)
 			buflen = actual;
-		buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
+		break;
+
+	case LIBUSB_ERROR_TIMEOUT:
+		actual = 0;
+		break;
+
+	default:
+		actual = -1;
+		break;
 	}
 
+	if (buflen < self->mtu_rx)
+		buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
 	return actual;
+}
+
+static int usbobex_handle_input(obex_t *self)
+{
+	int err = usbobex_read(self, NULL, 0);
+	if (err > 0)
+		return obex_data_indication(self);
+	else
+		return err;
 }
 
 void usbobex_get_ops(struct obex_transport_ops* ops)
