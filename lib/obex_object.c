@@ -915,6 +915,8 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 {
 	uint16_t offset = 0;
 	int consumed = 0;
+	const uint64_t body_filter = (1 << OBEX_HDR_ID_BODY |
+				      1 << OBEX_HDR_ID_BODY_END);
 
 	DEBUG(4, "\n");
 
@@ -937,7 +939,13 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 			err = -1;
 		}
 
-		if (source) {
+		/* Push the body header data either to the application
+		 * or to an internal receive buffer.
+		 * This also uses the length header in the latter case but
+		 * the filter is not checked for it as it's only an optimisation
+		 * (currently only works if BODY header is part of first message).
+		 */
+		if (source && (filter & body_filter) == 0) {
 			int used = obex_object_receive_body(self, hi, source, len);
 			if (used != 0)
 				source = NULL;
@@ -947,7 +955,12 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 				consumed += hlen;
 		}
 
-		if (source) {
+		/* This adds all headers to an internal list of headers that
+		 * the application can walk easily. Body headers are only added
+		 * if not in streaming mode and only after end-of-body was
+		 * received.
+		 */
+		if (source && (filter & (1 << (hi & OBEX_HDR_ID_MASK))) == 0) {
 			err = obex_object_rcv_one_header(self, hi, source, len);
 			consumed += hlen;
 		}

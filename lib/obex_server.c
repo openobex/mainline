@@ -138,6 +138,7 @@ static int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16_t len)
 {
 	int deny = 0;
+	uint64_t filter;
 
 	DEBUG(4, "STATE_REC\n");
 	/* In progress of receiving a request */
@@ -163,8 +164,18 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16
 		return -1;
 	}
 
-	/* Get the headers... */
-	if (obex_object_receive(self, msg) < 0) {
+	/* Get the non-header data and look at all non-body headers.
+	 * Leaving the body headers out here has advantages:
+	 * - we don't need to assign a data buffer if the user rejects the request
+	 * - the user can inspect all first-packet headers before deciding about
+	 *   stream mode
+	 * - the user application actually received the REQCHECK when always using
+	 *   stream mode
+	 */
+	filter = (1 << OBEX_HDR_ID_BODY | 1 << OBEX_HDR_ID_BODY_END);
+	if (obex_object_receive_nonhdr_data(self, msg) < 0 ||
+	    obex_object_receive_headers(self, msg, filter) < 0)
+	{
 		obex_response_request(self, OBEX_RSP_BAD_REQUEST);
 		self->state = STATE_IDLE;
 		obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
@@ -172,6 +183,12 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16
 	}
 
 	if (!final) {
+		/* The REQCHECK event is rather optional. The decision about the
+		 * actual support for a command is at REQHINT. So let's assume
+		 * that the application wants that request. It can still deny it
+		 * but it doesn't have to ack it. */
+		obex_object_setrsp(self->object, OBEX_RSP_CONTINUE, OBEX_RSP_SUCCESS);
+
 		/* Let the user decide whether to accept or deny a multi-packet
 		 * request by examining all headers in the first packet */
 		if (!self->object->checked) {
@@ -181,7 +198,8 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16
 
 		/* Everything except 0x1X and 0x2X means that the user callback
 		 * denied the request. In the denied cases treat the last
-		 * packet as a final one but don't signal OBEX_EV_REQ */
+		 * packet as a final one but don't bother about body headers and
+		 * don't signal OBEX_EV_REQ. */
 		switch ((self->object->opcode & ~OBEX_FINAL) & 0xF0) {
 		case OBEX_RSP_CONTINUE:
 		case OBEX_RSP_SUCCESS:
@@ -193,6 +211,17 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16
 			break;
 		}
 	}
+
+	if (!deny) {
+		if (obex_object_receive_headers(self, msg, ~filter) < 0) {
+			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
+			self->state = STATE_IDLE;
+			obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
+			return -1;
+		}
+	}
+	DEBUG(4, "Pulling %lu bytes\n", (unsigned long)msg->data_size);
+	buf_remove_begin(msg, msg->data_size);
 
 	if (!final) {
 		/* As a server, the final bit is always SET- Jean II */
