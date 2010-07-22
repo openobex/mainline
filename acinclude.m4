@@ -23,7 +23,6 @@ AC_DEFUN([COMPILER_FLAGS], [
 		CFLAGS+=" -Wredundant-decls"
 		CFLAGS+=" -Wcast-align"
 	fi
-	CPPFLAGS+=" -I${srcdir}/include"
 ])
 
 AC_DEFUN([AC_INIT_OPENOBEX], [
@@ -66,14 +65,19 @@ AC_DEFUN([AC_PATH_WIN32], [
 ])
 
 AC_DEFUN([AC_PATH_IRDA_LINUX], [
-	AC_CACHE_CHECK([for IrDA support], irda_found, [
-		AC_TRY_COMPILE([
-				#include <sys/socket.h>
-				#include <linux/irda.h>
-			], [
-				struct irda_device_list l;
-			], irda_found=yes, irda_found=no)
-	])
+dnl We ship linux/irda.h in $srcdir/include, so it makes no
+dnl sense to test for it.
+dnl	AC_CACHE_CHECK([for IrDA support], irda_found, [
+dnl		AC_TRY_COMPILE([
+dnl				#include <sys/socket.h>
+dnl				#include <linux/irda.h>
+dnl			], [
+dnl				struct irda_device_list l;
+dnl			], irda_found=yes, irda_found=no)
+dnl	])
+	irda_found=yes
+	AC_MSG_CHECKING([for IrDA support])
+	AC_MSG_RESULT([$irda_found])
 	irda_linux=$irda_found
 ])
 

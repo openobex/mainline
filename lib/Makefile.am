@@ -22,7 +22,7 @@ libopenobex_la_SOURCES = \
 	bluez_compat.h \
 	visibility.h defines.h debug.h cloexec.h
 
-libopenobex_la_CPPFLAGS = @CPPFLAGS@
+libopenobex_la_CPPFLAGS = -I$(top_srcdir)/include
 libopenobex_la_CFLAGS = -D_GNU_SOURCE @CFLAG_VISIBILITY@ @USB1_CFLAGS@
 
 libopenobex_la_LDFLAGS = \
