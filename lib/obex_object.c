@@ -427,7 +427,8 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 	int addmore = TRUE;
 	int real_opcode;
 
-	DEBUG(4, "\n");
+	DEBUG(4, "allowfinalcmd: %d forcefinalbit:%d\n", allowfinalcmd,
+			forcefinalbit);
 
 	/* Return finished if aborted */
 	if (object->abort)
@@ -1010,7 +1011,7 @@ int obex_object_resume(obex_t *self, obex_object_t *object)
 {
 	int ret;
 	uint8_t cmd = obex_object_getcmd(self, object);
-	int final;
+	int allowfinalcmd = TRUE, forcefinalbit = FALSE;
 
 	if (!object->suspend)
 		return 0;
@@ -1020,9 +1021,13 @@ int obex_object_resume(obex_t *self, obex_object_t *object)
 	if (object->first_packet_sent && !object->continue_received)
 		return 0;
 
-	final = (self->state & MODE_SRV) ? TRUE : FALSE;
+	if (self->state & MODE_SRV) {
+		forcefinalbit = TRUE;
+		if ((self->state & ~MODE_SRV) == STATE_REC)
+			allowfinalcmd = FALSE;
+	}
 
-	ret = obex_object_send(self, object, TRUE, final);
+	ret = obex_object_send(self, object, allowfinalcmd, forcefinalbit);
 
 	if (ret < 0) {
 		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
