@@ -65,32 +65,22 @@ AC_DEFUN([AC_PATH_WIN32], [
 ])
 
 AC_DEFUN([AC_PATH_IRDA_LINUX], [
-dnl We ship linux/irda.h in $srcdir/include, so it makes no
-dnl sense to test for it.
-dnl	AC_CACHE_CHECK([for IrDA support], irda_found, [
-dnl		AC_TRY_COMPILE([
-dnl				#include <sys/socket.h>
-dnl				#include <linux/irda.h>
-dnl			], [
-dnl				struct irda_device_list l;
-dnl			], irda_found=yes, irda_found=no)
-dnl	])
-	irda_found=yes
+	irda_cv_found=yes
 	AC_MSG_CHECKING([for IrDA support])
-	AC_MSG_RESULT([$irda_found])
-	irda_linux=$irda_found
+	AC_MSG_RESULT([$irda_cv_found])
+	irda_linux=$irda_cv_found
 ])
 
 AC_DEFUN([AC_PATH_IRDA_WIN32], [
-	AC_CACHE_VAL(irda_found, [
-		AC_CHECK_HEADERS(af_irda.h, irda_found=yes, irda_found=no,
+	AC_CACHE_VAL(irda_cv_found, [
+		AC_CHECK_HEADERS(af_irda.h, irda_cv_found=yes, irda_cv_found=no,
 				 [
 				  #include <winsock2.h>
 		])
 	])
-      irda_windows=$irda_found
+	irda_windows=$irda_cv_found
 	AC_MSG_CHECKING([for IrDA support])
-	AC_MSG_RESULT([$irda_found])
+	AC_MSG_RESULT([$irda_cv_found])
 ])
 
 AC_DEFUN([AC_PATH_IRDA], [
@@ -102,42 +92,40 @@ AC_DEFUN([AC_PATH_IRDA], [
 		AC_PATH_IRDA_WIN32
 		;;
 	*)
-		irda_found=no;
+		irda_cv_found=no;
 		AC_MSG_CHECKING([for IrDA support])
-		AC_MSG_RESULT([$irda_found])
+		AC_MSG_RESULT([$irda_cv_found])
 		;;
 	esac
 ])
 
 AC_DEFUN([AC_PATH_WINBT], [
-	AC_CACHE_VAL(winbt_found,[
-               AC_CHECK_HEADERS(ws2bth.h, winbt_found=yes, winbt_found=no,
-                                [
-                                  #include <winsock2.h>
-               ])
+	AC_CACHE_VAL(winbt_cv_found,[
+		AC_CHECK_HEADERS(ws2bth.h, winbt_cv_found=yes, winbt_cv_found=no,
+				[#include <winsock2.h>])
 	])
 	AC_MSG_CHECKING([for Windows Bluetooth support])
-	AC_MSG_RESULT([$winbt_found])
+	AC_MSG_RESULT([$winbt_cv_found])
 ])
 
 
 AC_DEFUN([AC_PATH_NETBSDBT], [
-	AC_CACHE_CHECK([for NetBSD Bluetooth support], netbsdbt_found, [
+	AC_CACHE_CHECK([for NetBSD Bluetooth support], netbsdbt_cv_found, [
 		AC_TRY_COMPILE([
 				#include <bluetooth.h>
 			], [
 				struct sockaddr_bt *bt;
-			], netbsdbt_found=yes, netbsdbt_found=no)
+			], netbsdbt_cv_found=yes, netbsdbt_cv_found=no)
 	])
 ])
 
 AC_DEFUN([AC_PATH_FREEBSDBT], [
-	AC_CACHE_CHECK([for FreeBSD Bluetooth support], freebsdbt_found, [
+	AC_CACHE_CHECK([for FreeBSD Bluetooth support], freebsdbt_cv_found, [
 		AC_TRY_COMPILE([
 				#include <bluetooth.h>
 			], [
 				struct sockaddr_rfcomm *rfcomm;
-			], freebsdbt_found=yes, freebsdbt_found=no)
+			], freebsdbt_cv_found=yes, freebsdbt_cv_found=no)
 	])
 ])
 
@@ -285,26 +273,26 @@ AC_DEFUN([AC_ARG_OPENOBEX], [
 
 	REQUIRES=""
 
-	if (test "${irda_enable}" = "yes" && test "${irda_found}" = "yes"); then
+	if (test "${irda_enable}" = "yes" && test "${irda_cv_found}" = "yes"); then
 		AC_DEFINE(HAVE_IRDA, 1, [Define if system supports IrDA and it's enabled])
-            if (test "${irda_windows}" = "yes"); then
-                  AC_DEFINE(HAVE_IRDA_WINDOWS, 1, [Define if system supports IrDA stack for Windows])
-            elif (test "${irda_linux}" = "yes"); then
+		if (test "${irda_windows}" = "yes"); then
+			AC_DEFINE(HAVE_IRDA_WINDOWS, 1, [Define if system supports IrDA stack for Windows])
+		elif (test "${irda_linux}" = "yes"); then
 		      AC_DEFINE(HAVE_IRDA_LINUX, 1, [Define if system supports IrDA stack for Linux])
-            fi
+		fi
 	fi
 
-      if (test "${bluetooth_enable}" = "yes" && test "${winbt_found}" = "yes"); then
-            AC_DEFINE(HAVE_BLUETOOTH, 1, [Define if system supports Bluetooth and it's enabled])
-            AC_DEFINE(HAVE_BLUETOOTH_WINDOWS, 1, [Define if system supports Bluetooth stack for Windows])
-      fi
+	if (test "${bluetooth_enable}" = "yes" && test "${winbt_cv_found}" = "yes"); then
+		AC_DEFINE(HAVE_BLUETOOTH, 1, [Define if system supports Bluetooth and it's enabled])
+		AC_DEFINE(HAVE_BLUETOOTH_WINDOWS, 1, [Define if system supports Bluetooth stack for Windows])
+	fi
 
-	if (test "${bluetooth_enable}" = "yes" && test "${netbsdbt_found}" = "yes"); then
+	if (test "${bluetooth_enable}" = "yes" && test "${netbsdbt_cv_found}" = "yes"); then
 		AC_DEFINE(HAVE_BLUETOOTH, 1, [Define if system supports Bluetooth and it's enabled])
 		AC_DEFINE(HAVE_BLUETOOTH_NETBSD, 1, [Define if system supports Bluetooth stack for NetBSD])
 	fi
 
-	if (test "${bluetooth_enable}" = "yes" && test "${freebsdbt_found}" = "yes"); then
+	if (test "${bluetooth_enable}" = "yes" && test "${freebsdbt_cv_found}" = "yes"); then
 		AC_DEFINE(HAVE_BLUETOOTH, 1, [Define if system supports Bluetooth and it's enabled])
 		AC_DEFINE(HAVE_BLUETOOTH_FREEBSD, 1, [Define if system supports Bluetooth stack for FreeBSD])
 	fi
