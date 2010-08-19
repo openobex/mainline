@@ -6,6 +6,7 @@
 #include <unistd.h>
 #if defined(_WIN32)
 #include <io.h>
+#define ETIMEDOUT WSAETIMEDOUT
 #endif
 
 static int fdobex_connect_request(obex_t *self)

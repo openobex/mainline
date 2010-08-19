@@ -965,7 +965,9 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 		 * if not in streaming mode and only after end-of-body was
 		 * received.
 		 */
-		if (source && (filter & (1 << (hi & OBEX_HDR_ID_MASK))) == 0) {
+		if (source &&
+		    (filter & ((uint64_t)1 << (hi & OBEX_HDR_ID_MASK))) == 0)
+		{
 			err = obex_object_rcv_one_header(self, hi, source, len);
 			consumed += hlen;
 		}

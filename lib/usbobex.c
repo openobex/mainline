@@ -28,6 +28,7 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
+#define ETIMEDOUT WSAETIMEDOUT
 
 #else
 #include <netinet/in.h>
