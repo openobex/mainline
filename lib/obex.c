@@ -842,6 +842,7 @@ char * CALLAPI OBEX_ResponseToString(int rsp)
 	Set customdata of an OBEX handle.
 	\param self OBEX handle
 	\param data Custom Transport data
+	\return 0 on success, -1 on error
 
 	Note : this call is *reserved* to the Custom Transport and should not
 	be use by the user/client. It allow to update the Custom Transport data
@@ -853,10 +854,13 @@ char * CALLAPI OBEX_ResponseToString(int rsp)
 	- Jean II
  */
 LIB_SYMBOL
-void CALLAPI OBEX_SetCustomData(obex_t *self, void *data)
+int CALLAPI OBEX_SetCustomData(obex_t *self, void *data)
 {
-	obex_return_if_fail(self != NULL);
+	obex_return_val_if_fail(self == NULL, -1);
+	obex_return_val_if_fail(self->trans.type != OBEX_TRANS_CUSTOM, -1);
+	
 	custom_set_data(self, data);
+	return 0;
 }
 
 /**
@@ -867,7 +871,9 @@ void CALLAPI OBEX_SetCustomData(obex_t *self, void *data)
 LIB_SYMBOL
 void * CALLAPI OBEX_GetCustomData(obex_t *self)
 {
-	obex_return_val_if_fail(self != NULL, 0);
+	obex_return_val_if_fail(self == NULL, NULL);
+	obex_return_val_if_fail(self->trans.type != OBEX_TRANS_CUSTOM, NULL);
+
 	return custom_get_data(self);
 }
 

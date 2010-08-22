@@ -76,7 +76,7 @@ OPENOBEX_SYMBOL(int)      OBEX_SetTransportMTU(obex_t *self, uint16_t mtu_rx, ui
 OPENOBEX_SYMBOL(int)      OBEX_GetFD(obex_t *self);
 
 OPENOBEX_SYMBOL(int)    OBEX_RegisterCTransport(obex_t *self, obex_ctrans_t *ctrans);
-OPENOBEX_SYMBOL(void)   OBEX_SetCustomData(obex_t *self, void * data);
+OPENOBEX_SYMBOL(int)    OBEX_SetCustomData(obex_t *self, void * data);
 OPENOBEX_SYMBOL(void *) OBEX_GetCustomData(obex_t *self);
 
 OPENOBEX_SYMBOL(int) OBEX_TransportConnect(obex_t *self, struct sockaddr *saddr, int addlen);
