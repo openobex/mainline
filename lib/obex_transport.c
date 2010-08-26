@@ -159,7 +159,6 @@ static int obex_transport_accept(obex_t *self)
 	if (self->trans.ops.server.accept)
 		return self->trans.ops.server.accept(self);
 
-	
 	errno = EINVAL;
 	return -1;
 }
@@ -175,8 +174,8 @@ int obex_transport_standard_handle_input(obex_t *self)
 	obex_return_val_if_fail(self != NULL, -1);
 
 	/* Check of we have any fd's to do select on. */
-	if (trans->fd == INVALID_SOCKET
-	    && trans->serverfd == INVALID_SOCKET) {
+	if (trans->fd == INVALID_SOCKET &&
+				trans->serverfd == INVALID_SOCKET) {
 		DEBUG(0, "No valid socket is open\n");
 		return -1;
 	}
@@ -211,15 +210,16 @@ int obex_transport_standard_handle_input(obex_t *self)
 		DEBUG(4, "Data available on client socket\n");
 		ret = obex_data_indication(self);
 
-	} else if (trans->serverfd != INVALID_SOCKET && FD_ISSET(trans->serverfd, &fdset)) {
+	} else if (trans->serverfd != INVALID_SOCKET &&
+					FD_ISSET(trans->serverfd, &fdset)) {
 		DEBUG(4, "Data available on server socket\n");
 		/* Accept : create the connected socket */
 		ret = obex_transport_accept(self);
 
 		/* Tell the app to perform the OBEX_Accept() */
 		if (self->init_flags & OBEX_FL_KEEPSERVER)
-			obex_deliver_event(self, OBEX_EV_ACCEPTHINT,
-					   0, 0, FALSE);
+			obex_deliver_event(self, OBEX_EV_ACCEPTHINT, 0, 0,
+									FALSE);
 		/* Otherwise, just disconnect the server */
 		else if (ret >= 0)
 			obex_transport_disconnect_server(self);
@@ -414,7 +414,8 @@ void obex_transport_enumerate(struct obex *self)
 		return;
 
 	if (self->trans.ops.client.find_interfaces)
-		i = self->trans.ops.client.find_interfaces(self, &self->interfaces);
+		i = self->trans.ops.client.find_interfaces(self,
+							&self->interfaces);
 
 	self->interfaces_number = i;
 }

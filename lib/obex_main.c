@@ -176,7 +176,7 @@ void obex_deliver_event(obex_t *self, int event, int cmd, int rsp, int del)
 		self->eventcb(self, object, OBEX_MODE_SERVER, event, cmd, rsp);
 	else
 		self->eventcb(self, object, OBEX_MODE_CLIENT, event, cmd, rsp);
-	
+
 	if (del == TRUE)
 		obex_object_delete(object);
 }
@@ -212,13 +212,13 @@ int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 	obex_return_val_if_fail(msg != NULL, -1);
 
 	/* Insert common header */
-	hdr = (obex_common_hdr_t *) buf_reserve_begin(msg, sizeof(*hdr));
+	hdr = buf_reserve_begin(msg, sizeof(*hdr));
 
 	hdr->opcode = opcode;
-	hdr->len = htons((uint16_t)msg->data_size);
+	hdr->len = htons((uint16_t) msg->data_size);
 
 	DUMPBUFFER(1, "Tx", msg);
-	DEBUG(1, "len = %lu bytes\n", (unsigned long)msg->data_size);
+	DEBUG(1, "len = %lu bytes\n", (unsigned long) msg->data_size);
 
 	return obex_transport_write(self, msg);
 }
@@ -237,21 +237,22 @@ int obex_data_indication(obex_t *self)
 	int actual = 0;
 	unsigned int size;
 	int ret;
-	
+
 	DEBUG(4, "\n");
 
 	obex_return_val_if_fail(self != NULL, -1);
 
 	msg = self->rx_msg;
-	
+
 	/* First we need 3 bytes to be able to know how much data to read */
 	if(msg->data_size < sizeof(*hdr))  {
 		actual = obex_transport_read(self, sizeof(*hdr)-msg->data_size);
-		
+
 		DEBUG(4, "Got %d bytes\n", actual);
 
 		/* Check if we are still connected */
-		/* do not error if the data is from non-empty but partial buffer (custom transport) */
+		/* do not error if the data is from non-empty but
+		 * partial buffer (custom transport) */
 		if (actual < 0) {
 			obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
 			return actual;
@@ -266,38 +267,44 @@ int obex_data_indication(obex_t *self)
 		actual = 0;
 		if(msg->data_size < (int) ntohs(hdr->len)) {
 
-			actual = obex_transport_read(self, size - msg->data_size);
-			/* hdr might not be valid anymore if the _read did a realloc */
+			actual = obex_transport_read(self,
+							size - msg->data_size);
+			/* hdr might not be valid anymore if the _read
+			 * did a realloc */
 			hdr = (obex_common_hdr_t *) msg->data;
 
 			/* Check if we are still connected */
-			/* do not error if the data is from non-empty but partial buffer (custom transport) */
+			/* do not error if the data is from non-empty
+			 * but partial buffer (custom transport) */
 			if (actual < 0) {
-				obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
+				obex_deliver_event(self, OBEX_EV_LINKERR,
+								0, 0, TRUE);
 				return actual;
 			}
 		}
 	}
         else {
 		/* Wait until we have at least 3 bytes data */
-	  DEBUG(3, "Need at least 3 bytes got only %lu!\n", (unsigned long)msg->data_size);
+		DEBUG(3, "Need at least 3 bytes got only %lu!\n",
+					(unsigned long) msg->data_size);
 		return actual;
         }
 
 
 	/* New data has been inserted at the end of message */
-	DEBUG(1, "Got %d bytes msg len=%lu\n", actual, (unsigned long)msg->data_size);
+	DEBUG(1, "Got %d bytes msg len=%lu\n", actual,
+					(unsigned long) msg->data_size);
 
 	/*
 	 * Make sure that the buffer we have, actually has the specified
 	 * number of bytes. If not the frame may have been fragmented, and
-	 * we will then need to read more from the socket.  
+	 * we will then need to read more from the socket.
 	 */
 
 	/* Make sure we have a whole packet */
 	if (size > msg->data_size) {
 		DEBUG(3, "Need more data, size=%d, len=%lu!\n",
-		      size, (unsigned long)msg->data_size);
+				size, (unsigned long)msg->data_size);
 
 		/* I'll be back! */
 		return msg->data_size;
@@ -340,8 +347,8 @@ int obex_cancelrequest(obex_t *self, int nice)
 		buf_reuse(self->tx_msg);
 		buf_reuse(self->rx_msg);
 		/* Since we didn't send ABORT to peer we are out of sync
-		   and need to disconnect transport immediately, so we signal
-		   link error to app */
+		 * and need to disconnect transport immediately, so we
+		 * signal link error to app */
 		obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, FALSE);
 		return 1;
 	} else {

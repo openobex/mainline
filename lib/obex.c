@@ -83,7 +83,8 @@
 	\return an OBEX handle or NULL on error.
  */
 LIB_SYMBOL
-obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb, unsigned int flags)
+obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb,
+							unsigned int flags)
 {
 	obex_t *self;
 
@@ -157,7 +158,8 @@ int CALLAPI OBEX_RegisterCTransport(obex_t *self, obex_ctrans_t *ctrans)
 	Close down an OBEX instance.
 	\param self OBEX handle
 
-	Disconnects the transport and frees the interface (see #OBEX_FreeInterfaces).
+	Disconnects the transport and frees the interface (see
+	#OBEX_FreeInterfaces).
  */
 LIB_SYMBOL
 void CALLAPI OBEX_Cleanup(obex_t *self)
@@ -183,7 +185,7 @@ void CALLAPI OBEX_Cleanup(obex_t *self)
 	\param data It's all up to you!
  */
 LIB_SYMBOL
-void CALLAPI OBEX_SetUserData(obex_t *self, void * data)
+void CALLAPI OBEX_SetUserData(obex_t *self, void *data)
 {
 	obex_return_if_fail(self != NULL);
 	self->userdata=data;
@@ -207,10 +209,12 @@ void * CALLAPI OBEX_GetUserData(obex_t *self)
 	Change user callback on an OBEX handle.
 	\param self OBEX handle
 	\param eventcb Function pointer to your new event callback.
-	\param data Pointer to the new user data to pass to the new callback (optional)
+	\param data Pointer to the new user data to pass to the new
+	callback (optional)
  */
 LIB_SYMBOL
-void CALLAPI OBEX_SetUserCallBack(obex_t *self, obex_event_t eventcb, void * data)
+void CALLAPI OBEX_SetUserCallBack(obex_t *self, obex_event_t eventcb,
+								void *data)
 {
 	obex_return_if_fail(self != NULL);
 	/* The callback can't be NULL */
@@ -235,7 +239,8 @@ void CALLAPI OBEX_SetUserCallBack(obex_t *self, obex_event_t eventcb, void * dat
 	This need to be set *before* establishing the connection.
  */
 LIB_SYMBOL
-int CALLAPI OBEX_SetTransportMTU(obex_t *self, uint16_t mtu_rx, uint16_t mtu_tx_max)
+int CALLAPI OBEX_SetTransportMTU(obex_t *self, uint16_t mtu_rx,
+							uint16_t mtu_tx_max)
 {
 	obex_return_val_if_fail(self != NULL, -EFAULT);
 	if (self->object) {
@@ -309,7 +314,8 @@ int CALLAPI OBEX_ServerRegister(obex_t *self, struct sockaddr *saddr, int addrle
 	with the #OBEX_FL_KEEPSERVER flag set while calling #OBEX_Init().
  */
 LIB_SYMBOL
-obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * data)
+obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
+								void *data)
 {
 	obex_t *self;
 
@@ -320,17 +326,17 @@ obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * 
 	/* We can accept only if both the server and the connection socket
 	 * are active */
 	if ((server->trans.fd == INVALID_SOCKET) ||
-	    (server->trans.serverfd == INVALID_SOCKET))
-		return(NULL);
+			(server->trans.serverfd == INVALID_SOCKET))
+		return NULL;
 
 	/* If we have started receiving something, it's too late... */
 	if (server->object != NULL)
-		return(NULL);
+		return NULL;
 
 	/* Allocate new instance */
 	self =  malloc(sizeof(*self));
 	if (self == NULL)
-		return(NULL);
+		return NULL;
 
 	memset(self, 0, sizeof(*self));
 
@@ -348,7 +354,7 @@ obex_t * CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * 
 	self->init_flags = server->init_flags;
 
 	obex_transport_clone(self, server);
- 
+
 	self->mtu_rx = server->mtu_rx;
 	self->mtu_tx = server->mtu_tx;
 	self->mtu_tx_max = server->mtu_tx_max;
@@ -387,8 +393,9 @@ out_err:
 	Let the OBEX parser read and process incoming data. If no data
 	is available this call will block.
 
-	When a request has been sent or you are waiting for an incoming server-
-	request you should call this function until the request has finished.
+	When a request has been sent or you are waiting for an incoming
+	server- request you should call this function until the request
+	has finished.
 
 	Like select() this function returns -1 on error, 0 on timeout or
 	positive on success.
@@ -514,7 +521,7 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 	Cancel an ongoing operation.
 	\param self OBEX handle
 	\param nice If true an OBEX Abort will be sent if beeing client
-	       or OBEX_RSP_UNAUTHORIZED as reponse if beeing server.
+	or OBEX_RSP_UNAUTHORIZED as reponse if beeing server.
 	\return -1 on error
  */
 LIB_SYMBOL
@@ -639,10 +646,10 @@ int CALLAPI OBEX_ObjectGetSpace(obex_t *self, obex_object_t *object,
 	adding a body-header and set the flag #OBEX_FL_STREAM_DATA. When you
 	have no more data to send set the flag #OBEX_FL_STREAM_DATAEND instead.
 
-	After adding a header you are free to do whatever you want with the buffer
-	if you are NOT streaming. If you are streaming you may not touch the
-	buffer until you get another #OBEX_EV_STREAMEMPTY or until the request
-	finishes.
+	After adding a header you are free to do whatever you want with
+	the buffer if you are NOT streaming. If you are streaming you
+	may not touch the buffer until you get another
+	#OBEX_EV_STREAMEMPTY or until the request finishes.
 
 	The headers will be sent in the order you add them.
  */
@@ -704,21 +711,24 @@ int CALLAPI OBEX_ObjectReParseHeaders(obex_t *self, obex_object_t *object)
 	Read data from body stream.
 	\param self OBEX handle
 	\param object OBEX object
-	\param buf A pointer to a pointer which this function will set to a buffer which
-	shall be read (and ONLY read) after this function returns.
+	\param buf A pointer to a pointer which this function will set
+	to a buffer which shall be read (and ONLY read) after this
+	function returns.
 	\return number of bytes in buffer, or 0 for end-of-stream, -1 on error
 
-	To recieve the body as a stream call this function with buf = NULL as soon
-	as you get an #OBEX_EV_REQHINT event.
+	To recieve the body as a stream call this function with buf = NULL
+	as soon as you get an #OBEX_EV_REQHINT event.
 
-	You will now recieve #OBEX_EV_STREAMAVAIL events when data is available
-	for you. Call this function to get the data.
+	You will now recieve #OBEX_EV_STREAMAVAIL events when data is
+	available for you. Call this function to get the data.
 
-	Note! When receiving a stream data is not buffered so if you don't call this
-	function when you get an #OBEX_EV_STREAMAVAIL event data will be lost.
+	Note! When receiving a stream data is not buffered so if you
+	don't call this function when you get an #OBEX_EV_STREAMAVAIL
+	event data will be lost.
  */
 LIB_SYMBOL
-int CALLAPI OBEX_ObjectReadStream(obex_t *self, obex_object_t *object, const uint8_t **buf)
+int CALLAPI OBEX_ObjectReadStream(obex_t *self, obex_object_t *object,
+							const uint8_t **buf)
 {
 	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail(object != NULL, -1);
@@ -733,7 +743,8 @@ int CALLAPI OBEX_ObjectReadStream(obex_t *self, obex_object_t *object, const uin
 	\return -1 on error
  */
 LIB_SYMBOL
-int CALLAPI OBEX_ObjectSetRsp(obex_object_t *object, uint8_t rsp, uint8_t lastrsp)
+int CALLAPI OBEX_ObjectSetRsp(obex_object_t *object, uint8_t rsp,
+							uint8_t lastrsp)
 {
 	obex_return_val_if_fail(object != NULL, -1);
 	return obex_object_setrsp(object, rsp, lastrsp);
@@ -742,7 +753,8 @@ int CALLAPI OBEX_ObjectSetRsp(obex_object_t *object, uint8_t rsp, uint8_t lastrs
 /**
 	Get any data which was before headers.
 	\param object OBEX object
-	\param buffer Pointer to a pointer which will point to a read-only buffer
+	\param buffer Pointer to a pointer which will point to a
+	read-only buffer
 	\return size of the buffer or -1 for error
  */
 LIB_SYMBOL
@@ -767,9 +779,12 @@ int CALLAPI OBEX_ObjectGetNonHdrData(obex_object_t *object, uint8_t **buffer)
 	function to set this data.
  */
 LIB_SYMBOL
-int CALLAPI OBEX_ObjectSetNonHdrData(obex_object_t *object, const uint8_t *buffer, unsigned int len)
+int CALLAPI OBEX_ObjectSetNonHdrData(obex_object_t *object,
+						const uint8_t *buffer,
+						unsigned int len)
 {
-	/* TODO: Check that we actually can send len bytes without violating MTU */
+	/* TODO: Check that we actually can send len bytes without
+	 * violating MTU */
 
 	obex_return_val_if_fail(object != NULL, -1);
 	obex_return_val_if_fail(buffer != NULL, -1);
@@ -844,13 +859,15 @@ char * CALLAPI OBEX_ResponseToString(int rsp)
 	\param data Custom Transport data
 	\return 0 on success, -1 on error
 
-	Note : this call is *reserved* to the Custom Transport and should not
-	be use by the user/client. It allow to update the Custom Transport data
-	originally set via OBEX_RegisterCTransport().
-	The Custom Transport data (or instance handle) is used to store data
-	relative to the specific instance (i.e. connection), such as file
-	descriptors, offsets and others, so that the Custom Transport can manage
-	multiple connections transparently (i.e. without a lookup table).
+	Note : this call is *reserved* to the Custom Transport and
+	should not be use by the user/client. It allow to update the
+	Custom Transport data originally set via
+	OBEX_RegisterCTransport().
+	The Custom Transport data (or instance handle) is used to store
+	data relative to the specific instance (i.e. connection), such
+	as file descriptors, offsets and others, so that the Custom
+	Transport can manage multiple connections transparently (i.e.
+	without a lookup table).
 	- Jean II
  */
 LIB_SYMBOL
@@ -858,7 +875,7 @@ int CALLAPI OBEX_SetCustomData(obex_t *self, void *data)
 {
 	obex_return_val_if_fail(self == NULL, -1);
 	obex_return_val_if_fail(self->trans.type != OBEX_TRANS_CUSTOM, -1);
-	
+
 	custom_set_data(self, data);
 	return 0;
 }
@@ -887,10 +904,11 @@ void * CALLAPI OBEX_GetCustomData(obex_t *self)
 	An easier server function to use for TCP/IP (TcpOBEX) only.
 	It supports IPv4 (AF_INET) and IPv6 (AF_INET6).
 	Note: INADDR_ANY will get mapped to IN6ADDR_ANY and using port 0
-	      will select the default OBEX port.
+	will select the default OBEX port.
  */
 LIB_SYMBOL
-int CALLAPI TcpOBEX_ServerRegister(obex_t *self, struct sockaddr *addr, int addrlen)
+int CALLAPI TcpOBEX_ServerRegister(obex_t *self, struct sockaddr *addr,
+								int addrlen)
 {
 	DEBUG(3, "\n");
 
@@ -913,7 +931,8 @@ int CALLAPI TcpOBEX_ServerRegister(obex_t *self, struct sockaddr *addr, int addr
 	It supports IPv4 (AF_INET) and IPv6 (AF_INET6).
  */
 LIB_SYMBOL
-int CALLAPI TcpOBEX_TransportConnect(obex_t *self, struct sockaddr *addr, int addrlen)
+int CALLAPI TcpOBEX_TransportConnect(obex_t *self, struct sockaddr *addr,
+								int addrlen)
 {
 	DEBUG(4, "\n");
 
@@ -1074,8 +1093,8 @@ int CALLAPI FdOBEX_TransportSetup(obex_t *self, int rfd, int wfd, int mtu)
 	\param intf USB interface to connect to
 	\return -1 or negative error code on error
 
-	An easier connect function to connect to a discovered interface (currently
-	USB OBEX only).
+	An easier connect function to connect to a discovered interface
+	(currently USB OBEX only).
  */
 LIB_SYMBOL
 int CALLAPI OBEX_InterfaceConnect(obex_t *self, obex_interface_t *intf)
@@ -1144,18 +1163,25 @@ obex_interface_t * CALLAPI OBEX_GetInterfaceByIndex(obex_t *self, int i)
 LIB_SYMBOL
 void CALLAPI OBEX_FreeInterfaces(obex_t *self)
 {
-	int i = 0;
+	int i, interfaces_number;
+
 	DEBUG(4, "\n");
 
 	obex_return_if_fail(self != NULL);
 
-	if (self->interfaces) {
-		if (self->trans.ops.client.free_interface)
-			for (; i < self->interfaces_number; ++i) {
-				self->trans.ops.client.free_interface(&self->interfaces[i]);
-			}
-		free(self->interfaces);
-		self->interfaces = NULL;
-	}
+	interfaces_number = self->interfaces_number;
 	self->interfaces_number = 0;
+
+	if (self->interfaces == NULL)
+		return;
+
+	if (self->trans.ops.client.free_interface == NULL)
+		goto done;
+
+	for (i = 0; i < interfaces_number; i++)
+		self->trans.ops.client.free_interface(&self->interfaces[i]);
+
+done:
+	free(self->interfaces);
+	self->interfaces = NULL;
 }

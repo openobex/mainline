@@ -233,7 +233,7 @@ void buf_insert_begin(buf_t *p, const uint8_t *data, size_t data_size)
 {
 	uint8_t *dest;
 
-	dest = (uint8_t *) buf_reserve_begin(p, data_size);
+	dest = buf_reserve_begin(p, data_size);
 	assert(dest != NULL);
 	memcpy(dest, data, data_size);
 }
@@ -242,7 +242,7 @@ void buf_insert_end(buf_t *p, const uint8_t *data, size_t data_size)
 {
 	uint8_t *dest;
 
-	dest = (uint8_t *) buf_reserve_end(p, data_size);
+	dest = buf_reserve_end(p, data_size);
 	assert(dest != NULL);
 	memcpy(dest, data, data_size);
 }

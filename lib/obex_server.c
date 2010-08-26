@@ -86,13 +86,15 @@ static int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 		 * single packet (or we deny it).
 		 * Jean II */
 		if (cmd == OBEX_CMD_CONNECT ||
-		    obex_object_receive(self, msg) < 0) {
+				obex_object_receive(self, msg) < 0) {
 			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
 			self->state = STATE_IDLE;
-			obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
+			obex_deliver_event(self, OBEX_EV_PARSEERR,
+						self->object->opcode, 0, TRUE);
 			return -1;
 		}
-		obex_deliver_event(self, OBEX_EV_UNEXPECTED, self->object->opcode, 0, FALSE);
+		obex_deliver_event(self, OBEX_EV_UNEXPECTED,
+					self->object->opcode, 0, FALSE);
 		/* Note : we may want to get rid of received header,
 		 * however they are mixed with legitimate headers,
 		 * and the user may expect to consult them later.
@@ -135,7 +137,8 @@ static int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 	return 0;
 }
 
-static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16_t len)
+static int obex_server_recv(obex_t *self, buf_t *msg, int final,
+							int cmd, uint16_t len)
 {
 	int deny = 0;
 	uint64_t filter;
@@ -148,7 +151,8 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16
 		DEBUG(1, "Got OBEX_ABORT request!\n");
 		obex_response_request(self, OBEX_RSP_SUCCESS);
 		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode, cmd, TRUE);
+		obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode,
+								cmd, TRUE);
 		/* This is not an Obex error, it is just that the peer
 		 * aborted the request, so return 0 - Jean II */
 		return 0;
@@ -157,49 +161,56 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16
 	/* Sanity check */
 	if (cmd != self->object->cmd) {
 		/* The cmd-field of this packet is not the
-		   same as int the first fragment. Bail out! */
+		 * same as int the first fragment. Bail out! */
 		obex_response_request(self, OBEX_RSP_BAD_REQUEST);
 		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, cmd, TRUE);
+		obex_deliver_event(self, OBEX_EV_PARSEERR,
+					self->object->opcode, cmd, TRUE);
 		return -1;
 	}
 
 	/* Get the non-header data and look at all non-body headers.
 	 * Leaving the body headers out here has advantages:
-	 * - we don't need to assign a data buffer if the user rejects the request
-	 * - the user can inspect all first-packet headers before deciding about
-	 *   stream mode
-	 * - the user application actually received the REQCHECK when always using
-	 *   stream mode
+	 * - we don't need to assign a data buffer if the user rejects
+	 *   the request
+	 * - the user can inspect all first-packet headers before
+	 *   deciding about stream mode
+	 * - the user application actually received the REQCHECK when
+	 *   always using stream mode
 	 */
 	filter = (1 << OBEX_HDR_ID_BODY | 1 << OBEX_HDR_ID_BODY_END);
 	if (obex_object_receive_nonhdr_data(self, msg) < 0 ||
-	    obex_object_receive_headers(self, msg, filter) < 0)
-	{
+			obex_object_receive_headers(self, msg, filter) < 0) {
 		obex_response_request(self, OBEX_RSP_BAD_REQUEST);
 		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
+		obex_deliver_event(self, OBEX_EV_PARSEERR,
+						self->object->opcode, 0, TRUE);
 		return -1;
 	}
 
 	if (!final) {
-		/* The REQCHECK event is rather optional. The decision about the
-		 * actual support for a command is at REQHINT. So let's assume
-		 * that the application wants that request. It can still deny it
-		 * but it doesn't have to ack it. */
-		obex_object_setrsp(self->object, OBEX_RSP_CONTINUE, OBEX_RSP_SUCCESS);
+		/* The REQCHECK event is rather optional. The decision
+		 * about the actual support for a command is at
+		 * REQHINT. So let's assume that the application wants
+		 * that request. It can still deny it but it doesn't
+		 * have to ack it. */
+		obex_object_setrsp(self->object, OBEX_RSP_CONTINUE,
+							OBEX_RSP_SUCCESS);
 
-		/* Let the user decide whether to accept or deny a multi-packet
-		 * request by examining all headers in the first packet */
+		/* Let the user decide whether to accept or deny a
+		 * multi-packet request by examining all headers in
+		 * the first packet */
 		if (!self->object->checked) {
-			obex_deliver_event(self, OBEX_EV_REQCHECK, cmd, 0, FALSE);
+			obex_deliver_event(self, OBEX_EV_REQCHECK, cmd,
+								0, FALSE);
 			self->object->checked = 1;
 		}
 
-		/* Everything except 0x1X and 0x2X means that the user callback
-		 * denied the request. In the denied cases treat the last
-		 * packet as a final one but don't bother about body headers and
-		 * don't signal OBEX_EV_REQ. */
+		/* Everything except 0x1X and 0x2X means that the user
+		 * callback denied the request. In the denied cases
+		 * treat the last packet as a final one but don't
+		 * bother about body headers and don't signal
+		 * OBEX_EV_REQ. */
 		switch ((self->object->opcode & ~OBEX_FINAL) & 0xF0) {
 		case OBEX_RSP_CONTINUE:
 		case OBEX_RSP_SUCCESS:
@@ -216,7 +227,8 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16
 		if (obex_object_receive_headers(self, msg, ~filter) < 0) {
 			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
 			self->state = STATE_IDLE;
-			obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
+			obex_deliver_event(self, OBEX_EV_PARSEERR,
+						self->object->opcode, 0, TRUE);
 			return -1;
 		}
 	}
@@ -242,20 +254,25 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final, int cmd, uint16
 			if (cmd == OBEX_CMD_CONNECT)
 				obex_insert_connectframe(self, self->object);
 
-			/* Tell the app that a whole request has arrived. While
-			   this event is delivered the app should append the
-			   headers that should be in the response */
+			/* Tell the app that a whole request has
+			 * arrived. While this event is delivered the
+			 * app should append the headers that should be
+			 * in the response */
 			if (!deny)
-				obex_deliver_event(self, OBEX_EV_REQ, cmd, 0, FALSE);
+				obex_deliver_event(self, OBEX_EV_REQ, cmd,
+								0, FALSE);
 			self->state = STATE_SEND;
-			return obex_server_send(self, msg, cmd, 3); /* Otherwise sanitycheck later will fail */
+
+			/* Otherwise sanitycheck later will fail */
+			return obex_server_send(self, msg, cmd, 3);
 
 		} else
 			return obex_server_send(self, msg, cmd, len);
 	}
 }
 
-static int obex_server_idle(obex_t *self, buf_t *msg, int final, int cmd, uint16_t len)
+static int obex_server_idle(obex_t *self, buf_t *msg, int final,
+							int cmd, uint16_t len)
 {
 	/* Nothing has been recieved yet, so this is probably a new request */
 	DEBUG(4, "STATE_IDLE\n");
@@ -277,8 +294,8 @@ static int obex_server_idle(obex_t *self, buf_t *msg, int final, int cmd, uint16
 	self->object->cmd = cmd;
 
 	/* Hint app that something is about to come so that
-	   the app can deny a PUT-like request early, or
-	   set the header-offset */
+	 * the app can deny a PUT-like request early, or
+	 * set the header-offset */
 	obex_deliver_event(self, OBEX_EV_REQHINT, cmd, 0, FALSE);
 
 	/* Some commands needs special treatment (data outside headers) */
@@ -288,7 +305,8 @@ static int obex_server_idle(obex_t *self, buf_t *msg, int final, int cmd, uint16
 		/* Connect needs some extra special treatment */
 		if (obex_parse_connect_header(self, msg) < 0) {
 			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-			obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
+			obex_deliver_event(self, OBEX_EV_PARSEERR,
+						self->object->opcode, 0, TRUE);
 			return -1;
 		}
 		self->object->headeroffset = 4;

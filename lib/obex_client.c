@@ -60,7 +60,8 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 		if (obex_parse_connect_header(self, msg) < 0) {
 			self->mode = MODE_SRV;
 			self->state = STATE_IDLE;
-			obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
+			obex_deliver_event(self, OBEX_EV_PARSEERR,
+						self->object->opcode, 0, TRUE);
 			return -1;
 		}
 		self->object->headeroffset=4;
@@ -78,7 +79,8 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 	if (ret < 0) {
 		self->mode = MODE_SRV;
 		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
+		obex_deliver_event(self, OBEX_EV_PARSEERR,
+						self->object->opcode, 0, TRUE);
 		return -1;
 	}
 
@@ -114,12 +116,18 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 		self->state = STATE_IDLE;
 		if (self->object->abort) {
 			if (rsp == OBEX_RSP_SUCCESS)
-				obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode, rsp, TRUE);
+				obex_deliver_event(self, OBEX_EV_ABORT,
+							self->object->opcode,
+							rsp, TRUE);
 			else
-				obex_deliver_event(self, OBEX_EV_LINKERR, self->object->opcode, rsp, TRUE);
+				obex_deliver_event(self, OBEX_EV_LINKERR,
+							self->object->opcode,
+							rsp, TRUE);
 
 		} else
-			obex_deliver_event(self, OBEX_EV_REQDONE, self->object->opcode, rsp, TRUE);
+			obex_deliver_event(self, OBEX_EV_REQDONE,
+							self->object->opcode,
+							rsp, TRUE);
 	}
 
 	return 0;
@@ -143,13 +151,15 @@ static int obex_client_start(obex_t *self, buf_t *msg, int rsp)
 		/* Error while sending */
 		self->mode = MODE_SRV;
 		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_LINKERR, self->object->opcode, 0, TRUE);
+		obex_deliver_event(self, OBEX_EV_LINKERR,
+					self->object->opcode, 0, TRUE);
 		return 0;
 	}
 
 	self->object->first_packet_sent = 1;
 
-	obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->opcode, 0, FALSE);
+	obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->opcode,
+								0, FALSE);
 
 	self->state = STATE_REC;
 
@@ -162,17 +172,19 @@ static int obex_client_send(obex_t *self, buf_t *msg, int rsp)
 	DEBUG(4, "STATE_SEND\n");
 
 	/* Any errors from peer? Win2k will send RSP_SUCCESS after
-	   every fragment sent so we have to accept that too.*/
+	 * every fragment sent so we have to accept that too.*/
 	if (rsp != OBEX_RSP_SUCCESS && rsp != OBEX_RSP_CONTINUE) {
 		DEBUG(0, "STATE_SEND. request not accepted.\n");
-		obex_deliver_event(self, OBEX_EV_REQDONE, self->object->opcode, rsp, TRUE);
+		obex_deliver_event(self, OBEX_EV_REQDONE,
+					self->object->opcode, rsp, TRUE);
 		/* This is not an Obex error, it is just that the peer
 		 * doesn't accept the request, so return 0 - Jean II */
 		return 0;
 	}
 
 	if (msg_get_len(msg) > 3) {
-		DEBUG(1, "STATE_SEND. Didn't excpect data from peer (%u)\n", msg_get_len(msg));
+		DEBUG(1, "STATE_SEND. Didn't excpect data from peer (%u)\n",
+							msg_get_len(msg));
 		DUMPBUFFER(4, "unexpected data", msg);
 		/* At this point, we are in the middle of sending
 		 * our request to the server, and it is already
@@ -194,13 +206,15 @@ static int obex_client_send(obex_t *self, buf_t *msg, int rsp)
 		 * single packet (or we deny it).
 		 * Jean II */
 		if (self->object->opcode == OBEX_CMD_CONNECT ||
-		    obex_object_receive(self, msg) < 0) {
+					obex_object_receive(self, msg) < 0) {
 			self->mode = MODE_SRV;
 			self->state = STATE_IDLE;
-			obex_deliver_event(self, OBEX_EV_PARSEERR, self->object->opcode, 0, TRUE);
+			obex_deliver_event(self, OBEX_EV_PARSEERR,
+						self->object->opcode, 0, TRUE);
 			return -1;
 		}
-		obex_deliver_event(self, OBEX_EV_UNEXPECTED, self->object->opcode, 0, FALSE);
+		obex_deliver_event(self, OBEX_EV_UNEXPECTED,
+					self->object->opcode, 0, FALSE);
 		/* Note : we may want to get rid of received header,
 		 * however they are mixed with legitimate headers,
 		 * and the user may expect to consult them later.

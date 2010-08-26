@@ -50,7 +50,7 @@ int obex_insert_connectframe(obex_t *self, obex_object_t *object)
 	if (!object->tx_nonhdr_data)
 		return -1;
 
-	hdr = (obex_connect_hdr_t *) buf_reserve_end(object->tx_nonhdr_data, sizeof(*hdr));
+	hdr = buf_reserve_end(object->tx_nonhdr_data, sizeof(*hdr));
 	hdr->version = OBEX_VERSION;
 	hdr->flags = 0x00;              /* Flags */
 	hdr->mtu = htons(self->mtu_rx); /* Max packet size */
@@ -70,13 +70,13 @@ int obex_parse_connect_header(obex_t *self, buf_t *msg)
 
 	/* Remember opcode and size for later */
 	uint8_t opcode = common_hdr->opcode;
-	//uint16_t length = ntohs(common_hdr->len);
+	/* uint16_t length = ntohs(common_hdr->len); */
 
 	DEBUG(4, "\n");
 
 	/* Parse beyond 3 bytes only if response is success */
 	if (opcode != (OBEX_RSP_SUCCESS | OBEX_FINAL) &&
-	    opcode != (OBEX_CMD_CONNECT | OBEX_FINAL))
+				opcode != (OBEX_CMD_CONNECT | OBEX_FINAL))
 		return 1;
 
 	DEBUG(4, "Len: %lu\n", (unsigned long)msg->data_size);
@@ -92,9 +92,11 @@ int obex_parse_connect_header(obex_t *self, buf_t *msg)
 		else
 			self->mtu_tx = self->mtu_tx_max;
 
-		DEBUG(1, "requested MTU=%02x, used MTU=%02x\n", mtu, self->mtu_tx);
+		DEBUG(1, "requested MTU=%02x, used MTU=%02x\n", mtu,
+								self->mtu_tx);
 		return 1;
 	}
+
 	DEBUG(1, "Malformed connect-header received\n");
 	return -1;
 }
