@@ -101,16 +101,19 @@ static void find_devices(int trans, int flags)
 int main (int argc, char **argv)
 {
 	int t = 1;
-	char *default_argv[] = { argv[0], "irda", "usb", NULL };
+	char *default_argv[] = { argv[0], "-f", "irda", "usb", "bt", NULL };
+	int flags = 0;
 
 	if (argc < 2)
 		argv = default_argv;
 
 	for (; argv[t] != NULL; ++t) {
-		if (0 == strcasecmp(argv[t], "irda"))
-			find_devices(OBEX_TRANS_IRDA, OBEX_FL_FILTERHINT);
+		if (0 == strcmp(argv[t], "-f"))
+			flags |= OBEX_FL_FILTERHINT;
+		else if (0 == strcasecmp(argv[t], "irda"))
+			find_devices(OBEX_TRANS_IRDA, flags);
 		else if (0 == strcasecmp(argv[t], "usb"))
-			find_devices(OBEX_TRANS_USB, 0);
+			find_devices(OBEX_TRANS_USB, flags);
 	}
 	return 0;
 }
