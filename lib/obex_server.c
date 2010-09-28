@@ -293,10 +293,14 @@ static int obex_server_idle(obex_t *self, buf_t *msg, int final,
 	/* Remember the initial command of the request.*/
 	self->object->cmd = cmd;
 
-	/* Hint app that something is about to come so that
-	 * the app can deny a PUT-like request early, or
-	 * set the header-offset */
-	obex_deliver_event(self, OBEX_EV_REQHINT, cmd, 0, FALSE);
+	/* If ABORT command is done while we are not handling another command,
+	 * we don't need to send a request hint to the application */
+	if (cmd != OBEX_CMD_ABORT) {
+		/* Hint app that something is about to come so that
+		 * the app can deny a PUT-like request early, or
+		 * set the header-offset */
+		obex_deliver_event(self, OBEX_EV_REQHINT, cmd, 0, FALSE);
+	}
 
 	/* Some commands needs special treatment (data outside headers) */
 	switch (cmd) {
