@@ -20,12 +20,13 @@ static int custom_init (obex_t *self)
 static int custom_clone(obex_t *self, const obex_t *from)
 {
 	struct obex_transport *trans = &self->trans;
+	obex_ctrans_t *old = from->trans.data;
 	obex_ctrans_t *ctrans = malloc(sizeof(*ctrans));
 
 	if (!ctrans)
 		return -1;
 
-	memcpy(ctrans, from, sizeof(*ctrans));
+	*ctrans = *old;
 	trans->data = ctrans;
 	return 0;	
 }
@@ -120,10 +121,10 @@ int custom_register(obex_t *self, const obex_ctrans_t *in)
 	obex_ctrans_t *ctrans = self->trans.data;
 	struct obex_transport_ops* ops = &self->trans.ops;
 
-	if (!ctrans->handleinput || !ctrans->write)
+	if (!in->handleinput || !in->write)
 		return -1;
 
-	memcpy(ctrans, in, sizeof(*ctrans));
+	*ctrans = *in;
 	ops->handle_input = &custom_handle_input;
 	ops->write = &custom_write;
 	ops->read = &custom_read;

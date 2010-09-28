@@ -127,7 +127,7 @@ void obex_transport_clone(obex_t *self, obex_t *old)
 	 * transport data can be cloned (means: implements the clone()
 	 * function) or they must be initialized.
 	 */
-	memcpy(&self->trans, &old->trans, sizeof(obex_transport_t));
+	self->trans = old->trans;
 	self->trans.data = NULL;
 	if (self->trans.ops.clone)
 		self->trans.ops.clone(self, old);
