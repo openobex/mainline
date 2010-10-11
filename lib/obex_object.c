@@ -1067,9 +1067,9 @@ int obex_object_resume(obex_t *self, obex_object_t *object)
 	if (object->first_packet_sent && !object->continue_received)
 		return 0;
 
-	if (self->state & MODE_SRV) {
+	if (self->mode == MODE_SRV) {
 		forcefinalbit = TRUE;
-		if ((self->state & ~MODE_SRV) == STATE_REC)
+		if (self->state == STATE_REC)
 			allowfinalcmd = FALSE;
 	}
 
