@@ -521,7 +521,7 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 	Cancel an ongoing operation.
 	\param self OBEX handle
 	\param nice If true an OBEX Abort will be sent if beeing client
-	or OBEX_RSP_UNAUTHORIZED as reponse if beeing server.
+	or respond with an error if beeing server.
 	\return -1 on error
  */
 LIB_SYMBOL

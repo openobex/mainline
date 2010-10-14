@@ -358,7 +358,18 @@ int obex_cancelrequest(obex_t *self, int nice)
 		if (object == NULL)
 			return -1;
 
-		obex_object_setcmd(object, OBEX_CMD_ABORT, OBEX_CMD_ABORT);
+		if (self->mode == MODE_SRV) {
+			/* Do not send continue */
+			if (self->object->opcode != OBEX_RSP_CONTINUE)
+				obex_object_setrsp(object, self->object->opcode,
+							self->object->lastopcode);
+			else
+				obex_object_setrsp(object,
+						OBEX_RSP_INTERNAL_SERVER_ERROR,
+						OBEX_RSP_INTERNAL_SERVER_ERROR);
+		} else
+			obex_object_setcmd(object, OBEX_CMD_ABORT,
+							OBEX_CMD_ABORT);
 
 		if (obex_object_send(self, object, TRUE, TRUE) < 0) {
 			obex_object_delete(object);
