@@ -72,7 +72,7 @@
 			- #OBEX_TRANS_INET : Use regular TCP/IP socket
 			- #OBEX_TRANS_CUSTOM : Use user provided transport, you must
 			register your own transport with #OBEX_RegisterCTransport()
-			- #OBEX_TRANS_BLUETOOTH: Use regular Bluetooth RFCOMM socket (need the BlueZ stack)
+			- #OBEX_TRANS_BLUETOOTH: Use regular Bluetooth RFCOMM socket
 			- #OBEX_TRANS_USB: Use USB transport (libusb needed)
 	\param eventcb Function pointer to your event callback.
 			See obex.h for prototype of this callback.
@@ -80,6 +80,7 @@
 			- #OBEX_FL_KEEPSERVER : Keep the server alive after incomming request
 			- #OBEX_FL_FILTERHINT : Filter target devices based on Obex hint bit
 			- #OBEX_FL_FILTERIAS  : Filter target devices based on IAS entry
+			- #OBEX_FL_CLOSEXEC   : Open all sockets with SO_CLOEXEC set
 	\return an OBEX handle or NULL on error.
  */
 LIB_SYMBOL
@@ -271,16 +272,14 @@ int CALLAPI OBEX_SetTransportMTU(obex_t *self, uint16_t mtu_rx,
 /**
 	Start listening for incoming connections.
 	\param self OBEX handle
-	\param saddr Local address to bind to
+	\param saddr Local address to bind to or NULL
 	\param addrlen Length of address
 	\return -1 on error
 
 	Bind a server socket to an Obex service. Common transport have
 	specialised version of this function.
-	Note : between 0.9.8 and 0.10.0, the prototype of this function
-	changed to make it generic. If you want your code to work across
-	new and old version of OpenObex, you may use \#ifdef OBEX_MAXIMUM_MTU
-	to test the Obex version.
+	If you want to call the listen callback of the custom transport,
+	use NULL for saddr and 0 for addrlen.
  */
 LIB_SYMBOL
 int CALLAPI OBEX_ServerRegister(obex_t *self, struct sockaddr *saddr, int addrlen)
@@ -387,15 +386,15 @@ out_err:
 /**
 	Let the OBEX parser do some work.
 	\param self OBEX handle
-	\param timeout Maximum time to wait in seconds
+	\param timeout Maximum time to wait in seconds (-1 for infinite)
 	\return -1 on error, 0 on timeout, positive on success
 
 	Let the OBEX parser read and process incoming data. If no data
 	is available this call will block.
 
-	When a request has been sent or you are waiting for an incoming
-	server- request you should call this function until the request
-	has finished.
+	When a request has been sent (client) or you are waiting for an incoming
+	request (server) you should call this function until the request has
+	finished.
 
 	Like select() this function returns -1 on error, 0 on timeout or
 	positive on success.
@@ -464,13 +463,13 @@ int CALLAPI OBEX_TransportDisconnect(obex_t *self)
 }
 
 /**
-	Get FD.
+	Get transport file descriptor.
 	\param self OBEX handle
 	\return file descriptor of the transport, -1 on error
 
-	Returns the filedescriptor of the transport. Returns -1 on error.
-	Note that if you for example have a custom transport, no fd
-	is available.
+	Returns the file descriptor of the transport or -1 on error.
+	Note that not all transports have a file descriptor, especially
+	USB and custom transports do not.
 
 	The returned filehandle can be used to do select() on, before
 	calling OBEX_HandleInput()
