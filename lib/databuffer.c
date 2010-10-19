@@ -93,7 +93,7 @@ buf_t *buf_new(size_t default_size)
 	return p;
 }
 
-size_t buf_total_size(buf_t *p)
+size_t buf_total_size(const buf_t *p)
 {
 	if (!p)
 		return 0;
