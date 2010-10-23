@@ -572,7 +572,7 @@ obex_object_t * CALLAPI OBEX_ObjectNew(obex_t *self, uint8_t cmd)
 	if (object == NULL)
 		return NULL;
 
-	obex_object_setcmd(object, cmd, (uint8_t) (cmd | OBEX_FINAL));
+	obex_object_setcmd(object, cmd);
 	/* Need some special woodoo magic on connect-frame */
 	if (cmd == OBEX_CMD_CONNECT) {
 		if (obex_insert_connectframe(self, object) < 0) {

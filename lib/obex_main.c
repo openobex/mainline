@@ -368,8 +368,7 @@ int obex_cancelrequest(obex_t *self, int nice)
 						OBEX_RSP_INTERNAL_SERVER_ERROR,
 						OBEX_RSP_INTERNAL_SERVER_ERROR);
 		} else
-			obex_object_setcmd(object, OBEX_CMD_ABORT,
-							OBEX_CMD_ABORT);
+			obex_object_setcmd(object, OBEX_CMD_ABORT);
 
 		if (obex_object_send(self, object, TRUE, TRUE) < 0) {
 			obex_object_delete(object);

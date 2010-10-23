@@ -109,13 +109,12 @@ int obex_object_delete(obex_object_t *object)
  *    Set command of object
  *
  */
-int obex_object_setcmd(obex_object_t *object, uint8_t cmd, uint8_t lastcmd)
+void obex_object_setcmd(obex_object_t *object, uint8_t cmd)
 {
 	DEBUG(4,"%02x\n", cmd);
 	object->cmd = cmd;
 	object->opcode = cmd;
-	object->lastopcode = lastcmd;
-	return 1;
+	object->lastopcode = cmd | OBEX_FINAL;
 }
 
 /*

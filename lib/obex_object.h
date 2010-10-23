@@ -93,7 +93,7 @@ int obex_object_addheader(struct obex *self, struct obex_object *object, uint8_t
 int obex_object_getnextheader(struct obex *self, struct obex_object *object, uint8_t *hi,
 			      obex_headerdata_t *hv, uint32_t *hv_size);
 int obex_object_reparseheaders(struct obex *self, struct obex_object *object);
-int obex_object_setcmd(struct obex_object *object, uint8_t cmd, uint8_t lastcmd);
+void obex_object_setcmd(struct obex_object *object, uint8_t cmd);
 int obex_object_setrsp(struct obex_object *object, uint8_t rsp, uint8_t lastrsp);
 int obex_object_send(struct obex *self, struct obex_object *object,
 		     int allowfinalcmd, int forcefinalbit);
