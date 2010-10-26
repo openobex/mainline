@@ -882,9 +882,11 @@ int CALLAPI OBEX_ObjectGetCommand(obex_t *self, obex_object_t *object)
 /**
 	Return a human understandable string from a response-code.
 	\param rsp Response code.
-	\return static response code string, NULL on error
+	\return static response code string
 
-	The returned char must not be freed. Returns NULL on error.
+	The returned string must not be freed.
+	If the response code is unknown, the string "Unknown response" will
+	be returned.
  */
 LIB_SYMBOL
 char * CALLAPI OBEX_ResponseToString(int rsp)
