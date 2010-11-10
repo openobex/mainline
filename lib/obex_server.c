@@ -232,8 +232,6 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final,
 			return -1;
 		}
 	}
-	DEBUG(4, "Pulling %lu bytes\n", (unsigned long)msg->data_size);
-	buf_remove_begin(msg, msg->data_size);
 
 	if (!final) {
 		/* As a server, the final bit is always SET- Jean II */

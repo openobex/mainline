@@ -750,9 +750,6 @@ int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
 
 	DEBUG(4, "\n");
 
-	/* Remove command from buffer */
-	buf_remove_begin(msg, sizeof(struct obex_common_hdr));
-
 	if (object->headeroffset == 0)
 		return 0;
 
@@ -765,8 +762,6 @@ int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
 						object->headeroffset);
 	DEBUG(4, "Command has %lu bytes non-headerdata\n",
 			(unsigned long) object->rx_nonhdr_data->data_size);
-	buf_remove_begin(msg, object->headeroffset);
-	object->headeroffset = 0;
 
 	return 0;
 }
@@ -941,8 +936,6 @@ int obex_object_receive(obex_t *self, buf_t *msg)
 	if (hlen < 0)
 		return hlen;
 
-	DEBUG(4, "Pulling %lu bytes\n", (unsigned long)msg->data_size);
-	buf_remove_begin(msg, msg->data_size);
 	return 0;
 }
 
@@ -955,14 +948,16 @@ int obex_object_receive(obex_t *self, buf_t *msg)
  */
 int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 {
-	uint16_t offset = 0;
+	struct obex_common_hdr *hdr = (obex_common_hdr_t *)msg->data;
+	uint16_t offset = sizeof(*hdr) + self->object->headeroffset;
 	int consumed = 0;
 	const uint64_t body_filter = (1 << OBEX_HDR_ID_BODY |
 						1 << OBEX_HDR_ID_BODY_END);
+	uint16_t msglen = ntohs(hdr->len);
 
 	DEBUG(4, "\n");
 
-	while (offset < msg->data_size) {
+	while (offset < msglen) {
 		uint8_t hi = msg->data[offset];
 		uint8_t *source = NULL;
 		unsigned int len = 0;
@@ -976,10 +971,10 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 								&len, &hlen);
 
 		/* Make sure that the msg is big enough for header */
-		if (len > (msg->data_size - offset)) {
-			DEBUG(1, "Header %d to big. HSize=%d Buffer=%lu\n",
+		if (len > (unsigned int)(msglen - offset)) {
+			DEBUG(1, "Header %d too big. HSize=%d Buffer=%lu\n",
 				hi, len,
-				(unsigned long) msg->data_size - offset);
+				(unsigned long) msglen - offset);
 			source = NULL;
 			err = -1;
 		}

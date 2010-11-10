@@ -224,6 +224,16 @@ int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 }
 
 /*
+ * Check if a message buffer contains at least one full message.
+ */
+int obex_get_buffer_status(buf_t *msg) {
+	obex_common_hdr_t *hdr = (obex_common_hdr_t *)msg->data;
+
+	return (msg->data_size >= sizeof(*hdr) &&
+		msg->data_size >= ntohs(hdr->len));
+}
+
+/*
  * Function obex_data_indication (self)
  *
  *    Read/Feed some input from device and find out which packet it is
@@ -320,7 +330,11 @@ int obex_data_indication(obex_t *self)
 		ret = obex_server(self, msg, final);
 	else
 		ret = obex_client(self, msg, final);
-	buf_reuse(msg);
+
+	DEBUG(4, "Pulling %u bytes\n", size);
+	buf_remove_begin(msg, size);
+	if (msg->data_size == 0)
+		buf_reuse(msg);
 
 	/* Check parse errors */
 	if(ret < 0)
