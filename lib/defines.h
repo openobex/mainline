@@ -25,7 +25,6 @@ enum obex_mode {
 
 enum obex_state {
 	STATE_IDLE,
-	STATE_START,
 	STATE_SEND,
 	STATE_REC,
 };

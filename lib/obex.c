@@ -511,7 +511,7 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 
 	self->object = object;
 	self->mode = MODE_CLI;
-        self->state = STATE_START;
+        self->state = STATE_SEND;
 
 	return obex_client(self, NULL, 0);
 }
