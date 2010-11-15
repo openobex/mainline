@@ -107,6 +107,7 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb,
 	self->init_flags = flags;
 	self->mode = MODE_SRV;
 	self->state = STATE_IDLE;
+	self->rsp_mode = OBEX_RSP_MODE_NORMAL;
 
 	/* Safe values.
 	 * Both self->mtu_rx and self->mtu_tx_max can be increased by app
@@ -371,6 +372,7 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 	obex_transport_split(self, server);
 	self->mode = MODE_SRV;
         self->state = STATE_IDLE;
+	self->rsp_mode = server->rsp_mode;
 
 	return self;
 
@@ -404,7 +406,7 @@ int CALLAPI OBEX_HandleInput(obex_t *self, int timeout)
 {
 	DEBUG(4, "\n");
 	obex_return_val_if_fail(self != NULL, -1);
-	return obex_transport_handle_input(self, timeout);
+	return obex_work(self, timeout);
 }
 
 /**
@@ -509,6 +511,7 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 
 	obex_return_val_if_fail(object != NULL, -1);
 
+	object->rsp_mode = self->rsp_mode;
 	self->object = object;
 	self->mode = MODE_CLI;
         self->state = STATE_SEND;
@@ -553,6 +556,32 @@ int CALLAPI OBEX_ResumeRequest(obex_t *self)
 {
 	obex_return_val_if_fail(self->object != NULL, -1);
 	return obex_object_resume(self, self->object);
+}
+
+/**
+	Set the OBEX response mode.
+	\param self OBEX context
+	\param rsp_mode see OBEX_RSP_MODE_*
+
+	If you want any mode other than default (#OBEX_RSP_MODE_NORMAL), you
+	have to call this function. If you want it to affect the current object,
+	you need to call it at the first #OBEX_EV_PROGRESS (as client) or
+	at the #OBEX_EV_REQHINT or #OBEX_EV_REQCHECK events (as server).
+ */
+LIB_SYMBOL
+void CALLAPI OBEX_SetReponseMode(obex_t *self, enum obex_rsp_mode rsp_mode)
+{
+	switch (rsp_mode) {
+	case OBEX_RSP_MODE_NORMAL:
+	case OBEX_RSP_MODE_SINGLE:
+		self->rsp_mode = rsp_mode;
+		if (self->object)
+			self->object->rsp_mode = rsp_mode;
+		break;
+
+	default:
+		break;
+	}
 }
 
 /**

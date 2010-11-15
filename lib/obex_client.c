@@ -43,7 +43,10 @@ static __inline int msg_get_rsp(const buf_t *msg)
 
 static __inline uint16_t msg_get_len(const buf_t *msg)
 {
-	return ntohs(((obex_common_hdr_t *)msg->data)->len);
+	if (msg)
+		return ntohs(((obex_common_hdr_t *)msg->data)->len);
+	else
+		return 0;
 }
 
 static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
@@ -71,6 +74,7 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 		/* So does CMD_DISCONNECT */
 		DEBUG(2, "CMD_DISCONNECT done. Resetting MTU!\n");
 		self->mtu_tx = OBEX_MINIMUM_MTU;
+		self->rsp_mode = OBEX_RSP_MODE_NORMAL;
 		break;
 	}
 
@@ -100,11 +104,17 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 			return 0;
 		}
 
-		ret = obex_object_send(self, self->object, TRUE, FALSE);
-		if (ret < 0)
-			obex_deliver_event(self, OBEX_EV_LINKERR, self->object->opcode, 0, TRUE);
-		else
-			obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->opcode, 0, FALSE);
+		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
+			ret = obex_object_send(self, self->object, TRUE, FALSE);
+			if (ret < 0) {
+				obex_deliver_event(self, OBEX_EV_LINKERR,
+						   self->object->opcode, rsp,
+						   TRUE);
+			}
+		}
+		if (ret >= 0)
+			obex_deliver_event(self, OBEX_EV_PROGRESS,
+					   self->object->opcode, rsp, FALSE);
 
 		if (self->object)
 			self->object->continue_received = 0;

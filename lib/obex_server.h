@@ -26,5 +26,6 @@ struct obex;
 struct databuffer;
 
 int obex_server(struct obex *self, struct databuffer *msg, int final);
+int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len);
 
 #endif

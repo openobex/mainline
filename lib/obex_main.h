@@ -42,6 +42,7 @@ struct obex {
 
 	enum obex_state state;
 	enum obex_mode mode;
+	enum obex_rsp_mode rsp_mode;	/* OBEX_RSP_MODE_* */
 
 	unsigned int init_flags;
 
@@ -63,6 +64,7 @@ socket_t obex_create_socket(struct obex *self, int domain);
 int obex_delete_socket(struct obex *self, socket_t fd);
 
 void obex_deliver_event(struct obex *self, int event, int cmd, int rsp, int del);
+int obex_work(struct obex *self, int timeout);
 int obex_get_buffer_status(buf_t *msg);
 int obex_data_indication(struct obex *self);
 

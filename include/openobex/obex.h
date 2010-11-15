@@ -96,6 +96,9 @@ OPENOBEX_SYMBOL(obex_object_t *) OBEX_ObjectNew(obex_t *self, uint8_t cmd);
 OPENOBEX_SYMBOL(int)             OBEX_ObjectDelete(obex_t *self, obex_object_t *object);
 OPENOBEX_SYMBOL(int)             OBEX_ObjectGetSpace(obex_t *self, obex_object_t *object, unsigned int flags);
 
+OPENOBEX_SYMBOL(void) OBEX_SetReponseMode(obex_t *self,
+					  enum obex_rsp_mode rsp_mode);
+
 OPENOBEX_SYMBOL(int) OBEX_ObjectAddHeader(obex_t *self, obex_object_t *object,
 				    uint8_t hi, obex_headerdata_t hv, uint32_t hv_size,
 				    unsigned int flags);

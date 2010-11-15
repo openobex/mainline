@@ -294,6 +294,11 @@ typedef union {
 #define OBEX_RSP_DATABASE_FULL		0x60
 #define OBEX_RSP_DATABASE_LOCKED	0x61
 
+enum obex_rsp_mode {
+  OBEX_RSP_MODE_NORMAL = 0, /**< normal response mode */
+  OBEX_RSP_MODE_SINGLE = 1, /**< single response mode (SRM) */
+};
+
 /* Min, Max and default transport MTU */
 #define OBEX_DEFAULT_MTU	1024
 #define OBEX_MINIMUM_MTU	255

@@ -18,6 +18,7 @@ OBEX_Request
 OBEX_CancelRequest
 OBEX_SuspendRequest
 OBEX_ResumeRequest
+OBEX_SetReponseMode
 OBEX_ObjectNew
 OBEX_ObjectDelete
 OBEX_ObjectGetSpace

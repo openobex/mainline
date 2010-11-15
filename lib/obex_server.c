@@ -44,7 +44,7 @@ static __inline uint16_t msg_get_len(const buf_t *msg)
 	return ntohs(((obex_common_hdr_t *)msg->data)->len);
 }
 
-static int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
+int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 {
 	int ret;
 
@@ -130,6 +130,7 @@ static int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 		if (cmd == OBEX_CMD_DISCONNECT) {
 			DEBUG(2, "CMD_DISCONNECT done. Resetting MTU!\n");
 			self->mtu_tx = OBEX_MINIMUM_MTU;
+			self->rsp_mode = OBEX_RSP_MODE_NORMAL;
 		}
 		self->state = STATE_IDLE;
 		obex_deliver_event(self, OBEX_EV_REQDONE, cmd, 0, TRUE);
@@ -234,38 +235,37 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final,
 	}
 
 	if (!final) {
-		/* As a server, the final bit is always SET- Jean II */
-		int ret = obex_object_send(self, self->object, FALSE, TRUE);
-		if (ret < 0) {
-			obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
-			return -1;
-
-		} else {
-			obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
-			return 0; /* Stay in this state if not final */
+		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
+		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
+			int ret = obex_object_send(self, self->object, FALSE,
+						   TRUE);
+			if (ret < 0) {
+				obex_deliver_event(self, OBEX_EV_LINKERR, cmd,
+						   0, TRUE);
+				return -1;
+			}
 		}
+		return 0;
 
 	} else  {
 		if (!self->object->first_packet_sent) {
-			DEBUG(4, "We got a request!\n");
-			/* More connect-magic woodoo stuff */
-			if (cmd == OBEX_CMD_CONNECT)
-				obex_insert_connectframe(self, self->object);
-
 			/* Tell the app that a whole request has
 			 * arrived. While this event is delivered the
 			 * app should append the headers that should be
 			 * in the response */
-			if (!deny)
+			if (!deny) {
+				DEBUG(4, "We got a request!\n");
 				obex_deliver_event(self, OBEX_EV_REQ, cmd,
 								0, FALSE);
-			self->state = STATE_SEND;
-
+			}
+			/* More connect-magic woodoo stuff */
+			if (cmd == OBEX_CMD_CONNECT)
+				obex_insert_connectframe(self, self->object);
 			/* Otherwise sanitycheck later will fail */
-			return obex_server_send(self, msg, cmd, 3);
-
-		} else
-			return obex_server_send(self, msg, cmd, len);
+			len = 3;
+		}
+		self->state = STATE_SEND;		
+		return obex_server_send(self, msg, cmd, len);
 	}
 }
 
@@ -290,6 +290,7 @@ static int obex_server_idle(obex_t *self, buf_t *msg, int final,
 	}
 	/* Remember the initial command of the request.*/
 	self->object->cmd = cmd;
+	self->object->rsp_mode = self->rsp_mode;
 
 	/* If ABORT command is done while we are not handling another command,
 	 * we don't need to send a request hint to the application */

@@ -224,6 +224,50 @@ int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 }
 
 /*
+ * Function obex_work (self, timeout)
+ *
+ *    Do some work on the current transferred object.
+ *
+ */
+int obex_work(obex_t *self, int timeout)
+{
+	/* Waiting for an incoming packet will not work for single response mode
+	 * as the client is not supposed to send any when we (as server) are
+	 * sending the response.
+	 * For request reception, this is handled above */
+	if (self->object &&
+	    self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
+	    self->state == STATE_SEND)
+	{
+		int ret;
+
+		/* Still, we need to do a zero-wait check for an ABORT
+		 * and for connection errors. */
+		ret = obex_transport_handle_input(self, 0);
+		if (ret == 0) {/* timeout: no error, no input */
+			switch (self->mode) {
+			case MODE_SRV:
+				ret = obex_server_send(self, NULL, self->object->cmd, 0);
+				break;
+
+			case MODE_CLI:
+				ret = obex_client_send(self, NULL, OBEX_RSP_CONTINUE);
+				break;
+
+			default:
+				return -1;
+			}
+		}
+		if (ret < 0)
+			return -1;
+		else
+			return sizeof(obex_common_hdr_t);
+	}
+
+	return obex_transport_handle_input(self, timeout);
+}
+
+/*
  * Check if a message buffer contains at least one full message.
  */
 int obex_get_buffer_status(buf_t *msg) {
@@ -243,6 +287,7 @@ int obex_data_indication(obex_t *self)
 {
 	obex_common_hdr_t *hdr;
 	buf_t *msg;
+	uint8_t opcode;
 	int final;
 	int actual = 0;
 	unsigned int size;
@@ -275,7 +320,7 @@ int obex_data_indication(obex_t *self)
 		size = ntohs(hdr->len);
 
 		actual = 0;
-		if(msg->data_size < (int) ntohs(hdr->len)) {
+		if(msg->data_size < size) {
 
 			actual = obex_transport_read(self,
 							size - msg->data_size);
@@ -323,12 +368,24 @@ int obex_data_indication(obex_t *self)
 	DUMPBUFFER(2, "Rx", msg);
 
 	actual = msg->data_size;
+	opcode = hdr->opcode & ~OBEX_FINAL;
 	final = hdr->opcode & OBEX_FINAL; /* Extract final bit */
 
 	/* Dispatch to the mode we are in */
-	if(self->mode == MODE_SRV)
+	if(self->mode == MODE_SRV) {
+		/* Single response mode makes it possible for the client to send
+		 * the next request (e.g. PUT) while still receiving the last
+		 * multi-packet response. So we must not consume any request
+		 * except ABORT. */
+		if (self->object &&
+		    self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
+		    self->state == STATE_SEND &&
+		    !(opcode == OBEX_CMD_ABORT || opcode == self->object->cmd))
+		{
+			return 0;
+		}
 		ret = obex_server(self, msg, final);
-	else
+	} else
 		ret = obex_client(self, msg, final);
 
 	DEBUG(4, "Pulling %u bytes\n", size);

@@ -72,6 +72,7 @@ struct obex_object {
 	int abort;			/* Request shall be aborted */
 
 	int checked;			/* OBEX_EV_REQCHECK has been signaled */
+	enum obex_rsp_mode rsp_mode;	/* OBEX_RSP_MODE_* */
 
 	int suspend;			/* Temporarily stop transfering object */
 	int continue_received;		/* CONTINUE received after sending last command */
