@@ -59,11 +59,13 @@ typedef struct {
 	/** listen to incoming connections (server-only) */
 	int (*listen)(obex_t *handle, void *customdata);
 	/** remote connection input
-	 * This function is optional as it is an alternative to providing
-	 * the data with #handleinput.
-	 */
+	 * This function is optional as it is an alternative to providing the
+	 * data with #OBEX_CustomDataFeed(). The memory that 'buf' points to has
+	 * enough room for RX MTU bytes. The minimum number of bytes needed to
+	 * go on is specified by 'size'.*/
 	int (*read)(obex_t *handle, void *customdata, uint8_t *buf, int size);
-	/** remote connection output */
+	/** remote connection output
+	 * This function is supposed to write all of the data. */
 	int (*write)(obex_t *handle, void *customdata, uint8_t *buf, int len);
 	/** directly called by #OBEX_HandleInput */
 	int (*handleinput)(obex_t *handle, void *customdata, int timeout);
