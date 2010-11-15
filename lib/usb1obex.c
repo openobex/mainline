@@ -484,21 +484,31 @@ static unsigned int usbobex_get_timeout(int timeout)
 static int usbobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
-	int actual;
+	int actual = 0;
+	int usberror;
 
+	DEBUG(4, "\n");
 	if (trans->connected != TRUE)
 		return -1;
 
 	DEBUG(4, "Endpoint %d\n", trans->self.usb.data_endpoint_write);
-	actual = libusb_bulk_transfer(trans->self.usb.dev,
-				      trans->self.usb.data_endpoint_write,
-				      (unsigned char *) msg->data,
-				      msg->data_size, &actual,
-				      usbobex_get_timeout(trans->timeout));
-	if (actual)
-		return -1;
+	usberror = libusb_bulk_transfer(trans->self.usb.dev,
+					trans->self.usb.data_endpoint_write,
+					(unsigned char *) msg->data,
+					msg->data_size, &actual,
+					usbobex_get_timeout(trans->timeout));
+	switch (usberror) {
+	case 0:
+		buf_remove_begin(msg, actual);
+		return actual;
 
-	return msg->data_size;
+	case LIBUSB_ERROR_TIMEOUT:
+		buf_remove_begin(msg, actual);
+		return 0;
+
+	default:
+		return -1;
+	}
 }
 
 static int usbobex_read(obex_t *self, void *buf, int buflen)
