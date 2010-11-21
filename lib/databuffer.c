@@ -284,9 +284,9 @@ void buf_dump(buf_t *p, const char *label)
 	n = 0;
 	for (i = 0; i < p->data_size; ++i) {
 		if (n == 0)
-			log_debug("%s%s:", log_debug_prefix, label);
+			log_debug("%s%s(%04x):", log_debug_prefix, label, i);
 		log_debug(" %02X", p->data[i]);
-		if (n >= 25 || i == p->data_size - 1) {
+		if (n >= 0xF || i == p->data_size - 1) {
 			log_debug("\n");
 			n = 0;
 		} else

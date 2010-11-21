@@ -92,8 +92,7 @@ int obex_parse_connect_header(obex_t *self, buf_t *msg)
 		else
 			self->mtu_tx = self->mtu_tx_max;
 
-		DEBUG(1, "requested MTU=%02x, used MTU=%02x\n", mtu,
-								self->mtu_tx);
+		DEBUG(1, "requested MTU=%u, used MTU=%u\n", mtu, self->mtu_tx);
 		return 1;
 	}
 
