@@ -159,8 +159,11 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	size_t hdr_size;
 
 	DEBUG(4, "\n");
+
 	/* End of stream marker */
-	if (flags & OBEX_FL_STREAM_DATAEND) {
+	if (hi == OBEX_HDR_BODY &&
+	    flags & OBEX_FL_STREAM_DATAEND)
+	{
 		if (self->object == NULL)
 			return -1;
 		self->object->s_stop = TRUE;
@@ -170,7 +173,9 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	}
 
 	/* Stream data */
-	if (flags & OBEX_FL_STREAM_DATA) {
+	if (hi == OBEX_HDR_BODY &&
+	    flags & OBEX_FL_STREAM_DATA)
+	{
 		if (self->object == NULL)
 			return -1;
 		self->object->s_buf = hv.bs;
@@ -190,7 +195,9 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	element->flags = flags;
 
 	/* Is this a stream? */
-	if (flags & OBEX_FL_STREAM_START) {
+	if (hi == OBEX_HDR_BODY &&
+	    flags & OBEX_FL_STREAM_START)
+	{
 		DEBUG(3, "Adding stream\n");
 		element->stream = TRUE;
 		object->tx_headerq = slist_append(object->tx_headerq, element);
@@ -460,16 +467,13 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 
 	/* Calc how many bytes of headers we can fit in this package */
 	tx_left = self->mtu_tx - sizeof(struct obex_common_hdr);
-	switch (self->trans.type) {
 #ifdef HAVE_IRDA
-	case OBEX_TRANS_IRDA:
-		if (self->trans.mtu > 0 && self->mtu_tx > self->trans.mtu)
-			tx_left -= self->mtu_tx%self->trans.mtu;
-		break;
-#endif /*HAVE_IRDA*/
-	default:
-		break;
+	if (self->trans.type == OBEX_TRANS_IRDA &&
+	    0 < self->trans.mtu && self->trans.mtu < self->mtu_tx)
+	{
+		tx_left -= self->mtu_tx % self->trans.mtu;
 	}
+#endif /*HAVE_IRDA*/
 
 	/* Reuse transmit buffer */
 	txmsg = buf_reuse(self->tx_msg);
@@ -493,49 +497,60 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 
 		h = object->tx_headerq->data;
 
-		if (h->stream) {
-			/* This is a streaming body */
+		switch (h->hi) {
+		case OBEX_HDR_BODY:
 			if (h->flags & OBEX_FL_SUSPEND)
 				object->suspend = 1;
-			actual = send_stream(self, h, txmsg, tx_left);
+			if (h->stream) {
+				/* This is a streaming body */
+				actual = send_stream(self, h, txmsg, tx_left);
+			} else {
+				/* The body may be fragmented over several
+				 * packets. */
+				actual = send_body(object, h, txmsg, tx_left);
+			}
 			if (actual < 0 )
 				return -1;
 			tx_left -= actual;
-		} else if (h->hi == OBEX_HDR_BODY) {
-			/* The body may be fragmented over several packets. */
-			if (h->flags & OBEX_FL_SUSPEND)
-				object->suspend = 1;
-			tx_left -= send_body(object, h, txmsg, tx_left);
-		} else if(h->hi == OBEX_HDR_EMPTY) {
+			break;
+
+		case OBEX_HDR_EMPTY:
 			if (h->flags & OBEX_FL_SUSPEND)
 				object->suspend = 1;
 			object->tx_headerq = slist_remove(object->tx_headerq,
 									h);
 			free(h);
-		} else if (h->length <= tx_left) {
-			/* There is room for more data in tx msg */
-			DEBUG(4, "Adding non-body header\n");
-			buf_insert_end(txmsg, h->buf->data, h->length);
-			tx_left -= h->length;
-			if (h->flags & OBEX_FL_SUSPEND)
-				object->suspend = 1;
+			break;
 
-			/* Remove from tx-queue */
-			object->tx_headerq = slist_remove(object->tx_headerq,
-									h);
-			object->totallen -= h->length;
-			buf_free(h->buf);
-			free(h);
-		} else if (h->length > self->mtu_tx) {
-			/* Header is bigger than MTU. This should not
-			 * happen, because OBEX_ObjectAddHeader()
-			 * rejects headers bigger than the MTU */
+		default:
+			if (h->length <= tx_left) {
+				/* There is room for more data in tx msg */
+				DEBUG(4, "Adding non-body header\n");
+				buf_insert_end(txmsg, h->buf->data, h->length);
+				tx_left -= h->length;
+				if (h->flags & OBEX_FL_SUSPEND)
+					object->suspend = 1;
 
-			DEBUG(0, "ERROR! header to big for MTU\n");
-			return -1;
-		} else {
-			/* This header won't fit. */
-			addmore = FALSE;
+				/* Remove from tx-queue */
+				object->tx_headerq =
+					slist_remove(object->tx_headerq, h);
+				object->totallen -= h->length;
+				buf_free(h->buf);
+				free(h);
+
+			} else if (h->length > self->mtu_tx) {
+				/* Header is bigger than MTU. This should not
+				 * happen, because OBEX_ObjectAddHeader()
+				 * rejects headers bigger than the MTU */
+
+				DEBUG(0, "ERROR! header to big for MTU\n");
+				return -1;
+
+			} else {
+				/* This header won't fit. */
+				addmore = FALSE;
+			}
+			break;
 		}
 
 		if (object->suspend)
@@ -548,24 +563,28 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 	/* Decide which command to use, and if to use final-bit */
 	if (object->tx_headerq) {
 		/* Have more headers (or body) to send */
+		real_opcode = object->opcode;
+
 		/* In server, final bit is always set.
-		 * In client, final bit is set only when we finish sending.
-		 * Jean II */
+		 * In client, final bit is set only when we finish sending. */
 		if (forcefinalbit)
-			real_opcode = object->opcode | OBEX_FINAL;
-		else
-			real_opcode = object->opcode;
+			real_opcode |= OBEX_FINAL;
 		finished = 0;
-	} else if (allowfinalcmd == FALSE) {
-		/* Have no yet any headers to send, but not allowed to send
-		 * final command (== server, receiving incomming request) */
-		real_opcode = object->opcode | OBEX_FINAL;
-		finished = 0;
+
 	} else {
-		/* Have no more headers to send, and allowed to send final
-		 * command (== end data we are sending) */
-		real_opcode = object->lastopcode | OBEX_FINAL;
-		finished = 1;
+		/* Have no more headers to send */
+		if (allowfinalcmd == FALSE) {
+			/* Not allowed to send final command (== server,
+			 * receiving incomming request) */
+			real_opcode = object->opcode;
+
+		} else {
+			/* Allowed to send final command (== end data we are
+			 * sending) */
+			real_opcode = object->lastopcode;
+		}
+		real_opcode |= OBEX_FINAL;
+		finished = !!allowfinalcmd;
 	}
 
 	DEBUG(4, "Sending package with opcode %d\n", real_opcode);
@@ -573,7 +592,7 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 
 	if (actual < 0) {
 		DEBUG(4, "Send error\n");
-		return actual;
+		return -1;
 	} else
 		return finished;
 }
