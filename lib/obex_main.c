@@ -237,7 +237,8 @@ int obex_work(obex_t *self, int timeout)
 	 * For request reception, this is handled above */
 	if (self->object &&
 	    self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
-	    self->state == STATE_SEND)
+	    self->state == STATE_SEND &&
+	    !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL))
 	{
 		int ret;
 
@@ -384,6 +385,7 @@ int obex_data_indication(obex_t *self)
 		{
 			return 0;
 		}
+		self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_LOCAL;
 		ret = obex_server(self, msg, final);
 	} else
 		ret = obex_client(self, msg, final);

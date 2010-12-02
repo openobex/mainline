@@ -63,51 +63,49 @@ int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 	}
 
 	if (len > 3) {
-		DEBUG(1, "STATE_SEND Didn't expect data from peer (%u)\n", len);
-		DUMPBUFFER(4, "unexpected data", msg);
-		/* At this point, we are in the middle of sending
-		 * our response to the client, and it is still
-		 * sending us some data ! This break the whole
-		 * Request/Response model of HTTP !
-		 * Most often, the client is sending some out of band
-		 * progress information for a GET.
-		 * This is the way we will handle that :
+		/* For Single Response Mode, this is actually not unexpected. */
+		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
+			DEBUG(1, "STATE_SEND Didn't expect data from peer"
+			      "(%u)\n", len);
+			DUMPBUFFER(4, "unexpected data", msg);
+			obex_deliver_event(self, OBEX_EV_UNEXPECTED,
+					   self->object->opcode, 0, FALSE);
+		}
+
+		/* At this point, we are in the middle of sending our response
+		 * to the client, and it is still sending us some data!
+		 * This break the whole Request/Response model of HTTP!
+		 * Most often, the client is sending some out of band progress
+		 * information for a GET. This is the way we will handle that:
 		 * Save this header in our Rx header list. We can have
-		 * duplicated header, so no problem...
-		 * The user has already parsed headers, so will most
-		 * likely ignore those new headers.
-		 * User can check the header in the next EV_PROGRESS,
-		 * doing so will hide the header (until reparse).
-		 * If not, header can be parsed at 'final'.
-		 * Don't send any additional event to the app to not
-		 * break compatibility and because app can just check
-		 * this condition itself...
-		 * No headeroffset needed because 'connect' is
-		 * single packet (or we deny it).
-		 * Jean II */
-		if (cmd == OBEX_CMD_CONNECT ||
-				obex_object_receive(self, msg) < 0) {
+		 * duplicated header, so no problem. The user has already parsed
+		 * headers, so will most likely ignore those new headers. User
+		 * can check the header in the next EV_PROGRESS, doing so will
+		 * hide the header (until reparse). If not, header can be parsed
+		 * at EV_REQDONE. Don't send any additional event to the app to
+		 * not break compatibility and because app can just check this
+		 * condition itself.
+		 * No headeroffset needed because 'connect' is single packet (or
+		 * we deny it). */
+		ret = -1;
+		if (cmd != OBEX_CMD_CONNECT)
+			ret = obex_object_receive(self, msg);
+		if (ret < 0) {
 			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
 			self->state = STATE_IDLE;
 			obex_deliver_event(self, OBEX_EV_PARSEERR,
 						self->object->opcode, 0, TRUE);
 			return -1;
 		}
-		obex_deliver_event(self, OBEX_EV_UNEXPECTED,
-					self->object->opcode, 0, FALSE);
-		/* Note : we may want to get rid of received header,
-		 * however they are mixed with legitimate headers,
-		 * and the user may expect to consult them later.
-		 * So, leave them here (== overhead). Jean II */
+
+		/* Note: we may want to get rid of received header, however they
+		 * are mixed with legitimate headers, and the user may expect to
+		 * consult them later. So, leave them here (== overhead). */
 	}
 
-	/* As a server, the final bit is always SET, and the
-	 * "real final" packet is distinguish by beeing SUCCESS
-	 * instead of CONTINUE.
-	 * It doesn't make sense to me, but that's the spec.
-	 * See Obex spec v1.2, chapter 3.2, page 21 and 22.
-	 * See also example on chapter 7.3, page 47.
-	 * So, force the final bit here. - Jean II */
+	/* As a server, the final bit is always SET, and the "real final" packet
+	 * is distinguish by beeing SUCCESS instead of CONTINUE.
+	 * So, force the final bit here. */
 	self->object->continue_received = 1;
 
 	if (self->object->suspend)
@@ -131,6 +129,7 @@ int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 			DEBUG(2, "CMD_DISCONNECT done. Resetting MTU!\n");
 			self->mtu_tx = OBEX_MINIMUM_MTU;
 			self->rsp_mode = OBEX_RSP_MODE_NORMAL;
+			self->srm_flags = 0;
 		}
 		self->state = STATE_IDLE;
 		obex_deliver_event(self, OBEX_EV_REQDONE, cmd, 0, TRUE);
@@ -236,7 +235,9 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final,
 
 	if (!final) {
 		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
-		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
+		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL ||
+		    (self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
+		{
 			int ret = obex_object_send(self, self->object, FALSE,
 						   TRUE);
 			if (ret < 0) {

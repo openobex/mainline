@@ -29,4 +29,7 @@ enum obex_state {
 	STATE_REC,
 };
 
+#define OBEX_SRM_FLAG_WAIT_LOCAL  (1 << 0)
+#define OBEX_SRM_FLAG_WAIT_REMOTE (1 << 1)
+
 #endif

@@ -372,7 +372,10 @@ static int send_stream(obex_t *self,
 	if (object->s_stop && object->s_len == 0) {
 		/* We are done. Remove header from tx-queue */
 		object->tx_headerq = slist_remove(object->tx_headerq, h);
-		hdr->hi = OBEX_HDR_BODY_END;
+		if (slist_has_more(object->tx_headerq))
+			hdr->hi = OBEX_HDR_BODY;
+		else
+			hdr->hi = OBEX_HDR_BODY_END;
 		buf_free(h->buf);
 		free(h);
 	}
@@ -389,9 +392,8 @@ static int send_stream(obex_t *self,
  *  Fragment and send the body
  *
  */
-static int send_body(obex_object_t *object,
-				struct obex_header_element *h,
-				buf_t *txmsg, unsigned int tx_left)
+static int send_body(obex_object_t *object, struct obex_header_element *h,
+		     buf_t *txmsg, unsigned int tx_left)
 {
 	struct obex_byte_stream_hdr *hdr;
 	unsigned int actual;
@@ -422,7 +424,10 @@ static int send_body(obex_object_t *object,
 	} else {
 		DEBUG(4, "Add BODY_END header\n");
 
-		hdr->hi = OBEX_HDR_BODY_END;
+		if (slist_has_more(object->tx_headerq))
+			hdr->hi = OBEX_HDR_BODY_END;
+		else
+			hdr->hi = OBEX_HDR_BODY;
 		hdr->hl = htons((uint16_t)(h->buf->data_size + sizeof(*hdr)));
 		buf_insert_end(txmsg, h->buf->data, h->buf->data_size);
 		actual = h->buf->data_size;
@@ -435,6 +440,22 @@ static int send_body(obex_object_t *object,
 	return actual;
 }
 
+static unsigned int obex_object_send_srm_flags (uint8_t flag)
+{
+	switch (flag) {
+	case 0x00:
+		return OBEX_SRM_FLAG_WAIT_LOCAL;
+
+	case 0x01:
+		return OBEX_SRM_FLAG_WAIT_REMOTE;
+
+	case 0x02:
+		return (OBEX_SRM_FLAG_WAIT_LOCAL | OBEX_SRM_FLAG_WAIT_REMOTE);
+
+	default:
+		return 0;
+	}
+}
 
 /*
  * Function obex_object_send()
@@ -453,6 +474,7 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 	uint16_t tx_left;
 	int addmore = TRUE;
 	int real_opcode;
+	unsigned int srm_flags = 0;
 
 	DEBUG(4, "allowfinalcmd: %d forcefinalbit:%d\n", allowfinalcmd,
 			forcefinalbit);
@@ -495,7 +517,7 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 	 * many as possible into the tx-msg */
 	while (addmore == TRUE && object->tx_headerq != NULL) {
 
-		h = object->tx_headerq->data;
+		h = slist_get(object->tx_headerq);
 
 		switch (h->hi) {
 		case OBEX_HDR_BODY:
@@ -530,6 +552,10 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 				tx_left -= h->length;
 				if (h->flags & OBEX_FL_SUSPEND)
 					object->suspend = 1;
+
+				if (h->hi == OBEX_HDR_SRM_FLAGS)
+					srm_flags = obex_object_send_srm_flags(
+							       h->buf->data[0]);
 
 				/* Remove from tx-queue */
 				object->tx_headerq =
@@ -593,8 +619,11 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 	if (actual < 0) {
 		DEBUG(4, "Send error\n");
 		return -1;
-	} else
-		return finished;
+	}
+
+	self->srm_flags &= ~ OBEX_SRM_FLAG_WAIT_REMOTE;
+	self->srm_flags |= srm_flags;
+	return finished;
 }
 
 /*
@@ -958,6 +987,23 @@ int obex_object_receive(obex_t *self, buf_t *msg)
 	return 0;
 }
 
+static unsigned int obex_object_rcv_srm_flags (uint8_t flag)
+{
+	switch (flag) {
+	case 0x00:
+		return OBEX_SRM_FLAG_WAIT_REMOTE;
+
+	case 0x01:
+		return OBEX_SRM_FLAG_WAIT_LOCAL;
+
+	case 0x02:
+		return (OBEX_SRM_FLAG_WAIT_LOCAL | OBEX_SRM_FLAG_WAIT_REMOTE);
+
+	default:
+		return 0;
+	}
+}
+
 /*
  * Function obex_object_receive_headers()
  *
@@ -1023,6 +1069,10 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 		 */
 		header_bit = (uint64_t) 1 << (hi & OBEX_HDR_ID_MASK);
 		if (source && (filter & header_bit) == 0) {
+			if (hi == OBEX_HDR_SRM_FLAGS)
+				self->srm_flags |= obex_object_rcv_srm_flags(
+								     source[0]);
+			
 			err = obex_object_rcv_one_header(self, hi, source,
 									len);
 			consumed += hlen;

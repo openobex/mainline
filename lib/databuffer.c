@@ -27,6 +27,19 @@
 #include <stdio.h>
 #include <string.h>
 
+int slist_has_more(slist_t *list)
+{
+	return (!slist_is_empty(list) && !slist_is_empty(list->next));
+}
+
+void *slist_get(slist_t *list)
+{
+	if (slist_is_empty(list))
+		return NULL;
+	else
+		return list->data;
+}
+
 slist_t *slist_append(slist_t *list, void *element)
 {
 	slist_t *node, *p;

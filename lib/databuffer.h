@@ -58,6 +58,9 @@ void buf_remove_end(buf_t *p, size_t data_size);
 void buf_dump(buf_t *p, const char *label);
 void buf_free(buf_t *p);
 
+#define slist_is_empty(l) ((l) == NULL)
+int slist_has_more(slist_t *list);
+void *slist_get(slist_t *list);
 slist_t *slist_append(slist_t *list, void *element);
 slist_t *slist_remove(slist_t *list, void *element);
 

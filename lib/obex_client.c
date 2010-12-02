@@ -75,6 +75,7 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 		DEBUG(2, "CMD_DISCONNECT done. Resetting MTU!\n");
 		self->mtu_tx = OBEX_MINIMUM_MTU;
 		self->rsp_mode = OBEX_RSP_MODE_NORMAL;
+		self->srm_flags = 0;
 		break;
 	}
 
@@ -104,7 +105,9 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 			return 0;
 		}
 
-		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
+		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL ||
+		    (self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
+		{
 			ret = obex_object_send(self, self->object, TRUE, FALSE);
 			if (ret < 0) {
 				obex_deliver_event(self, OBEX_EV_LINKERR,
@@ -168,9 +171,16 @@ int obex_client_send(obex_t *self, buf_t *msg, int rsp)
 		}
 
 		if (msg_get_len(msg) > 3) {
-			DEBUG(1, "STATE_SEND. Didn't excpect data from peer "
-			      "(%u)\n", msg_get_len(msg));
-			DUMPBUFFER(4, "unexpected data", msg);
+			/* For Single Response Mode, this is actually not
+			 * unexpected. */
+			if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
+				DEBUG(1, "STATE_SEND. Didn't excpect data from "
+				      "peer (%u)\n", msg_get_len(msg));
+				DUMPBUFFER(4, "unexpected data", msg);
+				obex_deliver_event(self, OBEX_EV_UNEXPECTED,
+						self->object->opcode, 0, FALSE);
+			}
+
 			/* At this point, we are in the middle of sending our
 			 * request to the server, and it is already sending us
 			 * some data! This breaks the whole Request/Response
@@ -185,16 +195,17 @@ int obex_client_send(obex_t *self, buf_t *msg, int rsp)
 			 * PUT).
 			 * No headeroffset needed because 'connect' is single
 			 * packet (or we deny it). */
-			if (self->object->opcode == OBEX_CMD_CONNECT ||
-			    obex_object_receive(self, msg) < 0) {
+			ret = -1;
+			if (self->object->opcode == OBEX_CMD_CONNECT)
+				ret = obex_object_receive(self, msg);
+			if (ret < 0) {
 				self->mode = MODE_SRV;
 				self->state = STATE_IDLE;
 				obex_deliver_event(self, OBEX_EV_PARSEERR,
-						   self->object->opcode, 0, TRUE);
+						 self->object->opcode, 0, TRUE);
 				return -1;
 			}
-			obex_deliver_event(self, OBEX_EV_UNEXPECTED,
-					   self->object->opcode, 0, FALSE);
+
 			/* Note : we may want to get rid of received header,
 			 * however they are mixed with legitimate headers,
 			 * and the user may expect to consult them later.

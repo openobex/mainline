@@ -45,6 +45,7 @@ struct obex {
 	enum obex_rsp_mode rsp_mode;	/* OBEX_RSP_MODE_* */
 
 	unsigned int init_flags;
+	unsigned int srm_flags;		/* Flags for single response mode */
 
 	struct databuffer *tx_msg;	/* Reusable transmit message */
 	struct databuffer *rx_msg;	/* Reusable receive message */
