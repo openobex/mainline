@@ -214,6 +214,8 @@ typedef union {
 #define OBEX_HDR_ID_ACTION_ID	 0x14	/* Specifies the action for the ACTION command */
 #define OBEX_HDR_ID_DESTNAME	 0x15	/* Destination object name */
 #define OBEX_HDR_ID_PERMISSIONS	 0x16	/* bit mask for setting permissions */
+#define OBEX_HDR_ID_SRM          0x17   /* response mode selection */
+#define OBEX_HDR_ID_SRM_FLAGS    0x18   /* flags for single response mode */
 #define OBEX_HDR_ID_MASK	 0x3f
 
 #define OBEX_HDR_EMPTY		0x00	/* Empty header (buggy OBEX servers) */
@@ -241,6 +243,8 @@ typedef union {
 #define OBEX_HDR_ACTION_ID	(OBEX_HDR_ID_ACTION_ID    | OBEX_HDR_TYPE_UINT8  )
 #define OBEX_HDR_DESTNAME	(OBEX_HDR_ID_DESTNAME     | OBEX_HDR_TYPE_UNICODE)
 #define OBEX_HDR_PERMISSIONS	(OBEX_HDR_ID_PERMISSIONS  | OBEX_HDR_TYPE_UINT32 )
+#define OBEX_HDR_SRM            (OBEX_HDR_ID_SRM          | OBEX_HDR_TYPE_UINT8  )
+#define OBEX_HDR_SRM_FLAGS      (OBEX_HDR_ID_SRM_FLAGS    | OBEX_HDR_TYPE_UINT8  )
 
 /* Commands */
 #define OBEX_CMD_CONNECT	0x00
