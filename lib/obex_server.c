@@ -188,42 +188,22 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final,
 		return -1;
 	}
 
-	if (!final) {
-		/* The REQCHECK event is rather optional. The decision
-		 * about the actual support for a command is at
-		 * REQHINT. So let's assume that the application wants
-		 * that request. It can still deny it but it doesn't
-		 * have to ack it. */
-		obex_object_setrsp(self->object, OBEX_RSP_CONTINUE,
-							OBEX_RSP_SUCCESS);
-
-		/* Let the user decide whether to accept or deny a
-		 * multi-packet request by examining all headers in
-		 * the first packet */
-		if (!self->object->checked) {
-			obex_deliver_event(self, OBEX_EV_REQCHECK, cmd,
-								0, FALSE);
-			self->object->checked = 1;
-		}
-
-		/* Everything except 0x1X and 0x2X means that the user
-		 * callback denied the request. In the denied cases
-		 * treat the last packet as a final one but don't
-		 * bother about body headers and don't signal
-		 * OBEX_EV_REQ. */
-		switch ((self->object->opcode & ~OBEX_FINAL) & 0xF0) {
-		case OBEX_RSP_CONTINUE:
-		case OBEX_RSP_SUCCESS:
-			break;
-
-		default:
-			final = 1;
-			deny = 1;
-			break;
-		}
+	/* Let the user decide whether to accept or deny a
+	 * multi-packet request by examining all headers in
+	 * the first packet */
+	if (!self->object->checked) {
+		obex_deliver_event(self, OBEX_EV_REQCHECK, cmd, 0, FALSE);
+		self->object->checked = 1;
 	}
 
-	if (!deny) {
+	/* Everything except 0x1X and 0x2X means that the user
+	 * callback denied the request. In the denied cases
+	 * treat the last packet as a final one but don't
+	 * bother about body headers and don't signal
+	 * OBEX_EV_REQ. */
+	switch ((self->object->opcode & ~OBEX_FINAL) & 0xF0) {
+	case OBEX_RSP_CONTINUE:
+	case OBEX_RSP_SUCCESS:
 		if (obex_object_receive_headers(self, msg, ~filter) < 0) {
 			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
 			self->state = STATE_IDLE;
@@ -231,6 +211,12 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final,
 						self->object->opcode, 0, TRUE);
 			return -1;
 		}
+		break;
+
+	default:
+		final = 1;
+		deny = 1;
+		break;
 	}
 
 	if (!final) {
@@ -265,7 +251,7 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final,
 			/* Otherwise sanitycheck later will fail */
 			len = 3;
 		}
-		self->state = STATE_SEND;		
+		self->state = STATE_SEND;
 		return obex_server_send(self, msg, cmd, len);
 	}
 }
@@ -321,8 +307,16 @@ static int obex_server_idle(obex_t *self, buf_t *msg, int final,
 		break;
 	}
 
-	self->state = STATE_REC;
-	return obex_server_recv(self, msg, final, cmd, len);
+	switch ((self->object->opcode & ~OBEX_FINAL) & 0xF0) {
+	case OBEX_RSP_CONTINUE:
+	case OBEX_RSP_SUCCESS:
+		self->state = STATE_REC;
+		return obex_server_recv(self, msg, final, cmd, len);
+
+	default:
+		self->state = STATE_SEND;
+		return obex_server_send(self, msg, cmd, 3);
+	}
 }
 
 /*
