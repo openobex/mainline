@@ -8,5 +8,6 @@ Description: Free implementation of the Object Exchange protocol
 Version: @VERSION@
 Requires.private: @REQUIRES@
 Libs: -L${libdir} -lopenobex
+Libs.private: @LIBS_PRIVATE@
 Cflags: -I${includedir}
 Cflags.private: @OPENOBEX_CFLAGS@
