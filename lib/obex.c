@@ -486,7 +486,7 @@ LIB_SYMBOL
 int CALLAPI OBEX_GetFD(obex_t *self)
 {
 	obex_return_val_if_fail(self != NULL, -1);
-	if(self->trans.fd == INVALID_SOCKET)
+	if (self->trans.fd == INVALID_SOCKET)
 		return self->trans.serverfd;
 	return self->trans.fd;
 }

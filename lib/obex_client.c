@@ -44,7 +44,7 @@ static __inline int msg_get_rsp(const buf_t *msg)
 static __inline uint16_t msg_get_len(const buf_t *msg)
 {
 	if (msg)
-		return ntohs(((obex_common_hdr_t *)msg->data)->len);
+		return ntohs(((obex_common_hdr_t *) msg->data)->len);
 	else
 		return 0;
 }
@@ -106,18 +106,16 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 		}
 
 		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL ||
-		    (self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
-		{
+				(self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE)) {
 			ret = obex_object_send(self, self->object, TRUE, FALSE);
-			if (ret < 0) {
+			if (ret < 0)
 				obex_deliver_event(self, OBEX_EV_LINKERR,
-						   self->object->opcode, rsp,
-						   TRUE);
-			}
+						self->object->opcode, rsp,
+						TRUE);
 		}
 		if (ret >= 0)
 			obex_deliver_event(self, OBEX_EV_PROGRESS,
-					   self->object->opcode, rsp, FALSE);
+						self->object->opcode, rsp, FALSE);
 
 		if (self->object)
 			self->object->continue_received = 0;
@@ -164,7 +162,7 @@ int obex_client_send(obex_t *self, buf_t *msg, int rsp)
 		default:
 			DEBUG(0, "STATE_SEND. request not accepted.\n");
 			obex_deliver_event(self, OBEX_EV_REQDONE,
-					   self->object->opcode, rsp, TRUE);
+						self->object->opcode, rsp, TRUE);
 			/* This is not an Obex error, it is just that the peer
 			 * doesn't accept the request, so return 0 - Jean II */
 			return 0;
@@ -175,7 +173,7 @@ int obex_client_send(obex_t *self, buf_t *msg, int rsp)
 			 * unexpected. */
 			if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
 				DEBUG(1, "STATE_SEND. Didn't excpect data from "
-				      "peer (%u)\n", msg_get_len(msg));
+						"peer (%u)\n", msg_get_len(msg));
 				DUMPBUFFER(4, "unexpected data", msg);
 				obex_deliver_event(self, OBEX_EV_UNEXPECTED,
 						self->object->opcode, 0, FALSE);
@@ -202,7 +200,7 @@ int obex_client_send(obex_t *self, buf_t *msg, int rsp)
 				self->mode = MODE_SRV;
 				self->state = STATE_IDLE;
 				obex_deliver_event(self, OBEX_EV_PARSEERR,
-						 self->object->opcode, 0, TRUE);
+						self->object->opcode, 0, TRUE);
 				return -1;
 			}
 
@@ -226,10 +224,10 @@ int obex_client_send(obex_t *self, buf_t *msg, int rsp)
 
 	self->object->first_packet_sent = 1;
 	obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->opcode,
-				   0, FALSE);
-	if (ret > 0) {
+								0, FALSE);
+	if (ret > 0)
 		self->state = STATE_REC;
-	}
+
 	return 0;
 }
 

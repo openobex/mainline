@@ -161,9 +161,7 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	DEBUG(4, "\n");
 
 	/* End of stream marker */
-	if (hi == OBEX_HDR_BODY &&
-	    flags & OBEX_FL_STREAM_DATAEND)
-	{
+	if (hi == OBEX_HDR_BODY && (flags & OBEX_FL_STREAM_DATAEND)) {
 		if (self->object == NULL)
 			return -1;
 		self->object->s_stop = TRUE;
@@ -173,9 +171,7 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	}
 
 	/* Stream data */
-	if (hi == OBEX_HDR_BODY &&
-	    flags & OBEX_FL_STREAM_DATA)
-	{
+	if (hi == OBEX_HDR_BODY && (flags & OBEX_FL_STREAM_DATA)) {
 		if (self->object == NULL)
 			return -1;
 		self->object->s_buf = hv.bs;
@@ -195,9 +191,7 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	element->flags = flags;
 
 	/* Is this a stream? */
-	if (hi == OBEX_HDR_BODY &&
-	    flags & OBEX_FL_STREAM_START)
-	{
+	if (hi == OBEX_HDR_BODY && (flags & OBEX_FL_STREAM_START)) {
 		DEBUG(3, "Adding stream\n");
 		element->stream = TRUE;
 		object->tx_headerq = slist_append(object->tx_headerq, element);
@@ -393,7 +387,7 @@ static int send_stream(obex_t *self,
  *
  */
 static int send_body(obex_object_t *object, struct obex_header_element *h,
-		     buf_t *txmsg, unsigned int tx_left)
+					buf_t *txmsg, unsigned int tx_left)
 {
 	struct obex_byte_stream_hdr *hdr;
 	unsigned int actual;
@@ -468,12 +462,9 @@ static unsigned int obex_object_send_srm_flags (uint8_t flag)
 int obex_object_send(obex_t *self, obex_object_t *object,
 					int allowfinalcmd, int forcefinalbit)
 {
-	struct obex_header_element *h;
 	buf_t *txmsg;
-	int actual, finished = 0;
+	int actual, real_opcode, finished = 0, addmore = TRUE;
 	uint16_t tx_left;
-	int addmore = TRUE;
-	int real_opcode;
 	unsigned int srm_flags = 0;
 
 	DEBUG(4, "allowfinalcmd: %d forcefinalbit:%d\n", allowfinalcmd,
@@ -491,10 +482,8 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 	tx_left = self->mtu_tx - sizeof(struct obex_common_hdr);
 #ifdef HAVE_IRDA
 	if (self->trans.type == OBEX_TRANS_IRDA &&
-	    0 < self->trans.mtu && self->trans.mtu < self->mtu_tx)
-	{
+			self->trans.mtu > 0 && self->trans.mtu < self->mtu_tx)
 		tx_left -= self->mtu_tx % self->trans.mtu;
-	}
 #endif /*HAVE_IRDA*/
 
 	/* Reuse transmit buffer */
@@ -516,6 +505,7 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 	/* Take headers from the tx queue and try to stuff as
 	 * many as possible into the tx-msg */
 	while (addmore == TRUE && object->tx_headerq != NULL) {
+		struct obex_header_element *h;
 
 		h = slist_get(object->tx_headerq);
 
@@ -554,8 +544,8 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 					object->suspend = 1;
 
 				if (h->hi == OBEX_HDR_SRM_FLAGS)
-					srm_flags = obex_object_send_srm_flags(
-							       h->buf->data[0]);
+					srm_flags =
+						obex_object_send_srm_flags(h->buf->data[0]);
 
 				/* Remove from tx-queue */
 				object->tx_headerq =
@@ -568,7 +558,6 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 				/* Header is bigger than MTU. This should not
 				 * happen, because OBEX_ObjectAddHeader()
 				 * rejects headers bigger than the MTU */
-
 				DEBUG(0, "ERROR! header to big for MTU\n");
 				return -1;
 
@@ -595,8 +584,8 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 		 * In client, final bit is set only when we finish sending. */
 		if (forcefinalbit)
 			real_opcode |= OBEX_FINAL;
-		finished = 0;
 
+		finished = 0;
 	} else {
 		/* Have no more headers to send */
 		if (allowfinalcmd == FALSE) {
@@ -609,6 +598,7 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 			 * sending) */
 			real_opcode = object->lastopcode;
 		}
+
 		real_opcode |= OBEX_FINAL;
 		finished = !!allowfinalcmd;
 	}
@@ -621,8 +611,9 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 		return -1;
 	}
 
-	self->srm_flags &= ~ OBEX_SRM_FLAG_WAIT_REMOTE;
+	self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_REMOTE;
 	self->srm_flags |= srm_flags;
+
 	return finished;
 }
 
@@ -878,27 +869,26 @@ static int obex_object_receive_body(obex_t *self, uint8_t hi,
 			return 1;
 		}
 
-	} else {
-		if (hi == OBEX_HDR_BODY || hi == OBEX_HDR_BODY_END) {
-			if (obex_object_receive_buffered(self, hi,
-							source, len) < 0)
-				return -1;
-
-			if (hi == OBEX_HDR_BODY) {
-				DEBUG(4, "Normal body fragment...\n");
-				/* We have already handled this data! */
-				return 1;
-			}
-
-		} else if (hi == OBEX_HDR_LENGTH && !object->rx_body) {
-			/* The length MAY be useful when receiving body. */
-			uint32_t value;
-			memcpy(&value, source, sizeof(value));
-			object->hinted_body_len = ntohl(value);
-			DEBUG(4, "Hinted body len is %d\n",
-						object->hinted_body_len);
-		}
+		return 0;
 	}
+
+	if (hi == OBEX_HDR_BODY || hi == OBEX_HDR_BODY_END) {
+		if (obex_object_receive_buffered(self, hi, source, len) < 0)
+			return -1;
+
+		if (hi == OBEX_HDR_BODY) {
+			DEBUG(4, "Normal body fragment...\n");
+			/* We have already handled this data! */
+			return 1;
+		}
+	} else if (hi == OBEX_HDR_LENGTH && !object->rx_body) {
+		/* The length MAY be useful when receiving body. */
+		uint32_t value;
+		memcpy(&value, source, sizeof(value));
+		object->hinted_body_len = ntohl(value);
+		DEBUG(4, "Hinted body len is %d\n", object->hinted_body_len);
+	}
+
 	return 0;
 }
 
@@ -908,7 +898,6 @@ static int obex_object_rcv_one_header(obex_t *self, uint8_t hi,
 {
 	struct obex_header_element *element;
 	obex_object_t *object = self->object;
-	int err = 0;
 
 	DEBUG(4, "\n");
 
@@ -919,50 +908,46 @@ static int obex_object_rcv_one_header(obex_t *self, uint8_t hi,
 			buf_free(object->rx_body);
 			object->rx_body = NULL;
 		}
-		err = -1;
 
+		return -1;
+	}
+
+	memset(element, 0, sizeof(*element));
+
+	if (hi == OBEX_HDR_BODY_END)
+		hi = OBEX_HDR_BODY;
+
+	element->hi = hi;
+
+	if (hi == OBEX_HDR_BODY && object->rx_body) {
+		DEBUG(4, "Body receive done\n");
+		element->length = object->rx_body->data_size;
+		element->buf = object->rx_body;
+		object->rx_body = NULL;
+	} else if (len == 0) {
+		/* If we get an emtpy we have to deal with it...
+		 * This might not be an optimal way, but it works. */
+		DEBUG(4, "Got empty header. Allocating dummy buffer anyway\n");
+		element->buf = buf_new(1);
 	} else {
-		memset(element, 0, sizeof(*element));
-
-		if (hi == OBEX_HDR_BODY_END)
-			hi = OBEX_HDR_BODY;
-		element->hi = hi;
-
-		if (hi == OBEX_HDR_BODY && object->rx_body) {
-			DEBUG(4, "Body receive done\n");
-			element->length = object->rx_body->data_size;
-			element->buf = object->rx_body;
-			object->rx_body = NULL;
-
-		} else if (len == 0) {
-			/* If we get an emtpy we have to deal with it...
-			 * This might not be an optimal way, but it works. */
-			DEBUG(4, "Got empty header. Allocating dummy buffer anyway\n");
-			element->buf = buf_new(1);
-
-		} else {
-			element->length = len;
-			element->buf = buf_new(len);
-			if (element->buf) {
-				DEBUG(4, "Copying %d bytes\n", len);
-				buf_insert_end(element->buf, source, len);
-			}
-		}
-
-		if (!element->buf) {
-			DEBUG(1, "Cannot allocate memory\n");
-			free(element);
-			element = NULL;
-			err = -1;
+		element->length = len;
+		element->buf = buf_new(len);
+		if (element->buf) {
+			DEBUG(4, "Copying %d bytes\n", len);
+			buf_insert_end(element->buf, source, len);
 		}
 	}
 
-	if (element) {
-		/* Add element to rx-list */
-		object->rx_headerq = slist_append(object->rx_headerq, element);
+	if (!element->buf) {
+		DEBUG(1, "Cannot allocate memory\n");
+		free(element);
+		return -1;
 	}
 
-	return err;
+	/* Add element to rx-list */
+	object->rx_headerq = slist_append(object->rx_headerq, element);
+
+	return 0;
 }
 
 /*
@@ -987,7 +972,7 @@ int obex_object_receive(obex_t *self, buf_t *msg)
 	return 0;
 }
 
-static unsigned int obex_object_rcv_srm_flags (uint8_t flag)
+static unsigned int obex_object_rcv_srm_flags(uint8_t flag)
 {
 	switch (flag) {
 	case 0x00:
@@ -1013,7 +998,7 @@ static unsigned int obex_object_rcv_srm_flags (uint8_t flag)
  */
 int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 {
-	struct obex_common_hdr *hdr = (obex_common_hdr_t *)msg->data;
+	struct obex_common_hdr *hdr = (struct obex_common_hdr *) msg->data;
 	uint16_t offset = sizeof(*hdr) + self->object->headeroffset;
 	int consumed = 0;
 	const uint64_t body_filter = (1 << OBEX_HDR_ID_BODY |
@@ -1038,8 +1023,7 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 		/* Make sure that the msg is big enough for header */
 		if (len > (unsigned int)(msglen - offset)) {
 			DEBUG(1, "Header %d too big. HSize=%d Buffer=%lu\n",
-				hi, len,
-				(unsigned long) msglen - offset);
+				hi, len, (unsigned long) msglen - offset);
 			source = NULL;
 			err = -1;
 		}
@@ -1070,11 +1054,9 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 		header_bit = (uint64_t) 1 << (hi & OBEX_HDR_ID_MASK);
 		if (source && (filter & header_bit) == 0) {
 			if (hi == OBEX_HDR_SRM_FLAGS)
-				self->srm_flags |= obex_object_rcv_srm_flags(
-								     source[0]);
-			
-			err = obex_object_rcv_one_header(self, hi, source,
-									len);
+				self->srm_flags |= obex_object_rcv_srm_flags(source[0]);
+
+			err = obex_object_rcv_one_header(self, hi, source, len);
 			consumed += hlen;
 		}
 

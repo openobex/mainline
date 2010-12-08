@@ -196,10 +196,10 @@ int obex_transport_standard_handle_input(obex_t *self)
 
 	/* Wait for input */
 	if (trans->timeout >= 0) {
-		struct timeval time = {trans->timeout, 0};
-		ret = select((int)highestfd+1, &fdset, NULL, NULL, &time);
+		struct timeval time = { trans->timeout, 0 };
+		ret = select((int) highestfd + 1, &fdset, NULL, NULL, &time);
 	} else {
-		ret = select((int)highestfd+1, &fdset, NULL, NULL, NULL);
+		ret = select((int) highestfd + 1, &fdset, NULL, NULL, NULL);
 	}
 
 	/* Check if this is a timeout (0) or error (-1) */
@@ -209,7 +209,6 @@ int obex_transport_standard_handle_input(obex_t *self)
 	if (trans->fd != INVALID_SOCKET && FD_ISSET(trans->fd, &fdset)) {
 		DEBUG(4, "Data available on client socket\n");
 		ret = obex_data_indication(self);
-
 	} else if (trans->serverfd != INVALID_SOCKET &&
 					FD_ISSET(trans->serverfd, &fdset)) {
 		DEBUG(4, "Data available on server socket\n");
@@ -223,7 +222,6 @@ int obex_transport_standard_handle_input(obex_t *self)
 		/* Otherwise, just disconnect the server */
 		else if (ret >= 0)
 			obex_transport_disconnect_server(self);
-
 	} else
 		ret = -1;
 
@@ -327,13 +325,11 @@ void obex_transport_disconnect_server(obex_t *self)
 int obex_transport_do_send (obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
-	int fd = trans->fd;
-	int actual = 0;
+	int fd = trans->fd, actual = 0;
 
 	/* Send and fragment if necessary  */
 	while (msg->data_size) {
-		int status = 1;
-		int size = msg->data_size;
+		int status = 1, size = msg->data_size;
 
 		if (msg->data_size > trans->mtu)
 			size = trans->mtu;

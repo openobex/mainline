@@ -95,8 +95,8 @@ static int custom_write(obex_t *self, buf_t *msg)
 	struct obex_transport *trans = &self->trans;
 	obex_ctrans_t *ctrans = trans->data;
 
-	return ctrans->write(self, ctrans->customdata,
-			     msg->data, msg->data_size);
+	return ctrans->write(self, ctrans->customdata, msg->data,
+							msg->data_size);
 }
 
 static int custom_read(obex_t *self, void *buf, int size)
@@ -113,15 +113,15 @@ static int custom_read(obex_t *self, void *buf, int size)
 		if (size < self->mtu_rx) {
 			buf = buf_reserve_end(self->rx_msg, self->mtu_rx-size);
 			actual = ctrans->read(self, ctrans->customdata, buf,
-					      size);
+									size);
 			buf_remove_end(self->rx_msg, self->mtu_rx-actual);
 
 		} else {
 			actual = ctrans->read(self, ctrans->customdata, buf,
-					      size);
+									size);
 		}
+
 		return actual;
-		
 	} else {
 		/* This is not an error as it may happen that
 		 * OBEX_CustomDataFeed() was not given enough data

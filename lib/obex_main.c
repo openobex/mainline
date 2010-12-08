@@ -70,8 +70,7 @@ int obex_dump;
 socket_t obex_create_socket(obex_t *self, int domain)
 {
 	socket_t fd;
-	int type = SOCK_STREAM;
-	int proto = 0;
+	int type = SOCK_STREAM, proto = 0;
 
 	DEBUG(4, "\n");
 
@@ -84,6 +83,7 @@ socket_t obex_create_socket(obex_t *self, int domain)
 		fd = socket_cloexec(domain, type, proto);
 	else
 		fd = socket(domain, type, proto);
+
 	return fd;
 }
 
@@ -99,7 +99,7 @@ int obex_delete_socket(obex_t *self, socket_t fd)
 
 	DEBUG(4, "\n");
 
-	if(fd == INVALID_SOCKET)
+	if (fd == INVALID_SOCKET)
 		return fd;
 
 #ifdef _WIN32
@@ -236,16 +236,15 @@ int obex_work(obex_t *self, int timeout)
 	 * sending the response.
 	 * For request reception, this is handled above */
 	if (self->object &&
-	    self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
-	    self->state == STATE_SEND &&
-	    !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL))
-	{
+			self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
+			self->state == STATE_SEND &&
+			!(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
 		int ret;
 
 		/* Still, we need to do a zero-wait check for an ABORT
 		 * and for connection errors. */
 		ret = obex_transport_handle_input(self, 0);
-		if (ret == 0) {/* timeout: no error, no input */
+		if (ret == 0) { /* timeout: no error, no input */
 			switch (self->mode) {
 			case MODE_SRV:
 				ret = obex_server_send(self, NULL, self->object->cmd, 0);
@@ -275,7 +274,7 @@ int obex_get_buffer_status(buf_t *msg) {
 	obex_common_hdr_t *hdr = (obex_common_hdr_t *)msg->data;
 
 	return (msg->data_size >= sizeof(*hdr) &&
-		msg->data_size >= ntohs(hdr->len));
+					msg->data_size >= ntohs(hdr->len));
 }
 
 /*
@@ -289,10 +288,8 @@ int obex_data_indication(obex_t *self)
 	obex_common_hdr_t *hdr;
 	buf_t *msg;
 	uint8_t opcode;
-	int final;
-	int actual = 0;
+	int final, ret, actual = 0;
 	unsigned int size;
-	int ret;
 
 	DEBUG(4, "\n");
 
@@ -301,7 +298,7 @@ int obex_data_indication(obex_t *self)
 	msg = self->rx_msg;
 
 	/* First we need 3 bytes to be able to know how much data to read */
-	if(msg->data_size < sizeof(*hdr))  {
+	if (msg->data_size < sizeof(*hdr))  {
 		actual = obex_transport_read(self, sizeof(*hdr)-msg->data_size);
 
 		DEBUG(4, "Got %d bytes\n", actual);
@@ -316,12 +313,12 @@ int obex_data_indication(obex_t *self)
 	}
 
 	/* If we have 3 bytes data we can decide how big the packet is */
-	if(msg->data_size >= sizeof(*hdr)) {
+	if (msg->data_size >= sizeof(*hdr)) {
 		hdr = (obex_common_hdr_t *) msg->data;
 		size = ntohs(hdr->len);
 
 		actual = 0;
-		if(msg->data_size < size) {
+		if (msg->data_size < size) {
 
 			actual = obex_transport_read(self,
 							size - msg->data_size);
@@ -338,14 +335,12 @@ int obex_data_indication(obex_t *self)
 				return actual;
 			}
 		}
-	}
-        else {
+	} else {
 		/* Wait until we have at least 3 bytes data */
 		DEBUG(3, "Need at least 3 bytes got only %lu!\n",
 					(unsigned long) msg->data_size);
 		return actual;
         }
-
 
 	/* New data has been inserted at the end of message */
 	DEBUG(1, "Got %d bytes msg len=%lu\n", actual,
@@ -373,18 +368,17 @@ int obex_data_indication(obex_t *self)
 	final = hdr->opcode & OBEX_FINAL; /* Extract final bit */
 
 	/* Dispatch to the mode we are in */
-	if(self->mode == MODE_SRV) {
+	if (self->mode == MODE_SRV) {
 		/* Single response mode makes it possible for the client to send
 		 * the next request (e.g. PUT) while still receiving the last
 		 * multi-packet response. So we must not consume any request
 		 * except ABORT. */
 		if (self->object &&
-		    self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
-		    self->state == STATE_SEND &&
-		    !(opcode == OBEX_CMD_ABORT || opcode == self->object->cmd))
-		{
+				self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
+				self->state == STATE_SEND &&
+				!(opcode == OBEX_CMD_ABORT || opcode == self->object->cmd))
 			return 0;
-		}
+
 		self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_LOCAL;
 		ret = obex_server(self, msg, final);
 	} else
@@ -396,8 +390,9 @@ int obex_data_indication(obex_t *self)
 		buf_reuse(msg);
 
 	/* Check parse errors */
-	if(ret < 0)
+	if (ret < 0)
 		actual = ret;
+
 	return actual;
 }
 
@@ -410,7 +405,7 @@ int obex_data_indication(obex_t *self)
 int obex_cancelrequest(obex_t *self, int nice)
 {
 	/* If we have no ongoing request do nothing */
-	if(self->object == NULL)
+	if (self->object == NULL)
 		return 0;
 
 	/* Abort request without sending abort */

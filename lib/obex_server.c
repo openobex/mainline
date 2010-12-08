@@ -36,12 +36,12 @@
 
 static __inline int msg_get_cmd(const buf_t *msg)
 {
-	return ((obex_common_hdr_t *)msg->data)->opcode & ~OBEX_FINAL;
+	return ((obex_common_hdr_t *) msg->data)->opcode & ~OBEX_FINAL;
 }
 
 static __inline uint16_t msg_get_len(const buf_t *msg)
 {
-	return ntohs(((obex_common_hdr_t *)msg->data)->len);
+	return ntohs(((obex_common_hdr_t *) msg->data)->len);
 }
 
 int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
@@ -66,10 +66,11 @@ int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 		/* For Single Response Mode, this is actually not unexpected. */
 		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
 			DEBUG(1, "STATE_SEND Didn't expect data from peer"
-			      "(%u)\n", len);
+								"(%u)\n", len);
 			DUMPBUFFER(4, "unexpected data", msg);
 			obex_deliver_event(self, OBEX_EV_UNEXPECTED,
-					   self->object->opcode, 0, FALSE);
+						self->object->opcode,
+						0, FALSE);
 		}
 
 		/* At this point, we are in the middle of sending our response
@@ -117,12 +118,10 @@ int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
 		self->object->first_packet_sent = 1;
 		self->object->continue_received = 0;
-
 	} else if (ret < 0) {
 		/* Error sending response */
 		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
 		return -1;
-
 	} else {
 		/* Response sent! */
 		if (cmd == OBEX_CMD_DISCONNECT) {
@@ -134,6 +133,7 @@ int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 		self->state = STATE_IDLE;
 		obex_deliver_event(self, OBEX_EV_REQDONE, cmd, 0, TRUE);
 	}
+
 	return 0;
 }
 
@@ -222,38 +222,37 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final,
 	if (!final) {
 		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
 		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL ||
-		    (self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
-		{
+				(self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE)) {
 			int ret = obex_object_send(self, self->object, FALSE,
-						   TRUE);
+									TRUE);
 			if (ret < 0) {
-				obex_deliver_event(self, OBEX_EV_LINKERR, cmd,
-						   0, TRUE);
+				obex_deliver_event(self, OBEX_EV_LINKERR,
+								cmd, 0, TRUE);
 				return -1;
 			}
 		}
-		return 0;
 
-	} else  {
-		if (!self->object->first_packet_sent) {
-			/* Tell the app that a whole request has
-			 * arrived. While this event is delivered the
-			 * app should append the headers that should be
-			 * in the response */
-			if (!deny) {
-				DEBUG(4, "We got a request!\n");
-				obex_deliver_event(self, OBEX_EV_REQ, cmd,
-								0, FALSE);
-			}
-			/* More connect-magic woodoo stuff */
-			if (cmd == OBEX_CMD_CONNECT)
-				obex_insert_connectframe(self, self->object);
-			/* Otherwise sanitycheck later will fail */
-			len = 3;
-		}
-		self->state = STATE_SEND;
-		return obex_server_send(self, msg, cmd, len);
+		return 0;
 	}
+
+	if (!self->object->first_packet_sent) {
+		/* Tell the app that a whole request has
+		 * arrived. While this event is delivered the
+		 * app should append the headers that should be
+		 * in the response */
+		if (!deny) {
+			DEBUG(4, "We got a request!\n");
+			obex_deliver_event(self, OBEX_EV_REQ, cmd, 0, FALSE);
+		}
+		/* More connect-magic woodoo stuff */
+		if (cmd == OBEX_CMD_CONNECT)
+			obex_insert_connectframe(self, self->object);
+		/* Otherwise sanitycheck later will fail */
+		len = 3;
+	}
+
+	self->state = STATE_SEND;
+	return obex_server_send(self, msg, cmd, len);
 }
 
 static int obex_server_idle(obex_t *self, buf_t *msg, int final,
