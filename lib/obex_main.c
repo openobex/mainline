@@ -446,7 +446,11 @@ int obex_cancelrequest(obex_t *self, int nice)
 		obex_object_delete(object);
 
 		self->object->abort = TRUE;
-		self->state = STATE_REC;
+		self->state = self->mode == MODE_SRV ? STATE_IDLE : STATE_REC;
+
+		if (self->state == STATE_IDLE)
+			/* Deliver event will delete the object */
+			obex_deliver_event(self, OBEX_EV_ABORT, 0, 0, TRUE);
 
 		return 0;
 	}
