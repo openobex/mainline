@@ -52,12 +52,8 @@
 
 #include <openobex/obex_const.h>
 
-#ifdef OBEX_DEBUG
 int obex_debug;
-#endif
-#ifdef OBEX_DUMP
 int obex_dump;
-#endif
 
 #include "cloexec.h"
 

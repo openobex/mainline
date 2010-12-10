@@ -88,13 +88,26 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb,
 							unsigned int flags)
 {
 	obex_t *self;
+	char *env;
 
 #if OBEX_DEBUG
 	obex_debug = OBEX_DEBUG;
+#else
+	obex_debug = -1;
 #endif
 #if OBEX_DUMP
 	obex_dump = OBEX_DUMP;
+#else
+	obex_dump = 0;
 #endif
+
+	env = getenv("OBEX_DEBUG");
+	if (env)
+		obex_debug = atoi(env);
+
+	env = getenv("OBEX_DUMP");
+	if (env)
+		obex_dump = atoi(env);
 
 	obex_return_val_if_fail(eventcb != NULL, NULL);
 
