@@ -325,43 +325,31 @@ void obex_transport_disconnect_server(obex_t *self)
 int obex_transport_do_send (obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
-	int fd = trans->fd, actual = 0;
+	int fd = trans->fd;
+	size_t size = msg->data_size;
 
-	/* Send and fragment if necessary  */
-	while (msg->data_size) {
-		int status = 1, size = msg->data_size;
+	if (size == 0)
+		return 0;
 
-		if (msg->data_size > trans->mtu)
-			size = trans->mtu;
-		DEBUG(1, "sending %d bytes\n", size);
+	if (size > trans->mtu)
+		size = trans->mtu;
+	DEBUG(1, "sending %zu bytes\n", size);
 
-		if (trans->timeout >= 0) {
-			/* setup everything to check for blocking writes */
-			fd_set fdset;
-			struct timeval time = {trans->timeout, 0};
+	if (trans->timeout >= 0) {
+		/* setup everything to check for blocking writes */
+		fd_set fdset;
+		struct timeval time = {trans->timeout, 0};
+		int status;
 
-			FD_ZERO(&fdset);
-			FD_SET(fd, &fdset);
-			status = select((int)fd+1, NULL, &fdset, NULL, &time);
-			if (status == 0) {
-				errno = ETIMEDOUT;
-				status = -1;
-			}
-		}
-
-		/* call send() if no error */
-		if (status > 0)
-			status = send(fd, msg->data, size, 0);
-
-		if (status < 0)
-			return -1;
-
-		/* Hide sent data */
-		buf_remove_begin(msg, status);
-		actual += status;
+		FD_ZERO(&fdset);
+		FD_SET(fd, &fdset);
+		status = select((int)fd+1, NULL, &fdset, NULL, &time);
+		if (status == 0)
+			return 0;
 	}
 
-	return actual;
+	/* call send() if no error */
+	return send(fd, msg->data, size, 0);
 }
 
 /*

@@ -203,6 +203,7 @@ void obex_response_request(obex_t *self, uint8_t opcode)
 int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 {
 	obex_common_hdr_t *hdr;
+	int status;
 
 	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail(msg != NULL, -1);
@@ -216,7 +217,12 @@ int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 	DUMPBUFFER(1, "Tx", msg);
 	DEBUG(1, "len = %lu bytes\n", (unsigned long) msg->data_size);
 
-	return obex_transport_write(self, msg);
+	do {
+		status = obex_transport_write(self, msg);
+		if (status > 0)
+			buf_remove_begin(msg, status);
+	} while (status >= 0 && obex_get_buffer_status(msg));
+	return status;
 }
 
 /*

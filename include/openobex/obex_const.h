@@ -64,8 +64,7 @@ typedef struct {
 	 * enough room for RX MTU bytes. The minimum number of bytes needed to
 	 * go on is specified by 'size'.*/
 	int (*read)(obex_t *handle, void *customdata, uint8_t *buf, int size);
-	/** remote connection output
-	 * This function is supposed to write all of the data. */
+	/** remote connection output */
 	int (*write)(obex_t *handle, void *customdata, uint8_t *buf, int len);
 	/** directly called by #OBEX_HandleInput */
 	int (*handleinput)(obex_t *handle, void *customdata, int timeout);

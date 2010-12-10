@@ -36,49 +36,33 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
 	int fd = trans->writefd;
-	int actual = 0;
+	size_t size = msg->data_size;
 
-	/* Send and fragment if necessary  */
-	while (msg->data_size) {
-		int status = 1;
-		int size = msg->data_size;
+	if (size == 0)
+		return 0;
 
-		if (msg->data_size > trans->mtu)
-			size = trans->mtu;
-		DEBUG(1, "sending %d bytes\n", size);
+	if (size > trans->mtu)
+		size = trans->mtu;
+	DEBUG(1, "sending %zu bytes\n", size);
 
-		if (trans->timeout >= 0) {
-			/* setup everything to check for blocking writes */
-			fd_set fdset;
-			struct timeval time = {trans->timeout, 0};
+	if (trans->timeout >= 0) {
+		/* setup everything to check for blocking writes */
+		fd_set fdset;
+		struct timeval time = {trans->timeout, 0};
+		int status;
 
-			FD_ZERO(&fdset);
-			FD_SET(fd, &fdset);
-			status = select((int)fd+1, NULL, &fdset, NULL, &time);
-			if (status == 0) {
-				errno = ETIMEDOUT;
-				status = -1;
-			}
-		}
-
-		/* call write() if no error */
-		if (status > 0) {
-#ifdef _WIN32
-			status = _write(fd, msg->data, size);
-#else
-			status = write(fd, msg->data, size);
-#endif
-		}
-
-		if (status < 0)
-			return -1;
-
-		/* Hide sent data */
-		buf_remove_begin(msg, status);
-		actual += status;
+		FD_ZERO(&fdset);
+		FD_SET(fd, &fdset);
+		status = select((int)fd+1, NULL, &fdset, NULL, &time);
+		if (status == 0)
+			return 0;
 	}
 
-	return actual;
+#ifdef _WIN32
+	return _write(fd, msg->data, size);
+#else
+	return write(fd, msg->data, size);
+#endif
 }
 
 static int fdobex_read (obex_t *self, void *buf, int buflen)
