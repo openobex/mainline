@@ -448,21 +448,30 @@ static int usbobex_get_timeout(int timeout)
 static int usbobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
+	int status;
 
 	if (trans->connected != TRUE)
 		return -1;
 
 	DEBUG(4, "Endpoint %d\n", trans->self.usb.data_endpoint_write);
-	return usb_bulk_write(trans->self.usb.dev,
-			      trans->self.usb.data_endpoint_write,
-			      (char *) msg->data, msg->data_size,
-			      usbobex_get_timeout(trans->timeout));
+	status = usb_bulk_write(trans->self.usb.dev,
+				trans->self.usb.data_endpoint_write,
+				(char *) msg->data, msg->data_size,
+				usbobex_get_timeout(trans->timeout));
+
+	if (status < 0) {
+		if (status == -ETIMEDOUT)
+			return 0;
+		errno = -status;
+		return -1;
+	}
+	return status;
 }
 
 static int usbobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct obex_transport *trans = &self->trans;
-	int actual;
+	int status;
 
 	if (trans->connected != TRUE)
 		return -1;
@@ -472,25 +481,27 @@ static int usbobex_read(obex_t *self, void *buf, int buflen)
 		buf = buf_reserve_end(self->rx_msg, self->mtu_rx - buflen);
 
 	DEBUG(4, "Endpoint %d\n", trans->self.usb.data_endpoint_read);
-	actual = usb_bulk_read(trans->self.usb.dev,
+	status = usb_bulk_read(trans->self.usb.dev,
 			       trans->self.usb.data_endpoint_read,
 			       buf, buflen,
 			       usbobex_get_timeout(trans->timeout));
 
-	if (actual < 0) {
+	if (status < 0) {
 		if (buflen < self->mtu_rx)
 			buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
-		if (errno == ETIMEDOUT)
+
+		if (status == -ETIMEDOUT)
 			return 0;
-		else
-			return -1;
-	} else {
-		if (actual > buflen)
-			buflen = actual;
-		if (buflen < self->mtu_rx)
-			buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
-		return actual;
+		errno = -status;
+		return -1;
+
 	}
+
+	if (status > buflen)
+		buflen = status;
+	if (buflen < self->mtu_rx)
+		buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
+	return status;
 }
 
 static int usbobex_handle_input(obex_t *self)
