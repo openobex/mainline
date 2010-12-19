@@ -105,23 +105,8 @@ static int custom_read(obex_t *self, void *buf, int size)
 	obex_ctrans_t *ctrans = trans->data;
 
 	if (ctrans->read) {
-		int actual = 0;
+		return ctrans->read(self, ctrans->customdata, buf, size);
 
-		/* The implementation of the custom transport is not known.
-		 * It may be that is can only read whole packets. Those are
-		 * by definition limited to the RX MTU. */
-		if (size < self->mtu_rx) {
-			buf = buf_reserve_end(self->rx_msg, self->mtu_rx-size);
-			actual = ctrans->read(self, ctrans->customdata, buf,
-									size);
-			buf_remove_end(self->rx_msg, self->mtu_rx-actual);
-
-		} else {
-			actual = ctrans->read(self, ctrans->customdata, buf,
-									size);
-		}
-
-		return actual;
 	} else {
 		/* This is not an error as it may happen that
 		 * OBEX_CustomDataFeed() was not given enough data

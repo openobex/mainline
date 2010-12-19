@@ -380,8 +380,14 @@ int obex_transport_do_recv (obex_t *self, void *buf, int buflen)
  */
 int obex_transport_read(obex_t *self, int max)
 {
+	/* The implementation of the current transport is not known.
+	 * It may be that it can only read whole packets. Those are
+	 * by definition limited to the RX MTU. */
 	int actual = 0;
-	void *buf = buf_reserve_end(self->rx_msg, max);
+	void *buf = buf_reserve_end(self->rx_msg, self->mtu_rx);
+
+	if (!buf)
+		return -1;
 
 	DEBUG(4, "Request to read max %d bytes\n", max);
 
@@ -389,9 +395,9 @@ int obex_transport_read(obex_t *self, int max)
 		actual = self->trans.ops.read(self, buf, max);
 
 	if (actual <= 0)
-		buf_remove_end(self->rx_msg, max);
-	else if (0 < actual && actual < max)
-		buf_remove_end(self->rx_msg, max - actual);
+		buf_remove_end(self->rx_msg, self->mtu_rx);
+	else if (0 < actual && actual < self->mtu_rx)
+		buf_remove_end(self->rx_msg, self->mtu_rx - actual);
 
 	return actual;
 }

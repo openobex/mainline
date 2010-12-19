@@ -477,9 +477,6 @@ static int usbobex_read(obex_t *self, void *buf, int buflen)
 		return -1;
 
 	/* USB can only read 0xFFFF bytes at once (equals mtu_rx) */
-	if (buflen < self->mtu_rx)
-		buf = buf_reserve_end(self->rx_msg, self->mtu_rx - buflen);
-
 	DEBUG(4, "Endpoint %d\n", trans->self.usb.data_endpoint_read);
 	status = usb_bulk_read(trans->self.usb.dev,
 			       trans->self.usb.data_endpoint_read,
@@ -487,20 +484,12 @@ static int usbobex_read(obex_t *self, void *buf, int buflen)
 			       usbobex_get_timeout(trans->timeout));
 
 	if (status < 0) {
-		if (buflen < self->mtu_rx)
-			buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
-
 		if (status == -ETIMEDOUT)
 			return 0;
 		errno = -status;
 		return -1;
-
 	}
 
-	if (status > buflen)
-		buflen = status;
-	if (buflen < self->mtu_rx)
-		buf_remove_end(self->rx_msg, self->mtu_rx - buflen);
 	return status;
 }
 
