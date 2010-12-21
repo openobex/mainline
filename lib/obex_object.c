@@ -786,6 +786,7 @@ static int obex_object_receive_buffered(obex_t *self, uint8_t hi,
 int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
 {
 	obex_object_t *object = self->object;
+	uint8_t *msgdata = msg->data + sizeof(struct obex_common_hdr);
 
 	DEBUG(4, "\n");
 
@@ -793,12 +794,10 @@ int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
 		return 0;
 
 	/* Copy any non-header data (like in CONNECT and SETPATH) */
-
 	object->rx_nonhdr_data = buf_new(object->headeroffset);
 	if (!object->rx_nonhdr_data)
 		return -1;
-	buf_insert_end(object->rx_nonhdr_data, msg->data,
-						object->headeroffset);
+	buf_insert_end(object->rx_nonhdr_data, msgdata,	object->headeroffset);
 	DEBUG(4, "Command has %lu bytes non-headerdata\n",
 			(unsigned long) object->rx_nonhdr_data->data_size);
 
