@@ -312,6 +312,14 @@ AC_DEFUN([AC_ARG_OPENOBEX], [
 
 	AM_CONDITIONAL(GLIB, test "${glib_enable}" = "yes" && test "${glib_found}" = "yes")
 	AM_CONDITIONAL(APPS, test "${apps_enable}" = "yes")
+	case $host in
+	*-*-linux*)
+		AM_CONDITIONAL(UDEV_SUPPORT, test "${usb_enable}" = "yes" && (test "${usb_found}" = "yes" || test "${usb1_found}" = "yes"))
+		;;
+	*)
+		AM_CONDITIONAL(UDEV_SUPPORT, 0)
+		;;
+	esac
 
 	if (test "${debug_enable}" = "yes" && test "${ac_cv_prog_cc_g}" = "yes"); then
 		CFLAGS="$CFLAGS -g"

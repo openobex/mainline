@@ -1,5 +1,5 @@
 
-SUBDIRS = include lib glib apps doc
+SUBDIRS = include lib glib apps udev doc
 
 pkgconfigdir = $(libdir)/pkgconfig
 

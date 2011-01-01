@@ -167,7 +167,7 @@ link_directories ( "${CMAKE_CURRENT_BINARY_DIR}/lib" )
 if ( BUILD_SHARED_LIBS )
   add_definitions ( -DOPENOBEX_DLL )
 endif ( BUILD_SHARED_LIBS )
-
+add_subdirectory ( udev )
 
 #
 # build the applications
