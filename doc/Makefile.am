@@ -1,9 +1,9 @@
-clean:
-	-$(RM) -rf html man rtf latex
-	
 html:
-	doxygen
+	doxygen $(top_builddir)/doc/Doxyfile
 
-EXTRA_DIST = Doxyfile openobex.coverpage CMakeLists.txt Doxyfile.in openobex-apps.xml
+clean-local:
+	-rm -rf $(top_builddir)/doc/html
+
+EXTRA_DIST = openobex.coverpage CMakeLists.txt Doxyfile.in openobex-apps.xml
 
 MAINTAINERCLEANFILES = Makefile.in

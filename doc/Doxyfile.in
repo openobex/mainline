@@ -5,8 +5,8 @@
 #---------------------------------------------------------------------------
 DOXYFILE_ENCODING      = ASCII
 PROJECT_NAME           = OpenOBEX
-PROJECT_NUMBER         = @DOC_VERSION@
-OUTPUT_DIRECTORY       = @DOC_BINARY_DIR@
+PROJECT_NUMBER         = @VERSION@
+OUTPUT_DIRECTORY       = @top_builddir@/doc
 CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English
 BRIEF_MEMBER_DESC      = YES
@@ -85,7 +85,7 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = @DOC_SOURCE_FILES@
+INPUT                  = @top_srcdir@/lib/obex.c @top_srcdir@/include/openobex/obex.h @top_srcdir@/include/openobex/obex_const.h @top_srcdir@/doc/openobex.coverpage
 INPUT_ENCODING         = ASCII
 FILE_PATTERNS          = *.c *.h
 RECURSIVE              = NO
