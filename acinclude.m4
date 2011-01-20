@@ -161,8 +161,11 @@ AC_DEFUN([AC_PATH_USB], [
 		usb_lib_found=yes
 		;;
 	*)
+		usb_lib_pkgconfig=no
 		PKG_CHECK_MODULES(USB, libusb, usb_lib_found=yes, usb_lib_found=no)
-		AC_CHECK_FILE(${prefix}/lib/pkgconfig/libusb.pc, REQUIRES="libusb")
+		if (test "$usb_lib_found" = "yes"); then
+			usb_lib_pkgconfig=yes
+		fi
 		;;
 	esac
 	AC_SUBST(USB_CFLAGS)
@@ -176,6 +179,9 @@ AC_DEFUN([AC_PATH_USB], [
 
 	if (test "$usb_lib_found" = "yes" && test "$usb_get_busses" = "yes" && test "$usb_interrupt_read" = "yes"); then
 		usb_found=yes
+		if (test "$usb_lib_pkgconfig" = "yes"); then
+			REQUIRES="libusb"
+		fi
 	else
 		usb_found=no
 	fi
@@ -183,7 +189,11 @@ AC_DEFUN([AC_PATH_USB], [
 
 AC_DEFUN([AC_PATH_USB1], [
 	usb1_lib_found=no
+	usb_lib_pkgconfig=no
 	PKG_CHECK_MODULES(USB1, libusb-1.0, usb1_lib_found=yes, usb1_lib_found=no)
+	if (test "$usb_lib_found" = "yes"); then
+		usb_lib_pkgconfig=yes
+	fi
 	AC_SUBST(USB1_CFLAGS)
 	AC_SUBST(USB1_LIBS)
 
@@ -192,6 +202,9 @@ AC_DEFUN([AC_PATH_USB1], [
 
 	if (test "$usb1_lib_found" = "yes" && test "$usb1_get_device_list" = "yes"); then
 		usb1_found=yes
+		if (test "$usb_lib_pkgconfig" = "yes"); then
+			REQUIRES="libusb-1.0"
+		fi
 	else
 		usb1_found=no
 	fi
@@ -288,32 +301,30 @@ AC_DEFUN([AC_ARG_OPENOBEX], [
 		fi
 	fi
 
-	if (test "${bluetooth_enable}" = "yes" && test "${winbt_cv_found}" = "yes"); then
+	if (test "${bluetooth_enable}" = "yes"); then
 		AC_DEFINE(HAVE_BLUETOOTH, 1, [Define if system supports Bluetooth and it's enabled])
-		AC_DEFINE(HAVE_BLUETOOTH_WINDOWS, 1, [Define if system supports Bluetooth stack for Windows])
-	fi
+		if (test "${winbt_cv_found}" = "yes"); then
+			AC_DEFINE(HAVE_BLUETOOTH_WINDOWS, 1, [Define if system supports Bluetooth stack for Windows])
+		fi
 
-	if (test "${bluetooth_enable}" = "yes" && test "${netbsdbt_cv_found}" = "yes"); then
-		AC_DEFINE(HAVE_BLUETOOTH, 1, [Define if system supports Bluetooth and it's enabled])
-		AC_DEFINE(HAVE_BLUETOOTH_NETBSD, 1, [Define if system supports Bluetooth stack for NetBSD])
-	fi
+		if (test "${netbsdbt_cv_found}" = "yes"); then
+			AC_DEFINE(HAVE_BLUETOOTH_NETBSD, 1, [Define if system supports Bluetooth stack for NetBSD])
+		fi
 
-	if (test "${bluetooth_enable}" = "yes" && test "${freebsdbt_cv_found}" = "yes"); then
-		AC_DEFINE(HAVE_BLUETOOTH, 1, [Define if system supports Bluetooth and it's enabled])
-		AC_DEFINE(HAVE_BLUETOOTH_FREEBSD, 1, [Define if system supports Bluetooth stack for FreeBSD])
-	fi
+		if (test "${freebsdbt_cv_found}" = "yes"); then
+			AC_DEFINE(HAVE_BLUETOOTH_FREEBSD, 1, [Define if system supports Bluetooth stack for FreeBSD])
+		fi
 
-	if (test "${bluetooth_enable}" = "yes" && test "${bluez_found}" = "yes"); then
-		AC_DEFINE(HAVE_BLUETOOTH, 1, [Define if system supports Bluetooth and it's enabled])
-		AC_DEFINE(HAVE_BLUETOOTH_LINUX, 1, [Define if system supports Bluetooth stack for Linux])
+		if (test "${bluez_found}" = "yes"); then
+			AC_DEFINE(HAVE_BLUETOOTH_LINUX, 1, [Define if system supports Bluetooth stack for Linux])
+		fi
 	fi
 
 	if (test "${usb_enable}" = "yes" && (test "${usb_found}" = "yes" || test "${usb1_found}" = "yes")); then
 		AC_DEFINE(HAVE_USB, 1, [Define if system has libusb 0.x or libusb 1.0 and it's enabled])
-	fi
-
-	if (test "${usb_enable}" = "yes" && test "${usb1_found}" = "yes"); then
-		AC_DEFINE(HAVE_USB1, 1, [Define if system has libusb 1.0 and it's enabled])
+		if (test "${usb1_found}" = "yes"); then
+			AC_DEFINE(HAVE_USB1, 1, [Define if system has libusb 1.0 and it's enabled])
+		fi
 	fi
 
 	AC_CHECK_PROGS(XMLTO, xmlto)
