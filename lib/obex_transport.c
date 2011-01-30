@@ -35,7 +35,9 @@
 
 #if defined(_WIN32)
 #include <io.h>
+#ifndef ETIMEDOUT
 #define ETIMEDOUT WSAETIMEDOUT
+#endif
 #endif
 
 #include "fdobex.h"

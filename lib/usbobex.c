@@ -22,13 +22,16 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#include <errno.h>		/* errno and EADDRNOTAVAIL */
 
 #if defined HAVE_USB && !defined HAVE_USB1
 
 #ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
+#ifndef ETIMEDOUT
 #define ETIMEDOUT WSAETIMEDOUT
+#endif
 
 #else
 #include <netinet/in.h>
@@ -38,7 +41,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>		/* perror */
-#include <errno.h>		/* errno and EADDRNOTAVAIL */
 
 #include <usb.h>
 
