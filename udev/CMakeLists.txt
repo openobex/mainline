@@ -13,7 +13,7 @@ if ( CMAKE_SYSTEM_NAME STREQUAL "Linux" AND OPENOBEX_USB )
         CACHE PATH "Where to install udev rules" )
   mark_as_advanced ( UDEV_RULES_INSTALL_DIR )
   install ( FILES ${CMAKE_CURRENT_BINARY_DIR}/openobex.rules
-    DESTINATION $(UDEV_RULES_INSTALL_DIR)
+    DESTINATION ${UDEV_RULES_INSTALL_DIR}
     COMPONENT system
     RENAME 60-openobex.rules
   )
