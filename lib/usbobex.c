@@ -491,7 +491,7 @@ static int usbobex_read(obex_t *self, void *buf, int buflen)
 	DEBUG(4, "Endpoint %d\n", data->self.data_endpoint_read);
 	status = usb_bulk_read(data->self.dev,
 			       data->self.data_endpoint_read,
-			       buf, buflen,
+			       buf, self->mtu_rx,
 			       usbobex_get_timeout(trans->timeout));
 
 	if (status < 0) {
@@ -506,7 +506,7 @@ static int usbobex_read(obex_t *self, void *buf, int buflen)
 
 static int usbobex_handle_input(obex_t *self)
 {
-	int err = usbobex_read(self, NULL, 0);
+	int err = obex_transport_read(self, 0);
 	if (err > 0)
 		return obex_data_indication(self);
 	else

@@ -59,15 +59,13 @@ static void usbobex_clear_fd(int fd, void *user_data)
 static int usbobex_init (obex_t *self)
 {
 	struct usbobex_data *data = &self->trans.data.usb;
-	struct libusb_context *libusb_ctx = NULL;
 
-	if (libusb_ctx == NULL) {
-		int err = libusb_init(&libusb_ctx);
+	if (data->ctx == NULL) {
+		int err = libusb_init(&data->ctx);
 		if (err)
 			return -1;
 	}
 
-	data->ctx = libusb_ctx;
 	libusb_set_pollfd_notifiers(data->ctx, &usbobex_set_fd,
 				    &usbobex_clear_fd, self);
 	return 0;
@@ -76,10 +74,9 @@ static int usbobex_init (obex_t *self)
 static void usbobex_cleanup (obex_t *self)
 {
 	struct usbobex_data *data = &self->trans.data.usb;
-	struct libusb_context *libusb_ctx = data->ctx;
 
-	if (libusb_ctx) {
-		libusb_exit(libusb_ctx);
+	if (data->ctx) {
+		libusb_exit(data->ctx);
 		data->ctx = NULL;
 	}
 }
@@ -559,7 +556,7 @@ static int usbobex_read(obex_t *self, void *buf, int buflen)
 
 static int usbobex_handle_input(obex_t *self)
 {
-	int err = usbobex_read(self, NULL, 0);
+	int err = obex_transport_read(self, 0);
 	if (err > 0)
 		return obex_data_indication(self);
 	else
