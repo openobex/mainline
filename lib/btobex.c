@@ -77,23 +77,49 @@ static void btobex_cleanup (obex_t *self)
 #endif
 }
 
+static int btobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
+{
+	struct btobex_data *data = &self->trans.data.rfcomm;
+	const struct sockaddr_rc *local = (struct sockaddr_rc *)addr;
+
+	if (len == sizeof(*local) && local->rc_family == AF_BLUETOOTH) {
+		data->self = *local;
+		return 0;
+	}
+
+	return -1;
+}
+
+static int btobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
+{
+	struct btobex_data *data = &self->trans.data.rfcomm;
+	const struct sockaddr_rc *remote = (struct sockaddr_rc *)addr;
+
+	if (len == sizeof(*remote) && remote->rc_family == AF_BLUETOOTH) {
+		data->peer = *remote;
+		return 0;
+	}
+
+	return -1;
+}
+
 /*
  * Function btobex_prepare_connect (self, service)
  *
  *    Prepare for Bluetooth RFCOMM connect
  *
  */
-void btobex_prepare_connect(obex_t *self, bdaddr_t *src, bdaddr_t *dst, uint8_t channel)
+void btobex_prepare_connect(obex_t *self, const bdaddr_t *src,
+			    const bdaddr_t *dst, uint8_t channel)
 {
-	struct obex_transport *trans = &self->trans;
+	struct sockaddr_rc addr;
 
-	trans->self.rfcomm.rc_family = AF_BLUETOOTH;
-	bacpy(&trans->self.rfcomm.rc_bdaddr, src);
-	trans->self.rfcomm.rc_channel = 0;
+	btobex_prepare_listen(self, src, 0);
 
-	trans->peer.rfcomm.rc_family = AF_BLUETOOTH;
-	bacpy(&trans->peer.rfcomm.rc_bdaddr, dst);
-	trans->peer.rfcomm.rc_channel = channel;
+	addr.rc_family = AF_BLUETOOTH;
+	bacpy(&addr.rc_bdaddr, dst);
+	addr.rc_channel = channel;
+	btobex_set_remote_addr(self, (struct sockaddr *)&addr, sizeof(addr));
 }
 
 /*
@@ -102,14 +128,14 @@ void btobex_prepare_connect(obex_t *self, bdaddr_t *src, bdaddr_t *dst, uint8_t 
  *    Prepare for Bluetooth RFCOMM listen
  *
  */
-void btobex_prepare_listen(obex_t *self, bdaddr_t *src, uint8_t channel)
+void btobex_prepare_listen(obex_t *self, const bdaddr_t *src, uint8_t channel)
 {
-	struct obex_transport *trans = &self->trans;
+	struct sockaddr_rc addr;
 
-	/* Bind local service */
-	trans->self.rfcomm.rc_family = AF_BLUETOOTH;
-	bacpy(&trans->self.rfcomm.rc_bdaddr, src);
-	trans->self.rfcomm.rc_channel = channel;
+	addr.rc_family = AF_BLUETOOTH;
+	bacpy(&addr.rc_bdaddr, src);
+	addr.rc_channel = channel;
+	btobex_set_local_addr(self, (struct sockaddr *)&addr, sizeof(addr));
 }
 
 /*
@@ -121,6 +147,7 @@ void btobex_prepare_listen(obex_t *self, bdaddr_t *src, uint8_t channel)
 static int btobex_listen(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct btobex_data *data = &self->trans.data.rfcomm;
 
 	DEBUG(3, "\n");
 
@@ -130,8 +157,8 @@ static int btobex_listen(obex_t *self)
 		return -1;
 	}
 
-	if (bind(trans->serverfd, (struct sockaddr*) &trans->self.rfcomm,
-		 sizeof(struct sockaddr_rc))) {
+	if (bind(trans->serverfd, (struct sockaddr*) &data->self,
+		 sizeof(data->self))) {
 		DEBUG(0, "Error doing bind\n");
 		goto out_freesock;
 	}
@@ -162,8 +189,9 @@ out_freesock:
 static int btobex_accept(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct sockaddr *addr = (struct sockaddr *)&self->trans.peer.rfcomm;
-	socklen_t addrlen = sizeof(struct sockaddr_rc);
+	struct btobex_data *data = &self->trans.data.rfcomm;
+	struct sockaddr *addr = (struct sockaddr *)&data->peer;
+	socklen_t addrlen = sizeof(data->peer);
 
 	// First accept the connection and get the new client socket.
 	if (self->init_flags & OBEX_FL_CLOEXEC)
@@ -188,6 +216,7 @@ static int btobex_accept(obex_t *self)
 static int btobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct btobex_data *data = &self->trans.data.rfcomm;
 	int ret;
 	int mtu = 0;
 
@@ -199,18 +228,18 @@ static int btobex_connect_request(obex_t *self)
 			return -1;
 	}
 
-	ret = bind(trans->fd, (struct sockaddr*) &trans->self.rfcomm,
-		   sizeof(struct sockaddr_rc));
+	ret = bind(trans->fd, (struct sockaddr*) &data->self,
+		   sizeof(data->self));
 
 	if (ret < 0) {
-		DEBUG(4, "ret=%d\n", ret);
+		DEBUG(4, "bind(): error %d\n", errno);
 		goto out_freesock;
 	}
 
-	ret = connect(trans->fd, (struct sockaddr*) &trans->peer.rfcomm,
-		      sizeof(struct sockaddr_rc));
+	ret = connect(trans->fd, (struct sockaddr*) &data->peer,
+		      sizeof(data->peer));
 	if (ret == -1) {
-		DEBUG(4, "ret=%d\n", ret);
+		DEBUG(4, "connect(): error %d\n", errno);
 		goto out_freesock;
 	}
 
@@ -271,6 +300,8 @@ void btobex_get_ops(struct obex_transport_ops *ops)
 	ops->cleanup = &btobex_cleanup;
 	ops->write = &obex_transport_do_send;
 	ops->read = &obex_transport_do_recv;
+	ops->set_local_addr = &btobex_set_local_addr;
+	ops->set_remote_addr = &btobex_set_remote_addr;
 	ops->server.listen = &btobex_listen;
 	ops->server.accept = &btobex_accept;
 	ops->server.disconnect = &btobex_disconnect_server;

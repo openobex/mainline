@@ -26,6 +26,12 @@
 #include "obex_transport.h"
 
 void btobex_get_ops(struct obex_transport_ops* ops);
-void btobex_prepare_connect(obex_t *self, bdaddr_t *src, bdaddr_t *dst, uint8_t channel);
-void btobex_prepare_listen(obex_t *self, bdaddr_t *src, uint8_t channel);
+void btobex_prepare_connect(obex_t *self, const bdaddr_t *src,
+			    const bdaddr_t *dst, uint8_t channel);
+void btobex_prepare_listen(obex_t *self, const bdaddr_t *src, uint8_t channel);
+
+struct btobex_data {
+	struct sockaddr_rc self;
+	struct sockaddr_rc peer;
+};
 #endif

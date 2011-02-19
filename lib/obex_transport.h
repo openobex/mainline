@@ -39,14 +39,17 @@
 struct obex_transport_ops;
 
 #ifdef HAVE_IRDA
-#include "irda_wrap.h"
+#include "irobex.h"
 #endif /*HAVE_IRDA*/
 #ifdef HAVE_BLUETOOTH
-#include "bluez_compat.h"
+#include "btobex.h"
 #endif /*HAVE_BLUETOOTH*/
 #ifdef HAVE_USB
 #include "usbobex.h"
 #endif /*HAVE_USB*/
+#include "inobex.h"
+#include "customtrans.h"
+#include "fdobex.h"
 
 #include <inttypes.h>
 
@@ -62,6 +65,9 @@ struct obex_transport_ops {
 	int (*handle_input)(obex_t*);
 	int (*write)(obex_t*, buf_t*);
 	int (*read)(obex_t*, void*, int);
+
+	int (*set_local_addr)(obex_t*, struct sockaddr*, size_t);
+	int (*set_remote_addr)(obex_t*, struct sockaddr*, size_t);
 
 	struct {
 		int (*listen)(obex_t*);
@@ -81,34 +87,33 @@ int obex_transport_standard_handle_input(obex_t *self);
 int obex_transport_do_send(obex_t *self, buf_t *msg);
 int obex_transport_do_recv(obex_t *self, void *buf, int buflen);
 
-typedef union {
+union obex_transport_data {
 #ifdef HAVE_IRDA
-	struct sockaddr_irda irda;
+	struct irobex_data irda;
 #endif /*HAVE_IRDA*/
-	struct sockaddr_in6  inet6;
+	struct inobex_data inet;
 #ifdef HAVE_BLUETOOTH
-	struct sockaddr_rc   rfcomm;
+	struct btobex_data rfcomm;
 #endif /*HAVE_BLUETOOTH*/
+	obex_ctrans_t custom;
 #ifdef HAVE_USB
-	struct obex_usb_intf_transport_t usb;
+	struct usbobex_data usb;
 #endif /*HAVE_USB*/
-} saddr_t;
+	struct fdobex_data fd;
+};
 
 typedef struct obex_transport {
 	int type;
 	struct obex_transport_ops ops;
-	void *data;		/* Private data for the transport */
+	union obex_transport_data data;	/* Private data for the transport */
 
 	socket_t fd;		/* Socket descriptor */
 	socket_t serverfd;
-	socket_t writefd;	/* write descriptor - only OBEX_TRANS_FD */
 
 	int timeout;		/* set timeout */
 
 	int connected;		/* Link connection state */
 	unsigned int mtu;	/* Tx MTU of the link */
-	saddr_t	self;		/* Source address */
-	saddr_t	peer;		/* Destination address */
 
 } obex_transport_t;
 
@@ -125,5 +130,8 @@ void obex_transport_disconnect_server(struct obex *self);
 int obex_transport_write(struct obex *self, struct databuffer *msg);
 int obex_transport_read(struct obex *self, int count);
 void obex_transport_enumerate(struct obex *self);
+
+int obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len);
+int obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len);
 
 #endif /* OBEX_TRANSPORT_H */

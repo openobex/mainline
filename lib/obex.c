@@ -303,7 +303,9 @@ int CALLAPI OBEX_ServerRegister(obex_t *self, struct sockaddr *saddr, int addrle
 	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail((addrlen == 0) || (saddr != NULL), -1);
 
-	memcpy(&self->trans.self, saddr, addrlen);
+	if (addrlen != 0 && saddr != NULL &&
+	    obex_transport_set_local_addr(self, saddr, addrlen) == -1)
+		return -1;
 
 	return obex_transport_listen(self);
 }
@@ -457,7 +459,9 @@ int CALLAPI OBEX_TransportConnect(obex_t *self, struct sockaddr *saddr, int addr
 	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail((addrlen == 0) || (saddr != NULL), -1);
 
-	memcpy(&self->trans.peer, saddr, addrlen);
+	if (addrlen != 0 && saddr != NULL &&
+	    obex_transport_set_remote_addr(self, saddr, addrlen) == -1)
+		return -1;
 
 	return obex_transport_connect_request(self);
 }
@@ -1125,7 +1129,7 @@ int CALLAPI FdOBEX_TransportSetup(obex_t *self, int rfd, int wfd, int mtu)
 		return -EBUSY;
 	}
 	self->trans.fd = rfd;
-	self->trans.writefd = wfd;
+	self->trans.data.fd.writefd = wfd;
 	self->trans.mtu = mtu ? mtu : self->mtu_tx_max;
 	return obex_transport_connect_request(self);
 }

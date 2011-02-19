@@ -24,4 +24,9 @@
 void inobex_get_ops(struct obex_transport_ops* ops);
 void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen);
 void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen);
+
+struct inobex_data {
+	struct sockaddr_in6 self;
+	struct sockaddr_in6 peer;
+};
 #endif

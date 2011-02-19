@@ -9,13 +9,20 @@
 #define ETIMEDOUT WSAETIMEDOUT
 #endif
 
+static int fdobex_init (obex_t *self)
+{
+	self->trans.data.fd.writefd = INVALID_SOCKET;
+
+	return 0;
+}
+
 static int fdobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
 
 	/* no real connect on the file */
 	if (trans->fd != INVALID_SOCKET &&
-	    trans->writefd != INVALID_SOCKET)
+	    trans->data.fd.writefd != INVALID_SOCKET)
 		return 0;
 	else {
 		errno = EINVAL;
@@ -28,14 +35,14 @@ static int fdobex_disconnect_request(obex_t *self)
 	struct obex_transport *trans = &self->trans;
 
 	/* no real disconnect on a file */
-	trans->fd = trans->writefd = INVALID_SOCKET;
+	trans->fd = trans->data.fd.writefd = INVALID_SOCKET;
 	return 0;
 }
 
 static int fdobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
-	int fd = trans->writefd;
+	int fd = trans->data.fd.writefd;
 	size_t size = msg->data_size;
 
 	if (size == 0)
@@ -78,6 +85,7 @@ static int fdobex_read (obex_t *self, void *buf, int buflen)
 
 void fdobex_get_ops(struct obex_transport_ops* ops)
 {
+	ops->init = &fdobex_init;
 	ops->write = &fdobex_write;
 	ops->read = &fdobex_read;
 	ops->client.connect = &fdobex_connect_request;

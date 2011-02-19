@@ -100,4 +100,11 @@ struct cdc_union_desc {
 #define USB_MAX_STRING_SIZE		256
 
 void usbobex_get_ops(struct obex_transport_ops* ops);
+
+struct usbobex_data {
+#ifdef HAVE_USB1
+	struct libusb_context *ctx;
+#endif
+	struct obex_usb_intf_transport_t self;
+};
 #endif

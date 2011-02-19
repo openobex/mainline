@@ -60,7 +60,6 @@ int obex_transport_init(obex_t *self, int transport)
 
 	trans->fd = INVALID_SOCKET;
 	trans->serverfd = INVALID_SOCKET;
-	trans->writefd = INVALID_SOCKET;
 
 	trans->timeout = -1; /* no time-out */
 	trans->connected = FALSE;
@@ -106,6 +105,7 @@ int obex_transport_init(obex_t *self, int transport)
 		return -1;
 	}
 
+	memset(&trans->data, 0, sizeof(trans->data));
 	if (trans->ops.init)
 		return trans->ops.init(self);
 	else
@@ -122,17 +122,19 @@ void obex_transport_cleanup(obex_t *self)
 
 void obex_transport_clone(obex_t *self, obex_t *old)
 {
+	struct obex_transport *trans = &self->trans;
+
 	/* Copy transport data:
 	 * This includes the transport operations and either the
 	 * transport data can be cloned (means: implements the clone()
 	 * function) or they must be initialized.
 	 */
-	self->trans = old->trans;
-	self->trans.data = NULL;
-	if (self->trans.ops.clone)
-		self->trans.ops.clone(self, old);
-	else if (self->trans.ops.init)
-		self->trans.ops.init(self);
+	*trans = old->trans;
+	memset(&trans->data, 0, sizeof(trans->data));
+	if (trans->ops.clone)
+		trans->ops.clone(self, old);
+	else if (trans->ops.init)
+		trans->ops.init(self);
 }
 
 void obex_transport_split(obex_t *self, obex_t *server)
@@ -143,7 +145,6 @@ void obex_transport_split(obex_t *self, obex_t *server)
 	server->trans.fd = INVALID_SOCKET;
 
 	self->trans.serverfd = INVALID_SOCKET;
-	self->trans.writefd = INVALID_SOCKET;
 }
 
 /*
@@ -247,6 +248,34 @@ int obex_transport_handle_input(obex_t *self, int timeout)
 		return self->trans.ops.handle_input(self);
 	else
 		return obex_transport_standard_handle_input(self);
+}
+
+/*
+ * Function obex_transport_set_local_addr(self, addr, len)
+ *
+ *    Set the local server address to bind and listen to.
+ *
+ */
+int obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
+{
+	if (self->trans.ops.set_local_addr)
+		return self->trans.ops.set_local_addr(self, addr, len);
+	else
+		return -1;
+}
+
+/*
+ * Function obex_transport_set_local_addr(self, addr, len)
+ *
+ *    Set the remote server address to connect to.
+ *
+ */
+int obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
+{
+	if (self->trans.ops.set_remote_addr)
+		return self->trans.ops.set_remote_addr(self, addr, len);
+	else
+		return -1;
 }
 
 /*

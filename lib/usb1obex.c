@@ -58,7 +58,7 @@ static void usbobex_clear_fd(int fd, void *user_data)
 
 static int usbobex_init (obex_t *self)
 {
-	struct obex_transport *trans = &self->trans;
+	struct usbobex_data *data = &self->trans.data.usb;
 	struct libusb_context *libusb_ctx = NULL;
 
 	if (libusb_ctx == NULL) {
@@ -67,20 +67,20 @@ static int usbobex_init (obex_t *self)
 			return -1;
 	}
 
-	trans->data = libusb_ctx;
-	libusb_set_pollfd_notifiers(libusb_ctx, &usbobex_set_fd,
+	data->ctx = libusb_ctx;
+	libusb_set_pollfd_notifiers(data->ctx, &usbobex_set_fd,
 				    &usbobex_clear_fd, self);
 	return 0;
 }
 
 static void usbobex_cleanup (obex_t *self)
 {
-	struct obex_transport *trans = &self->trans;
-	struct libusb_context *libusb_ctx = trans->data;
+	struct usbobex_data *data = &self->trans.data.usb;
+	struct libusb_context *libusb_ctx = data->ctx;
 
 	if (libusb_ctx) {
 		libusb_exit(libusb_ctx);
-		trans->data = NULL;
+		data->ctx = NULL;
 	}
 }
 
@@ -92,10 +92,10 @@ static void usbobex_cleanup (obex_t *self)
  */
 static int usbobex_select_interface(obex_t *self, obex_interface_t *intf)
 {
-	struct obex_transport *trans = &self->trans;
+	struct usbobex_data *data = &self->trans.data.usb;
 
 	obex_return_val_if_fail(intf->usb.intf != NULL, -1);
-	trans->self.usb = *intf->usb.intf;
+	data->self = *intf->usb.intf;
 	return 0;
 }
 
@@ -273,8 +273,8 @@ static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
  */
 static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 {
-	struct obex_transport *trans = &self->trans;
-	struct libusb_context *libusb_ctx = trans->data;
+	struct usbobex_data *data = &self->trans.data.usb;
+	struct libusb_context *libusb_ctx = data->ctx;
 	struct obex_usb_intf_transport_t *current = NULL, *tmp = NULL;
 	int i, a, num;
 	obex_interface_t *intf_array = NULL;
@@ -385,33 +385,39 @@ static void usbobex_free_interface(obex_interface_t *intf)
 static int usbobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct usbobex_data *data = &self->trans.data.usb;
 	int ret;
 
 	DEBUG(4, "\n");
 
-	ret = libusb_open(trans->self.usb.device, &trans->self.usb.dev);
+	ret = libusb_open(data->self.device, &data->self.dev);
 	if (ret != 0)
 		return ret;
 
-	ret = libusb_claim_interface(trans->self.usb.dev, trans->self.usb.control_interface);
+	ret = libusb_claim_interface(data->self.dev,
+				     data->self.control_interface);
 	if (ret < 0) {
 		DEBUG(4, "Can't claim control interface %d", ret);
 		goto err1;
 	}
 
-	ret = libusb_set_interface_alt_setting(trans->self.usb.dev, trans->self.usb.control_interface, trans->self.usb.control_setting);
+	ret = libusb_set_interface_alt_setting(data->self.dev,
+					       data->self.control_interface,
+					       data->self.control_setting);
 	if (ret < 0) {
 		DEBUG(4, "Can't set control setting %d", ret);
 		goto err2;
 	}
 
-	ret = libusb_claim_interface(trans->self.usb.dev, trans->self.usb.data_interface);
+	ret = libusb_claim_interface(data->self.dev, data->self.data_interface);
 	if (ret < 0) {
 		DEBUG(4, "Can't claim data interface %d", ret);
 		goto err2;
 	}
 
-	ret = libusb_set_interface_alt_setting(trans->self.usb.dev, trans->self.usb.data_interface, trans->self.usb.data_active_setting);
+	ret = libusb_set_interface_alt_setting(data->self.dev,
+					       data->self.data_interface,
+					       data->self.data_active_setting);
 	if (ret < 0) {
 		DEBUG(4, "Can't set data active setting %d", ret);
 		goto err3;
@@ -422,11 +428,11 @@ static int usbobex_connect_request(obex_t *self)
 	return 1;
 
 err3:
-	libusb_release_interface(trans->self.usb.dev, trans->self.usb.data_interface);
+	libusb_release_interface(data->self.dev, data->self.data_interface);
 err2:
-	libusb_release_interface(trans->self.usb.dev, trans->self.usb.control_interface);
+	libusb_release_interface(data->self.dev, data->self.control_interface);
 err1:
-	libusb_close(trans->self.usb.dev);
+	libusb_close(data->self.dev);
 	return ret;
 }
 
@@ -439,6 +445,7 @@ err1:
 static int usbobex_disconnect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct usbobex_data *data = &self->trans.data.usb;
 	int ret;
 
 	if (trans->connected == FALSE)
@@ -446,22 +453,26 @@ static int usbobex_disconnect_request(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	libusb_clear_halt(trans->self.usb.dev, trans->self.usb.data_endpoint_read);
-	libusb_clear_halt(trans->self.usb.dev, trans->self.usb.data_endpoint_write);
+	libusb_clear_halt(data->self.dev, data->self.data_endpoint_read);
+	libusb_clear_halt(data->self.dev, data->self.data_endpoint_write);
 
-	ret = libusb_set_interface_alt_setting(trans->self.usb.dev, trans->self.usb.data_interface, trans->self.usb.data_idle_setting);
+	ret = libusb_set_interface_alt_setting(data->self.dev,
+					       data->self.data_interface,
+					       data->self.data_idle_setting);
 	if (ret < 0) {
 		DEBUG(4, "Can't set data idle setting %d", ret);
 	}
-	ret = libusb_release_interface(trans->self.usb.dev, trans->self.usb.data_interface);
+	ret = libusb_release_interface(data->self.dev,
+				       data->self.data_interface);
 	if (ret < 0) {
 		DEBUG(4, "Can't release data interface %d", ret);
 	}
-	ret = libusb_release_interface(trans->self.usb.dev, trans->self.usb.control_interface);
+	ret = libusb_release_interface(data->self.dev,
+				       data->self.control_interface);
 	if (ret < 0) {
 		DEBUG(4, "Can't release control interface %d", ret);
 	}
-	libusb_close(trans->self.usb.dev);
+	libusb_close(data->self.dev);
 	return 1;
 }
 
@@ -484,6 +495,7 @@ static unsigned int usbobex_get_timeout(int timeout)
 static int usbobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
+	struct usbobex_data *data = &self->trans.data.usb;
 	int actual = 0;
 	int usberror;
 
@@ -491,9 +503,9 @@ static int usbobex_write(obex_t *self, buf_t *msg)
 	if (trans->connected != TRUE)
 		return -1;
 
-	DEBUG(4, "Endpoint %d\n", trans->self.usb.data_endpoint_write);
-	usberror = libusb_bulk_transfer(trans->self.usb.dev,
-					trans->self.usb.data_endpoint_write,
+	DEBUG(4, "Endpoint %d\n", data->self.data_endpoint_write);
+	usberror = libusb_bulk_transfer(data->self.dev,
+					data->self.data_endpoint_write,
 					(unsigned char *) msg->data,
 					msg->data_size, &actual,
 					usbobex_get_timeout(trans->timeout));
@@ -514,6 +526,7 @@ static int usbobex_write(obex_t *self, buf_t *msg)
 static int usbobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct obex_transport *trans = &self->trans;
+	struct usbobex_data *data = &self->trans.data.usb;
 	int usberror;
 	int actual = 0;
 
@@ -521,9 +534,9 @@ static int usbobex_read(obex_t *self, void *buf, int buflen)
 		return -1;
 
 	/* USB can only read 0xFFFF bytes at once (equals mtu_rx) */
-	DEBUG(4, "Endpoint %d\n", trans->self.usb.data_endpoint_read);
-	usberror = libusb_bulk_transfer(trans->self.usb.dev,
-					trans->self.usb.data_endpoint_read,
+	DEBUG(4, "Endpoint %d\n", data->self.data_endpoint_read);
+	usberror = libusb_bulk_transfer(data->self.dev,
+					data->self.data_endpoint_read,
 					buf, self->mtu_rx, &actual,
 					usbobex_get_timeout(trans->timeout));
 	switch (usberror) {

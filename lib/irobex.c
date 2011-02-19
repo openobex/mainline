@@ -145,25 +145,51 @@ static int irobex_query_ias (obex_t *self, uint32_t addr, const char* class_name
 
 static int irobex_select_interface(obex_t *self, obex_interface_t *intf)
 {
-	struct obex_transport *trans = &self->trans;
+	struct irobex_data *data = &self->trans.data.irda;
 
-	trans->peer.irda.sir_family = AF_IRDA;
-	strncpy(trans->peer.irda.sir_name, intf->irda.service,
-		sizeof(trans->peer.irda.sir_name));
-	trans->self.irda.sir_family = AF_IRDA;
+	data->peer.sir_family = AF_IRDA;
+	strncpy(data->peer.sir_name, intf->irda.service,
+		sizeof(data->peer.sir_name));
+	data->self.sir_family = AF_IRDA;
 #ifndef _WIN32
-	trans->peer.irda.sir_lsap_sel = LSAP_ANY;
-	trans->peer.irda.sir_addr = intf->irda.remote;
-	trans->self.irda.sir_addr = intf->irda.local;
+	data->peer.sir_lsap_sel = LSAP_ANY;
+	data->peer.sir_addr = intf->irda.remote;
+	data->self.sir_addr = intf->irda.local;
 #else
-	trans->peer.irda.irdaDeviceID[0] = (intf->irda.remote >> 24) & 0xFF;
-	trans->peer.irda.irdaDeviceID[1] = (intf->irda.remote >> 16) & 0xFF;
-	trans->peer.irda.irdaDeviceID[2] = (intf->irda.remote >> 8) & 0xFF;
-	trans->peer.irda.irdaDeviceID[3] = intf->irda.remote & 0xFF;
-	memset(trans->self.irda.irdaDeviceID, 0, sizeof(trans->self.irda.irdaDeviceID));
+	data->peer.irdaDeviceID[0] = (intf->irda.remote >> 24) & 0xFF;
+	data->peer.irdaDeviceID[1] = (intf->irda.remote >> 16) & 0xFF;
+	data->peer.irdaDeviceID[2] = (intf->irda.remote >> 8) & 0xFF;
+	data->peer.irdaDeviceID[3] = intf->irda.remote & 0xFF;
+	memset(data->self.irdaDeviceID, 0, sizeof(data->self.irdaDeviceID));
 #endif
 
 	return 0;
+}
+
+static int irobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
+{
+	struct irobex_data *data = &self->trans.data.irda;
+	const struct sockaddr_irda *local = (struct sockaddr_irda *)addr;
+
+	if (len == sizeof(*local) && local->sir_family == AF_IRDA) {
+		data->self = *local;
+		return 0;
+	}
+
+	return -1;
+}
+
+static int irobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
+{
+	struct irobex_data *data = &self->trans.data.irda;
+	const struct sockaddr_irda *remote = (struct sockaddr_irda *)addr;
+
+	if (len == sizeof(*remote) && remote->sir_family == AF_IRDA) {
+		data->peer = *remote;
+		return 0;
+	}
+
+	return -1;
 }
 
 /*
@@ -212,18 +238,18 @@ out_freesock:
  */
 void irobex_prepare_listen(obex_t *self, const char *service)
 {
-	struct obex_transport *trans = &self->trans;
+	struct irobex_data *data = &self->trans.data.irda;
 
 	/* Bind local service */
-	trans->self.irda.sir_family = AF_IRDA;
+	data->self.sir_family = AF_IRDA;
 #ifndef _WIN32
-	trans->self.irda.sir_lsap_sel = LSAP_ANY;
+	data->self.sir_lsap_sel = LSAP_ANY;
 #endif /* _WIN32 */
 
 	if (service == NULL)
 		service = "OBEX";
-	strncpy(trans->peer.irda.sir_name, service,
-		sizeof(trans->peer.irda.sir_name));
+	strncpy(data->peer.sir_name, service,
+		sizeof(data->peer.sir_name));
 }
 
 static void irobex_set_hint_bit(obex_t *self)
@@ -256,6 +282,7 @@ static void irobex_set_hint_bit(obex_t *self)
 static int irobex_listen(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct irobex_data *data = &trans->data.irda;
 
 	DEBUG(3, "\n");
 
@@ -265,8 +292,8 @@ static int irobex_listen(obex_t *self)
 		return -1;
 	}
 
-	if (bind(trans->serverfd, (struct sockaddr*) &trans->self.irda,
-		 sizeof(struct sockaddr_irda))) {
+	if (bind(trans->serverfd, (struct sockaddr*) &data->self,
+		sizeof(data->self))) {
 		DEBUG(0, "Error doing bind\n");
 		goto out_freesock;
 	}
@@ -303,7 +330,7 @@ static unsigned int irobex_get_mtu(obex_t *self)
 	DWORD mtu;
 	int len = sizeof(mtu);
 
-	if (getsockopt(self->fd, SOL_IRLMP, IRLMP_SEND_PDU_LEN,
+	if (getsockopt(trans->fd, SOL_IRLMP, IRLMP_SEND_PDU_LEN,
 		       (char *) &mtu, &len))
 		return 0;
 #endif /* _WIN32 */
@@ -321,8 +348,9 @@ static unsigned int irobex_get_mtu(obex_t *self)
 static int irobex_accept(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct sockaddr *addr = (struct sockaddr *)&self->trans.peer.irda;
-	socklen_t addrlen = sizeof(struct sockaddr_irda);
+	struct irobex_data *data = &self->trans.data.irda;
+	struct sockaddr *addr = (struct sockaddr *)&data->peer;
+	socklen_t addrlen = sizeof(data->peer);
 
 	// First accept the connection and get the new client socket.
 	if (self->init_flags & OBEX_FL_CLOEXEC)
@@ -470,12 +498,13 @@ static void irobex_free_interface(obex_interface_t *intf)
 static int irobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct irobex_data *data = &trans->data.irda;
 	int ret = -1;
 
 	DEBUG(4, "\n");
 
 	/* Check if the application did supply a valid address. */
-	if (irobex_no_addr(&trans->peer.irda))
+	if (irobex_no_addr(&data->peer))
 		return -1;
 
 	if (trans->fd  == INVALID_SOCKET) {
@@ -484,8 +513,8 @@ static int irobex_connect_request(obex_t *self)
 			return -1;
 	}
 
-	ret = connect(trans->fd, (struct sockaddr*) &trans->peer.irda,
-		      sizeof(struct sockaddr_irda));
+	ret = connect(trans->fd, (struct sockaddr*) &data->peer,
+		      sizeof(data->peer));
 	if (ret < 0) {
 		DEBUG(4, "ret=%d\n", ret);
 		goto out_freesock;
@@ -551,6 +580,8 @@ void irobex_get_ops(struct obex_transport_ops* ops)
 	ops->cleanup = &irobex_cleanup;
 	ops->write = &obex_transport_do_send;
 	ops->read = &obex_transport_do_recv;
+	ops->set_local_addr = &irobex_set_local_addr;
+	ops->set_remote_addr = &irobex_set_remote_addr;
 	ops->server.listen = &irobex_listen;
 	ops->server.accept = &irobex_accept;
 	ops->server.disconnect = &irobex_disconnect_server;

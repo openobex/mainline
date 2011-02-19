@@ -27,4 +27,10 @@
 void irobex_get_ops(struct obex_transport_ops* ops);
 void irobex_prepare_connect(obex_t *self, const char *service);
 void irobex_prepare_listen(obex_t *self, const char *service);
+
+#include "irda_wrap.h"
+struct irobex_data {
+	struct sockaddr_irda self;
+	struct sockaddr_irda peer;
+};
 #endif
