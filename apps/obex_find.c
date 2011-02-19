@@ -29,6 +29,8 @@
 #define strcasecmp _stricmp
 #endif
 
+static int verbose = 0;
+
 static void obex_event_cb(obex_t *handle, obex_object_t *obj, int mode,
 			  int event, int obex_cmd, int obex_rsp)
 {
@@ -36,8 +38,19 @@ static void obex_event_cb(obex_t *handle, obex_object_t *obj, int mode,
 
 static void usb_print(obex_interface_t *intf)
 {
-	printf("\tManufacturer: %s\n", intf->usb.manufacturer);
-	printf("\tProduct: %s\n", intf->usb.product);
+	if (verbose > 0) {
+		printf("\tPath: %d:%d:%d\n",
+		       intf->usb.bus_number,
+		       intf->usb.device_address,
+		       intf->usb.interface_number);
+		printf("\tManufacturer: %s (%04x)\n", intf->usb.manufacturer,
+		       intf->usb.idVendor);
+		printf("\tProduct: %s (%04x)\n", intf->usb.product,
+		       intf->usb.idProduct);
+	} else {
+		printf("\tManufacturer: %s\n", intf->usb.manufacturer);
+		printf("\tProduct: %s\n", intf->usb.product);
+	}
 	printf("\tSerial: %s\n", intf->usb.serial);
 	printf("\tDescription: %s\n", intf->usb.control_interface);
 }
@@ -108,7 +121,9 @@ int main (int argc, char **argv)
 		argv = default_argv;
 
 	for (; argv[t] != NULL; ++t) {
-		if (0 == strcmp(argv[t], "-f"))
+		if (0 == strcmp(argv[t], "-v"))
+			++verbose;
+		else if (0 == strcmp(argv[t], "-f"))
 			flags |= OBEX_FL_FILTERHINT;
 		else if (0 == strcasecmp(argv[t], "irda"))
 			find_devices(OBEX_TRANS_IRDA, flags);
