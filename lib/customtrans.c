@@ -11,7 +11,7 @@ static int custom_clone(obex_t *self, const obex_t *from)
 
 	*ctrans = *old;
 
-	return 0;	
+	return 0;
 }
 
 void custom_set_data(obex_t *self, void *data)

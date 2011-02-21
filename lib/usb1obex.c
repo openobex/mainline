@@ -67,7 +67,8 @@ static int usbobex_init (obex_t *self)
 	}
 
 	libusb_set_pollfd_notifiers(data->ctx, &usbobex_set_fd,
-				    &usbobex_clear_fd, self);
+						&usbobex_clear_fd, self);
+
 	return 0;
 }
 
@@ -228,11 +229,15 @@ static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
 					struct obex_usb_intf_transport_t *current)
 {
 	struct obex_usb_intf_transport_t *next = NULL;
-	if ((conf_desc->interface[i].altsetting[a].bInterfaceClass == USB_CDC_CLASS)
-	    && (conf_desc->interface[i].altsetting[a].bInterfaceSubClass == USB_CDC_OBEX_SUBCLASS)) {
+	const struct libusb_interface_descriptor *alt;
+
+	alt = &conf_desc->interface[i].altsetting[a];
+
+	if (alt->bInterfaceClass == USB_CDC_CLASS &&
+			alt->bInterfaceSubClass == USB_CDC_OBEX_SUBCLASS) {
 		int err;
-		const unsigned char *buffer = conf_desc->interface[i].altsetting[a].extra;
-		int buflen = conf_desc->interface[i].altsetting[a].extra_length;
+		const unsigned char *buffer = alt->extra;
+		int buflen = alt->extra_length;
 
 		next = malloc(sizeof(*next));
 		if (next == NULL)
@@ -241,9 +246,9 @@ static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
 		libusb_ref_device(dev);
 		next->configuration = conf_desc->bConfigurationValue;
 		next->configuration_description = conf_desc->iConfiguration;
-		next->control_interface = conf_desc->interface[i].altsetting[a].bInterfaceNumber;
-		next->control_interface_description = conf_desc->interface[i].altsetting[a].iInterface;
-		next->control_setting = conf_desc->interface[i].altsetting[a].bAlternateSetting;
+		next->control_interface = alt->bInterfaceNumber;
+		next->control_interface_description = alt->iInterface;
+		next->control_setting = alt->bAlternateSetting;
 		next->extra_descriptors = malloc(buflen);
 		if (next->extra_descriptors)
 			memcpy(next->extra_descriptors, buffer, buflen);
@@ -260,6 +265,7 @@ static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
 			current = next;
 		}
 	}
+
 	return current;
 }
 

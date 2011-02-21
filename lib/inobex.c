@@ -88,7 +88,7 @@ static int inobex_init (obex_t *self)
 		return -1;
 	}
 	if (LOBYTE(WSAData.wVersion) != WSA_VER_MAJOR ||
-	    HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
+				HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
 		DEBUG(4, "WSA version mismatch\n");
 		WSACleanup();
 		return -1;
@@ -107,30 +107,40 @@ static void inobex_cleanup (obex_t *self)
 
 static int inobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
-	if ((addr->sa_family == AF_INET &&
-	     len == sizeof(struct sockaddr_in)) ||
-	    (addr->sa_family == AF_INET6 &&
-	     len == sizeof(struct sockaddr_in6)))
-	{
-		inobex_prepare_connect(self, addr, len);
-		return 0;
-	}
+	size_t expected_len;
 
-	return -1;
+	if (addr->sa_family == AF_INET)
+		expected_len = sizeof(struct sockaddr_in);
+	else if (addr->sa_family == AF_INET6)
+		expected_len = sizeof(struct sockaddr_in6);
+	else
+		return -1;
+
+	if (expected_len != len)
+		return -1;
+
+	inobex_prepare_connect(self, addr, len);
+
+	return 0;
 }
 
 static int inobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
-	if ((addr->sa_family == AF_INET &&
-	     len == sizeof(struct sockaddr_in)) ||
-	    (addr->sa_family == AF_INET6 &&
-	     len == sizeof(struct sockaddr_in6)))
-	{
-		inobex_prepare_listen(self, addr, len);
-		return 0;
-	}
+	size_t expected_len;
 
-	return -1;
+	if (addr->sa_family == AF_INET)
+		expected_len = sizeof(struct sockaddr_in);
+	else if (addr->sa_family == AF_INET6)
+		expected_len = sizeof(struct sockaddr_in6);
+	else
+		return -1;
+
+	if (expected_len != len)
+		return -1;
+
+	inobex_prepare_listen(self, addr, len);
+
+	return 0;
 }
 
 /*
@@ -217,8 +227,8 @@ static int inobex_listen(obex_t *self)
 	 * instead of InOBEX_TransportConnect (e.g. obexftp)
 	 */
 	if (data->self.sin6_family == AF_INET)
-		inobex_prepare_listen(self, (struct sockaddr*)&data->self,
-				       sizeof(data->self));
+		inobex_prepare_listen(self, (struct sockaddr *) &data->self,
+							sizeof(data->self));
 
 	trans->serverfd = obex_create_socket(self, AF_INET6);
 	if (trans->serverfd == INVALID_SOCKET) {
@@ -233,15 +243,15 @@ static int inobex_listen(obex_t *self)
 		 * You will certainly notice later if it failed.
 		 */
 		int v6only = 0;
-		(void)setsockopt(trans->serverfd, IPPROTO_IPV6,
-				 IPV6_V6ONLY, (void*)&v6only, sizeof(v6only));
+		setsockopt(trans->serverfd, IPPROTO_IPV6, IPV6_V6ONLY,
+					(void *) &v6only, sizeof(v6only));
 	}
 #endif
 
 	//printf("TCP/IP listen %d %X\n", trans->self.inet.sin_port,
 	//       trans->self.inet.sin_addr.s_addr);
 	if (bind(trans->serverfd, (struct sockaddr *) &data->self,
-		 sizeof(data->self))) {
+							sizeof(data->self))) {
 		DEBUG(0, "bind() Failed\n");
 		return -1;
 	}
@@ -251,7 +261,8 @@ static int inobex_listen(obex_t *self)
 		return -1;
 	}
 
-	DEBUG(4, "Now listening for incomming connections. serverfd = %d\n", trans->serverfd);
+	DEBUG(4, "Now listening for incomming connections. serverfd = %d\n",
+							trans->serverfd);
 
 	return 1;
 }
@@ -300,8 +311,8 @@ static int inobex_connect_request(obex_t *self)
 	 * instead of InOBEX_TransportConnect (e.g. obexftp)
 	 */
 	if (data->peer.sin6_family == AF_INET)
-		inobex_prepare_connect(self, (struct sockaddr*)&data->peer,
-				       sizeof(data->peer));
+		inobex_prepare_connect(self, (struct sockaddr *) &data->peer,
+							sizeof(data->peer));
 
 	trans->fd = obex_create_socket(self, AF_INET6);
 	if (trans->fd == INVALID_SOCKET)
@@ -314,8 +325,8 @@ static int inobex_connect_request(obex_t *self)
 		 * You will certainly notice later if it failed.
 		 */
 		int v6only = 0;
-		(void)setsockopt(trans->fd, IPPROTO_IPV6, IPV6_V6ONLY,
-				 (void*)&v6only, sizeof(v6only));
+		setsockopt(trans->fd, IPPROTO_IPV6, IPV6_V6ONLY,
+						&v6only, sizeof(v6only));
 	}
 #endif
 
@@ -334,7 +345,7 @@ static int inobex_connect_request(obex_t *self)
 #endif
 
 	ret = connect(trans->fd, (struct sockaddr *) &data->peer,
-		      sizeof(data->peer));
+							sizeof(data->peer));
 	if (ret == -1) {
 		DEBUG(4, "Connect failed\n");
 		obex_delete_socket(self, trans->fd);

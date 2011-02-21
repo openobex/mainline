@@ -70,7 +70,7 @@ static int irobex_init (obex_t *self)
 		return -1;
 	}
 	if (LOBYTE(WSAData.wVersion) != WSA_VER_MAJOR ||
-	    HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
+				HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
 		DEBUG(4, "WSA version mismatch\n");
 		WSACleanup();
 		return -1;
@@ -258,7 +258,7 @@ static void irobex_set_hint_bit(obex_t *self)
 
 #ifndef _WIN32
 	/* Hint be we advertise */
-	unsigned char hints[4] = { 
+	unsigned char hints[4] = {
 		HINT_EXTENSION, HINT_OBEX, 0, 0,
 	};
 
@@ -266,8 +266,8 @@ static void irobex_set_hint_bit(obex_t *self)
 	 * This command is not supported by older kernels,
 	 * so ignore any errors!
 	 */
-	(void)setsockopt(trans->serverfd, SOL_IRLMP, IRLMP_HINTS_SET,
-			 hints, sizeof(hints));
+	setsockopt(trans->serverfd, SOL_IRLMP, IRLMP_HINTS_SET,
+							hints, sizeof(hints));
 #else /* _WIN32 */
 	/* The registry must be changed to set the hint bit. */
 #endif /* _WIN32 */
@@ -324,17 +324,17 @@ static unsigned int irobex_get_mtu(obex_t *self)
 
 	/* Check what the IrLAP data size is */
 	if (getsockopt(trans->fd, SOL_IRLMP, IRTTP_MAX_SDU_SIZE,
-		       (void *) &mtu, &len))
+							(void *) &mtu, &len))
 		return 0;
 #else
 	DWORD mtu;
 	int len = sizeof(mtu);
 
 	if (getsockopt(trans->fd, SOL_IRLMP, IRLMP_SEND_PDU_LEN,
-		       (char *) &mtu, &len))
+							(char *) &mtu, &len))
 		return 0;
 #endif /* _WIN32 */
-	return (int)mtu;
+	return (int) mtu;
 }
 
 /*
@@ -386,6 +386,8 @@ static int irobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 	socklen_t len = sizeof(buf);
 	int count = 0;
 	int fd = obex_create_socket(self, AF_IRDA);
+	int i;
+	uint32_t k = 0;
 
 	if (fd == INVALID_SOCKET)
 		goto out;
@@ -398,11 +400,10 @@ static int irobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 		};
 		int err;
 
-
 		/* Set the filter used for performing discovery */
 		err = setsockopt(fd, SOL_IRLMP, IRLMP_HINT_MASK_SET,
-				 hints, sizeof(hints));
-		if (err == -1) {
+							hints, sizeof(hints));
+		if (err < 0) {
 			perror("setsockopt");
 			goto out;
 		}
@@ -410,69 +411,72 @@ static int irobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 #endif
 
 	/* Perform a discovery and get device list */
-	if (getsockopt(fd, SOL_IRLMP, IRLMP_ENUMDEVICES, (char *)buf, &len)) {
+	if (getsockopt(fd, SOL_IRLMP, IRLMP_ENUMDEVICES, (char *) buf, &len)) {
 		DEBUG(1, "Didn't find any devices!\n");
 		return 0;
 	}
 
-	list = (struct irda_device_list *)buf;
+	list = (struct irda_device_list *) buf;
 #ifndef _WIN32
-	count = (int)list->len;
+	count = (int) list->len;
 	dev = list->dev;
 #else
-	count = (int)list->numDevice;
+	count = (int) list->numDevice;
 	dev = list->Device;
 #endif
-	if (count > 0) {
-		int i = 0;
-		uint32_t k = 0;
-		*interfaces = calloc(count, sizeof(**interfaces));
+	if (count <= 0)
+		goto done;
 
-		DEBUG(1, "Discovered %u devices:\n", count);
-		for (; i < count; ++i) {
-			obex_irda_intf_t *intf = &((*interfaces)+k)->irda;
+	*interfaces = calloc(count, sizeof(**interfaces));
+
+	DEBUG(1, "Discovered %u devices:\n", count);
+	for (i = 0; i < count; ++i) {
+		obex_irda_intf_t *intf = &((*interfaces)+k)->irda;
 
 #ifndef _WIN32
-			intf->local = dev[i].saddr;
-			intf->remote = dev[i].daddr;
-			intf->charset = dev[i].charset;
-			/* allocate enough space to make sure the string is
-			 * zero-terminated
-			 */
-			intf->info = calloc(sizeof(dev[i].info)+2, 1);
-			if (intf->info)
-				memcpy(intf->info, dev[i].info, sizeof(dev[i].info));
-			intf->hints[0] = dev[i].hints[0];
-			intf->hints[1] = dev[i].hints[1];
+		intf->local = dev[i].saddr;
+		intf->remote = dev[i].daddr;
+		intf->charset = dev[i].charset;
+		/* allocate enough space to make sure the string is
+		 * zero-terminated
+		 */
+		intf->info = calloc(sizeof(dev[i].info)+2, 1);
+		if (intf->info)
+			memcpy(intf->info, dev[i].info, sizeof(dev[i].info));
+
+		intf->hints[0] = dev[i].hints[0];
+		intf->hints[1] = dev[i].hints[1];
 #else
-			if (self->init_flags & OBEX_FL_FILTERHINT &&
-			    ((dev[i].irdaDeviceHints1 & LM_HB_Extension) == 0 ||
-			     (dev[i].irdaDeviceHints2 & 0x20) == 0))
-				continue;
+		if ((self->init_flags & OBEX_FL_FILTERHINT) &&
+				((dev[i].irdaDeviceHints1 & LM_HB_Extension) == 0))
+			continue;
 
-			intf->remote = dev[i].irdaDeviceID[3]
-				| dev[i].irdaDeviceID[2] << 8
-				| dev[i].irdaDeviceID[1] << 16
-				| dev[i].irdaDeviceID[0] << 24;
-			intf->charset = dev[i].irdaCharSet;
-			/* allocate enough space to make sure the
-			 * string is zero-terminated */
-			intf->info = calloc(sizeof(dev[i].irdaDeviceName)+2, 1);
-			if (intf->info)
-				memcpy(intf->info, dev[i].irdaDeviceName,
-				       sizeof(dev[i].irdaDeviceName));
-			intf->hints[0] = dev[i].irdaDeviceHints1;
-			intf->hints[1] = dev[i].irdaDeviceHints2;
+		if ((dev[i].irdaDeviceHints2 & 0x20) == 0)
+			continue;
+
+		intf->remote = dev[i].irdaDeviceID[3]
+					| dev[i].irdaDeviceID[2] << 8
+					| dev[i].irdaDeviceID[1] << 16
+					| dev[i].irdaDeviceID[0] << 24;
+		intf->charset = dev[i].irdaCharSet;
+		/* allocate enough space to make sure the
+		 * string is zero-terminated */
+		intf->info = calloc(sizeof(dev[i].irdaDeviceName)+2, 1);
+		if (intf->info)
+			memcpy(intf->info, dev[i].irdaDeviceName,
+						sizeof(dev[i].irdaDeviceName));
+		intf->hints[0] = dev[i].irdaDeviceHints1;
+		intf->hints[1] = dev[i].irdaDeviceHints2;
 #endif
-			++k;
-			DEBUG(1, "  [%d] daddr: 0x%08x\n", i+1, intf->remote);
-		}
-		count = k;
+		++k;
+		DEBUG(1, "  [%d] daddr: 0x%08x\n", i+1, intf->remote);
 	}
 
-	if (count == 0) {
+	count = k;
+
+done:
+	if (count == 0)
 		DEBUG(1, "didn't find any OBEX devices!\n");
-	}
 
 out:
 	obex_delete_socket(self, fd);
@@ -514,7 +518,7 @@ static int irobex_connect_request(obex_t *self)
 	}
 
 	ret = connect(trans->fd, (struct sockaddr*) &data->peer,
-		      sizeof(data->peer));
+							sizeof(data->peer));
 	if (ret < 0) {
 		DEBUG(4, "ret=%d\n", ret);
 		goto out_freesock;

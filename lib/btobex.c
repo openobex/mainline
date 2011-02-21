@@ -50,7 +50,7 @@ bdaddr_t bluez_compat_bdaddr_any = { BTH_ADDR_NULL };
 
 #include "cloexec.h"
 
-static int btobex_init (obex_t *self)
+static int btobex_init(obex_t *self)
 {
 #ifdef _WIN32
 	WORD ver = MAKEWORD(WSA_VER_MAJOR,WSA_VER_MINOR);
@@ -60,7 +60,7 @@ static int btobex_init (obex_t *self)
 		return -1;
 	}
 	if (LOBYTE(WSAData.wVersion) != WSA_VER_MAJOR ||
-	    HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
+				HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
 		DEBUG(4, "WSA version mismatch\n");
 		WSACleanup();
 		return -1;
@@ -77,10 +77,11 @@ static void btobex_cleanup (obex_t *self)
 #endif
 }
 
-static int btobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
+static int btobex_set_local_addr(obex_t *self, struct sockaddr *addr,
+								size_t len)
 {
 	struct btobex_data *data = &self->trans.data.rfcomm;
-	const struct sockaddr_rc *local = (struct sockaddr_rc *)addr;
+	const struct sockaddr_rc *local = (struct sockaddr_rc *) addr;
 
 	if (len == sizeof(*local) && local->rc_family == AF_BLUETOOTH) {
 		data->self = *local;
@@ -110,7 +111,7 @@ static int btobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t le
  *
  */
 void btobex_prepare_connect(obex_t *self, const bdaddr_t *src,
-			    const bdaddr_t *dst, uint8_t channel)
+					const bdaddr_t *dst, uint8_t channel)
 {
 	struct sockaddr_rc addr;
 
@@ -119,7 +120,7 @@ void btobex_prepare_connect(obex_t *self, const bdaddr_t *src,
 	addr.rc_family = AF_BLUETOOTH;
 	bacpy(&addr.rc_bdaddr, dst);
 	addr.rc_channel = channel;
-	btobex_set_remote_addr(self, (struct sockaddr *)&addr, sizeof(addr));
+	btobex_set_remote_addr(self, (struct sockaddr *) &addr, sizeof(addr));
 }
 
 /*
@@ -135,7 +136,7 @@ void btobex_prepare_listen(obex_t *self, const bdaddr_t *src, uint8_t channel)
 	addr.rc_family = AF_BLUETOOTH;
 	bacpy(&addr.rc_bdaddr, src);
 	addr.rc_channel = channel;
-	btobex_set_local_addr(self, (struct sockaddr *)&addr, sizeof(addr));
+	btobex_set_local_addr(self, (struct sockaddr *) &addr, sizeof(addr));
 }
 
 /*
@@ -157,8 +158,8 @@ static int btobex_listen(obex_t *self)
 		return -1;
 	}
 
-	if (bind(trans->serverfd, (struct sockaddr*) &data->self,
-		 sizeof(data->self))) {
+	if (bind(trans->serverfd, (struct sockaddr *) &data->self,
+							sizeof(data->self))) {
 		DEBUG(0, "Error doing bind\n");
 		goto out_freesock;
 	}
@@ -190,7 +191,7 @@ static int btobex_accept(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
 	struct btobex_data *data = &self->trans.data.rfcomm;
-	struct sockaddr *addr = (struct sockaddr *)&data->peer;
+	struct sockaddr *addr = (struct sockaddr *) &data->peer;
 	socklen_t addrlen = sizeof(data->peer);
 
 	// First accept the connection and get the new client socket.
@@ -229,7 +230,7 @@ static int btobex_connect_request(obex_t *self)
 	}
 
 	ret = bind(trans->fd, (struct sockaddr*) &data->self,
-		   sizeof(data->self));
+							sizeof(data->self));
 
 	if (ret < 0) {
 		DEBUG(4, "bind(): error %d\n", errno);
@@ -237,8 +238,8 @@ static int btobex_connect_request(obex_t *self)
 	}
 
 	ret = connect(trans->fd, (struct sockaddr*) &data->peer,
-		      sizeof(data->peer));
-	if (ret == -1) {
+							sizeof(data->peer));
+	if (ret < 0) {
 		DEBUG(4, "connect(): error %d\n", errno);
 		goto out_freesock;
 	}
@@ -268,10 +269,13 @@ static int btobex_disconnect_request(obex_t *self)
 	int ret;
 
 	DEBUG(4, "\n");
+
 	ret = obex_delete_socket(self, trans->fd);
 	if (ret < 0)
 		return ret;
+
 	trans->fd = INVALID_SOCKET;
+
 	return ret;
 }
 
@@ -289,8 +293,10 @@ static int btobex_disconnect_server(obex_t *self)
 	int ret;
 
 	DEBUG(4, "\n");
+
 	ret = obex_delete_socket(self, trans->serverfd);
 	trans->serverfd = INVALID_SOCKET;
+
 	return ret;
 }
 
@@ -307,6 +313,6 @@ void btobex_get_ops(struct obex_transport_ops *ops)
 	ops->server.disconnect = &btobex_disconnect_server;
 	ops->client.connect = &btobex_connect_request;
 	ops->client.disconnect = &btobex_disconnect_request;
-};
+}
 
 #endif /* HAVE_BLUETOOTH */

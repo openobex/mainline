@@ -11,7 +11,7 @@
 #endif
 #endif
 
-static int fdobex_init (obex_t *self)
+static int fdobex_init(obex_t *self)
 {
 	self->trans.data.fd.writefd = INVALID_SOCKET;
 
@@ -24,7 +24,7 @@ static int fdobex_connect_request(obex_t *self)
 
 	/* no real connect on the file */
 	if (trans->fd != INVALID_SOCKET &&
-	    trans->data.fd.writefd != INVALID_SOCKET)
+				trans->data.fd.writefd != INVALID_SOCKET)
 		return 0;
 	else {
 		errno = EINVAL;
@@ -74,7 +74,7 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 #endif
 }
 
-static int fdobex_read (obex_t *self, void *buf, int buflen)
+static int fdobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct obex_transport *trans = &self->trans;
 
@@ -92,4 +92,4 @@ void fdobex_get_ops(struct obex_transport_ops* ops)
 	ops->read = &fdobex_read;
 	ops->client.connect = &fdobex_connect_request;
 	ops->client.disconnect = &fdobex_disconnect_request;
-};
+}

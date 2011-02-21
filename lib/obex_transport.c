@@ -119,7 +119,7 @@ void obex_transport_cleanup(obex_t *self)
 	obex_transport_disconnect_request(self);
 	obex_transport_disconnect_server(self);
 	if (self->trans.ops.cleanup)
-		self->trans.ops.cleanup(self);	
+		self->trans.ops.cleanup(self);
 }
 
 void obex_transport_clone(obex_t *self, obex_t *old)
@@ -435,14 +435,16 @@ int obex_transport_read(obex_t *self, int max)
 
 void obex_transport_enumerate(struct obex *self)
 {
-	int i = 0;
+	struct obex_transport_ops *ops = &self->trans.ops;
+	int i;
 
 	if (self->interfaces)
 		return;
 
-	if (self->trans.ops.client.find_interfaces)
-		i = self->trans.ops.client.find_interfaces(self,
-							&self->interfaces);
+	if (ops->client.find_interfaces)
+		i = ops->client.find_interfaces(self, &self->interfaces);
+	else
+		i = 0;
 
 	self->interfaces_number = i;
 }
