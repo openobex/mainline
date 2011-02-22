@@ -205,8 +205,8 @@ static struct obex_usb_intf_transport_t *check_intf(struct usb_device *dev,
 
 	alt = &dev->config[c].interface[i].altsetting[a];
 
-	if (alt->bInterfaceClass == USB_CDC_CLASS) &&
-			(alt->bInterfaceSubClass == USB_CDC_OBEX_SUBCLASS) {
+	if ((alt->bInterfaceClass == USB_CDC_CLASS) &&
+			(alt->bInterfaceSubClass == USB_CDC_OBEX_SUBCLASS)) {
 		int err;
 		unsigned char *buffer = alt->extra;
 		int buflen = alt->extralen;

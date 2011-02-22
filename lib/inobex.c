@@ -326,7 +326,7 @@ static int inobex_connect_request(obex_t *self)
 		 */
 		int v6only = 0;
 		setsockopt(trans->fd, IPPROTO_IPV6, IPV6_V6ONLY,
-						&v6only, sizeof(v6only));
+					(void *) &v6only, sizeof(v6only));
 	}
 #endif
 
