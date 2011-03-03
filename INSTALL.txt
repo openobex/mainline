@@ -1,15 +1,14 @@
 How to compile OpenObex
 =======================
 
-
 The compilation of OpenObex is done using CMake.
 The following OBEX transports are available:
  * Bluetooth (not all systems, see below)
  * Irda (not all systems, see below)
  * TCP
+ * USB
  * Custom transport
  * File descriptor
-
 
 The following operating systems are supported:
  * Linux [Bluetooth, Irda]
@@ -32,7 +31,6 @@ system, please see INSTALL_Win32.txt.
 [2]: at http://www.cmake.org
 
 
-
 2 Compilation
 =============
 
@@ -53,9 +51,9 @@ gives you lots of other options.
 ========================
 
 It is recommended to not build in the source directory. To build in any other
-directory, just run cmake with the path to the source directory as last argument.
-A mix of this is a 'build' subdirectory in the source tree. The example below uses
-this method.
+directory, just run cmake with the path to the source directory as last
+argument. A mix of this is a 'build' subdirectory in the source tree. The
+example below uses this method.
 
 At the command line, run:
   $ mkdir build

@@ -13,11 +13,14 @@ The requirements to compile OpenObex on Windows are fairly low:
 4. CMake(>= 2.6)[2] or autoconf+automake
 
 The supported compilers are:
- * Microsoft Visual Studio 9 .NET 2008
- * Microsoft Visual Studio 8 .NET 2005
- * Microsoft Visual Studio 7.1 .NET 2003
+ * Microsoft Visual Studio 2010 (10)
+ * Microsoft Visual Studio 2008 (9)
+ * Microsoft Visual Studio 2005 (8)
+ * Microsoft Visual Studio .NET 2003 (7.1)
  * MinGW gcc
  * Cygwin gcc
+
+Visual Studio 2008 and 2010 already include the SDK.
 
 [1]: at http://libusb-win32.sf.net (if not compiling for cygwin)
 [2]: at http://www.cmake.org
@@ -45,19 +48,18 @@ You need to install the following extra packages from http://www.mingw.org:
   * msysDTK (1.0.1 works)
 
 Libtool from msysDTK in incomplete, it needs an additional 'file' utility. You
-can get this from http://gnuwin32.sf.net. Do NOT install it in the MSYS directory
-but somewhere else that is already mounted and in $PATH (e.g. into the mingw
-directory).
+can get this from http://gnuwin32.sf.net. Do NOT install it in the MSYS
+directory but somewhere else that is already mounted and in $PATH (e.g. into
+the mingw directory).
 
-Additionally, download the following packages from http://www.gtk.org/download-windows.html:
-  * glib
-  * glib-dev
+Additionally, download the following packages from e.g.
+http://www.gtk.org/download-windows.html:
   * pkg-config
 Unpack them all into the same directory!
 
 You need to prepare the build environment by editing /etc/fstab and mount the
-GLIB installation dir to /glib and the libusb-win32 installation dir to /libusb.
-MinGW should already be present unter /mingw.
+libusb-win32 installation dir to /libusb. MinGW should already be present under
+/mingw.
 Additionally, you create /pdsk/include and copy the following header files from
 the Platform SDK to there:
   ws2bth.h
@@ -66,20 +68,18 @@ the Platform SDK to there:
   af_irda.h
 
 If you check out from VCS and configure does not exist, you can create it with:
-  $ export ACLOCAL="aclocal -I /glib/share/aclocal"
   $ autoreconf -v -f -i
 
 Now you need some environment variables for configure:
-  $ export CFLAGS="-I/libusb/include -I/glib/include -I/psdk/include"
-  $ export LDFLAGS="-L/libusb/lib/gcc -L/glib/lib"
-  $ export PATH="$PATH:/glib/bin"
-  $ export PKG_CONFIG_PATH="/glib/lib/pkgconfig"
+  $ export CFLAGS="-I/libusb/include -I/psdk/include"
+  $ export LDFLAGS="-L/libusb/lib/gcc"
 
 Now you can finally run configure:
   $ ./configure --prefix=/mingw --disable-shared
 
 This will build a static library. Due to a bug in libtool, you cannot build the
-static and the shared version at the same time. To build the shared version, run:
+static and the shared version at the same time.
+To build the shared version, run:
   $ ./configure --prefix=/mingw --disable-static
 
 
@@ -89,11 +89,11 @@ static and the shared version at the same time. To build the shared version, run
 Visual Studio
 -------------
 
-Using Visual Studion >= 8 (EXpress versions are sufficient) is the recommended
-way of compiling under Windows.
-You must open the console link that runs the proper vcvars.bat (see Start menu).
-Then, you _MUST_ add the directories of the platform SDK include files, libraries
-and executables to the environment variables INCLUDE, LIB and PATH.
+Using Visual Studio >= 2008 (Express versions are sufficient) is the
+recommended way of compiling under Windows. You must open the console link that
+runs the proper vcvars.bat (see Start menu).
+Then, you _MUST_ add the directories of the platform SDK include files,
+libraries and executables to the environment variables INCLUDE, LIB and PATH.
 Now, your build environment is set up. You can now call cmake with the proper
 generator (see "cmake --help"). Using the "NMake Makefiles" generator, OpenObex
 can be compiled directly in the command prompt window:
@@ -148,12 +148,12 @@ shell command window:
 3 Installation
 ==============
 
-You can run the installation directly by calling the "install" make target. With
-the DESTDIR variable, you can add an additional prefix:
+You can run the installation directly by calling the "install" make target.
+With the DESTDIR variable, you can add an additional prefix:
   $ make install DESTDIR=/some/directory
 
-Additionally, when you used CMake, you can create installation packages but a few
-steps are needed:
+Additionally, when you used CMake, you can create installation packages but a
+few steps are needed:
   * install NSIS
   * install a ZIP program (e.g. info-zip)
-Now you are ready to run the "pacakge" make target.
+Now you are ready to run the "package" make target.
