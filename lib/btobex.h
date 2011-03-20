@@ -30,8 +30,12 @@ void btobex_prepare_connect(obex_t *self, const bdaddr_t *src,
 			    const bdaddr_t *dst, uint8_t channel);
 void btobex_prepare_listen(obex_t *self, const bdaddr_t *src, uint8_t channel);
 
-struct btobex_data {
+struct btobex_rfcomm_data {
 	struct sockaddr_rc self;
 	struct sockaddr_rc peer;
+};
+
+union btobex_data {
+	struct btobex_rfcomm_data rfcomm;
 };
 #endif

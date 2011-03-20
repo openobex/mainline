@@ -36,7 +36,7 @@
 #define rc_bdaddr   btAddr
 #define rc_channel  port
 #define PF_BLUETOOTH   PF_BTH
-#define AF_BLUETOOTH   PF_BLUETOOTH
+#define AF_BLUETOOTH   AF_BTH
 #define BTPROTO_RFCOMM BTHPROTO_RFCOMM
 /* TODO: should be const */
 extern bdaddr_t bluez_compat_bdaddr_any;

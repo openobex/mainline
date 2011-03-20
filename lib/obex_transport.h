@@ -93,7 +93,7 @@ union obex_transport_data {
 #endif /*HAVE_IRDA*/
 	struct inobex_data inet;
 #ifdef HAVE_BLUETOOTH
-	struct btobex_data rfcomm;
+	union btobex_data bt;
 #endif /*HAVE_BLUETOOTH*/
 	obex_ctrans_t custom;
 #ifdef HAVE_USB
