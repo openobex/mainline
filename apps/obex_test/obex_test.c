@@ -41,9 +41,11 @@ static int str2ba(const char *str, bdaddr_t *ba) {
 #include "obex_test_client.h"
 #include "obex_test_server.h"
 
-#ifndef _WIN32
+#if defined(_WIN32)
+#undef HAVE_CABLE_OBEX
+#else
 #include "obex_test_cable.h"
-
+#define HAVE_CABLE_OBEX 1
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -82,7 +84,7 @@ static void obex_event(obex_t *handle, obex_object_t *object, int mode,
 		break;
 
 	case OBEX_EV_REQDONE:
-		if(mode == OBEX_MODE_CLIENT) {
+		if (mode == OBEX_MODE_CLIENT) {
 			client_done(handle, object, obex_cmd, obex_rsp);
 		}
 		else	{
@@ -174,78 +176,90 @@ static int inet_connect(obex_t *handle)
 //
 int main (int argc, char *argv[])
 {
-	char cmd[10];
+	char cmd[3];
 	int end = 0;
-	int cobex = FALSE, tcpobex = FALSE, btobex = FALSE, usbobex = FALSE;
-	obex_t *handle;
+	int tcpobex = FALSE;
+	obex_t *handle = NULL;
+	struct context global_context = {0};
+
 #ifdef HAVE_BLUETOOTH
+	int btobex = FALSE;
 	bdaddr_t bdaddr;
 	uint8_t channel = 0;
 #endif
-
 #ifdef HAVE_USB
+	int usbobex = FALSE;
 	obex_interface_t *obex_intf = NULL;
 #endif
-
-	struct context global_context = {0,};
-
-#ifndef _WIN32
-	int r320 = FALSE;
+#ifdef HAVE_CABLE_OBEX
+	int cobex = FALSE, r320 = FALSE;
 	char *port;
 	obex_ctrans_t custfunc;
+#endif
 
-	if( (argc == 2) && (strcmp(argv[1], "-h") == 0 ) ) {
+	if (argc == 2 && strcmp(argv[1], "-h") == 0) {
 		printf(
 			"Usage: obex_test [options]\n"
 			"\n"
 			"Options:\n"
-			"    -s [tty]           Use cable transport (Sony-Ericsson phones/DCU-11 cable)\n"
-			"    -r [tty]           Use cable transport for R320\n"
-			"    -i                 Use IP/TCP transport\n"
-			"    -b [addr] [chan]   Use bluetooth  transport\n"
-			"    -u [interface]     Use USB transport\n"
-			"    -h                 Print this help message\n"
+#ifdef HAVE_CABLE_OBEX
+			"    -s [tty]          Use cable transport (Sony-Ericsson phones/DCU-11 cable)\n"
+			"    -r [tty]          Use cable transport for R320\n"
+#endif
+#ifdef HAVE_BLUETOOTH
+			"    -b [addr] [chan]  Use bluetooth RFCOMM transport\n"
+#endif
+#ifdef HAVE_USB
+			"    -u [interface]    Use USB transport\n"
+#endif
+			"    -i                Use IP/TCP transport\n"
+			"    -h                Print this help message\n"
 			"\n"
 			"If no transport is selected, IrDA is used.\n"
 		);
 		return 0;
 	}
 
-	if( (argc == 2 || argc ==3) && (strcmp(argv[1], "-s") == 0 ) )
+#ifdef HAVE_CABLE_OBEX
+	if ((argc == 2 || argc ==3) && strcmp(argv[1], "-s") == 0)
 		cobex = TRUE;
-	if( (argc == 2 || argc ==3) && (strcmp(argv[1], "-r") == 0 ) ) {
+	if ((argc == 2 || argc ==3) && strcmp(argv[1], "-r") == 0) {
 		cobex = TRUE;
 		r320 = TRUE;
 	}
 #endif
-
-	if( (argc == 2) && (strcmp(argv[1], "-i") == 0 ) )
-		tcpobex = TRUE;
-	if( (argc >= 2) && (strcmp(argv[1], "-b") == 0 ) )
+#ifdef HAVE_BLUETOOTH
+	if (argc >= 2 && strcmp(argv[1], "-b") == 0)
 		btobex = TRUE;
-	if( (argc >= 2) && (strcmp(argv[1], "-u") == 0 ) )
+#endif
+#ifdef HAVE_USB
+	if (argc >= 2 && strcmp(argv[1], "-u") == 0)
 		usbobex = TRUE;
+#endif
+	if (argc == 2 && strcmp(argv[1], "-i") == 0)
+		tcpobex = TRUE;
 
-	if(cobex)	{
-#ifndef _WIN32
-		if(argc == 3)
+#ifdef HAVE_CABLE_OBEX
+	if (cobex) {
+		if (argc == 3)
 			port = argv[2];
 		else
 			port = "/dev/ttyS0";
 
-		if(r320)
+		if (r320)
 			printf("OBEX to R320 on %s!\n", port);
 		else
 			printf("OBEX on %s!\n", port);
 
 		custfunc.customdata = cobex_open(port, r320);
 
-		if(custfunc.customdata == NULL) {
+		if (custfunc.customdata == NULL) {
 			printf("cobex_open() failed\n");
 			return -1;
 		}
 
-		if(! (handle = OBEX_Init(OBEX_TRANS_CUSTOM, obex_event, 0)))	{
+		handle = OBEX_Init(OBEX_TRANS_CUSTOM, obex_event, 0);
+		if (!handle) {
 			perror( "OBEX_Init failed");
 			return -1;
 		}
@@ -256,65 +270,67 @@ int main (int argc, char *argv[])
 		custfunc.handleinput = cobex_handle_input;
 		custfunc.listen = cobex_connect;	// Listen and connect is 100% same on cable
 
-		if(OBEX_RegisterCTransport(handle, &custfunc) < 0)	{
+		if (OBEX_RegisterCTransport(handle, &custfunc) < 0)
 			printf("Custom transport callback-registration failed\n");
-		}
-#else
-		printf("Not implemented in Win32 yet.\n");
-#endif	// _WIN32
-	}
 
-	else if(tcpobex) {
-		printf("Using TCP transport\n");
-		if(! (handle = OBEX_Init(OBEX_TRANS_INET, obex_event, 0)))	{
-			perror( "OBEX_Init failed");
-			exit(0);
-		}
-	}
-	else if(btobex) {
-		switch (argc) {
+	} else
+#endif
 #ifdef HAVE_BLUETOOTH
+	if (btobex) {
+		const char *channel_arg = NULL;
+		switch (argc) {
 		case 4:
 			str2ba(argv[2], &bdaddr);
-			channel = atoi(argv[3]);
+			channel_arg = argv[3];
 			break;
 		case 3:
 			str2ba(argv[2], &bdaddr);
 			if (bacmp(&bdaddr, BDADDR_ANY) == 0)
-				channel = atoi(argv[2]);
-			else
-				channel = BT_CHANNEL;
+				channel_arg = argv[2];
 			break;
 		case 2:
 			bacpy(&bdaddr, BDADDR_ANY);
-			channel = BT_CHANNEL;
 			break;
-#endif
 		default:
 			printf("Wrong number of arguments\n");
 			exit(0);
 		}
 
-		printf("Using Bluetooth RFCOMM transport\n");
-		if(! (handle = OBEX_Init(OBEX_TRANS_BLUETOOTH, obex_event, 0)))      {
+		switch (btobex) {
+		case TRUE:
+			printf("Using Bluetooth RFCOMM transport\n");
+			handle = OBEX_Init(OBEX_TRANS_BLUETOOTH, obex_event, 0);
+			if (channel_arg)
+				channel = (atoi(channel_arg) & 0xFF);
+			else
+				channel = BT_CHANNEL;
+			break;
+		}
+
+		if (!handle) {
 			perror( "OBEX_Init failed");
 			exit(0);
 		}
-	}
-	else if(usbobex) {
+	} else
+#endif
 #ifdef HAVE_USB
+	if (usbobex) {
 		int i, interfaces_number, intf_num;
 		switch (argc) {
 		case 2:
-			printf("Using USB transport, querying available interfaces\n");
-			if(! (handle = OBEX_Init(OBEX_TRANS_USB, obex_event, 0)))      {
+			printf("Using USB transport, "
+			       "querying available interfaces\n");
+			handle = OBEX_Init(OBEX_TRANS_USB, obex_event, 0);
+			if (!handle) {
 				perror( "OBEX_Init failed");
 				exit(0);
 			}
 			interfaces_number = OBEX_EnumerateInterfaces(handle);
-			for (i=0; i < interfaces_number; i++) {
+			for (i = 0; i < interfaces_number; i++) {
 				obex_intf = OBEX_GetInterfaceByIndex(handle, i);
-				printf("Interface %d: idVendor: %#x, idProduct: %#x, bus %d, dev %d, intf %d, %s %s %s\n", i,
+				printf("Interface %d: idVendor: %#x, "
+				       "idProduct: %#x, bus %d, dev %d, "
+				       "intf %d, %s %s %s\n", i,
 					obex_intf->usb.idVendor,
 					obex_intf->usb.idProduct,
 					obex_intf->usb.bus_number,
@@ -324,14 +340,16 @@ int main (int argc, char *argv[])
 					obex_intf->usb.product,
 					obex_intf->usb.control_interface);
 			}
-			printf("Use '%s -u interface_number' to run interactive OBEX test client\n", argv[0]);
+			printf("Use '%s -u interface_number' to run "
+			       "interactive OBEX test client\n", argv[0]);
 			OBEX_Cleanup(handle);
 			exit(0);
 			break;
 		case 3:
 			intf_num = atoi(argv[2]);
 			printf("Using USB transport \n");
-			if(! (handle = OBEX_Init(OBEX_TRANS_USB, obex_event, 0)))      {
+			handle = OBEX_Init(OBEX_TRANS_USB, obex_event, 0);
+			if (!handle) {
 				perror( "OBEX_Init failed");
 				exit(0);
 			}
@@ -348,14 +366,21 @@ int main (int argc, char *argv[])
 			printf("Wrong number of arguments\n");
 			exit(0);
 		}
-#else
-		printf("Not compiled with USB support\n");
-		exit(0);
+	} else
 #endif
-	}
-	else	{
+
+	if (tcpobex) {
+		printf("Using TCP transport\n");
+		handle = OBEX_Init(OBEX_TRANS_INET, obex_event, 0);
+		if (!handle) {
+			perror( "OBEX_Init failed");
+			exit(0);
+		}
+
+	} else {
 		printf("Using IrDA transport\n");
-		if(! (handle = OBEX_Init(OBEX_TRANS_IRDA, obex_event, 0)))	{
+		handle = OBEX_Init(OBEX_TRANS_IRDA, obex_event, 0);
+		if (!handle) {
 			perror( "OBEX_Init failed");
 			exit(0);
 		}
@@ -399,44 +424,41 @@ int main (int argc, char *argv[])
 			break;
 			case 'c':
 				/* First connect transport */
-				if(tcpobex) {
-					if(TcpOBEX_TransportConnect(handle, NULL, 0) < 0) {
-						printf("Transport connect error! (TCP)\n");
-						break;
-					}
-				}
-				if(cobex) {
-					if(OBEX_TransportConnect(handle, (void*) 1, 0) < 0) {
+#ifdef HAVE_CABLE_OBEX
+				if (cobex) {
+					if (OBEX_TransportConnect(handle, (void*) 1, 0) < 0) {
 						printf("Transport connect error! (Serial)\n");
 						break;
 					}
-				}
-				if(btobex) {
+				} else
+#endif
 #ifdef HAVE_BLUETOOTH
+				if (btobex) {
 					if (bacmp(&bdaddr, BDADDR_ANY) == 0) {
 						printf("Device address error! (Bluetooth)\n");
 						break;
 					}
-					if(BtOBEX_TransportConnect(handle, BDADDR_ANY, &bdaddr, channel) <0) {
+					if (BtOBEX_TransportConnect(handle, BDADDR_ANY, &bdaddr, channel) <0) {
 						printf("Transport connect error! (Bluetooth)\n");
 						break;
 					}
-#else
-					printf("Transport not found! (Bluetooth)\n");
+				} else
 #endif
-				}
-				if (usbobex) {
 #ifdef HAVE_USB
+				if (usbobex) {
 					if (OBEX_InterfaceConnect(handle, obex_intf) < 0) {
 						printf("Transport connect error! (USB)\n");
 						break;
 					}
-#else
-					printf("Transport not found! (USB)\n");
+				} else
 #endif
-				}	
-				if (!tcpobex && !cobex && !btobex && !usbobex) {
-					if(IrOBEX_TransportConnect(handle, IR_SERVICE) < 0) {
+				if (tcpobex) {
+					if (TcpOBEX_TransportConnect(handle, NULL, 0) < 0) {
+						printf("Transport connect error! (TCP)\n");
+						break;
+					}
+				} else {
+					if (IrOBEX_TransportConnect(handle, IR_SERVICE) < 0) {
 						printf("Transport connect error! (IrDA)\n");
 						break;
 					}
@@ -449,33 +471,35 @@ int main (int argc, char *argv[])
 			break;
 			case 's':
 				/* First register server */
-				if(tcpobex) {
-					if(TcpOBEX_ServerRegister(handle, NULL, 0) < 0) {
-						printf("Server register error! (TCP)\n");
-						break;
-					}
-				}
-				if(cobex) {
-					if(OBEX_ServerRegister(handle, (void*) 1, 0) < 0) {
+#ifdef HAVE_CABLE_OBEX
+				if (cobex) {
+					if (OBEX_ServerRegister(handle, (void*) 1, 0) < 0) {
 						printf("Server register error! (Serial)\n");
 						break;
 					}
-				}
-				if(btobex) {
+				} else
+#endif
 #ifdef HAVE_BLUETOOTH
-					if(BtOBEX_ServerRegister(handle, BDADDR_ANY, channel) < 0) {
+				if (btobex) {
+					if (BtOBEX_ServerRegister(handle, BDADDR_ANY, channel) < 0) {
 						printf("Server register error! (Bluetooth)\n");
 						break;
 					}
-#else
-					printf("Transport not found! (Bluetooth)\n");
+				} else
 #endif
-				}
+#ifdef HAVE_USB
 				if (usbobex) {
 					printf("Transport not found! (USB)\n");
-				}
-				if (!tcpobex && !cobex && !btobex && !usbobex) {
-					if(IrOBEX_ServerRegister(handle, IR_SERVICE) < 0)	{
+				} else
+#endif
+				if (tcpobex) {
+					if (TcpOBEX_ServerRegister(handle, NULL, 0) < 0) {
+						printf("Server register error! (TCP)\n");
+						break;
+					}
+
+				} else {
+					if (IrOBEX_ServerRegister(handle, IR_SERVICE) < 0) {
 						printf("Server register error! (IrDA)\n");
 						break;
 					}
@@ -488,8 +512,8 @@ int main (int argc, char *argv[])
 				printf("Unknown command %s\n", cmd);
 		}
 	}
-#ifndef _WIN32
-	if(cobex)
+#ifdef HAVE_CABLE_OBEX
+	if (cobex)
 		cobex_close(custfunc.customdata);
 #endif
 
