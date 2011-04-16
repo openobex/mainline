@@ -39,9 +39,8 @@ AC_ARG_OPENOBEX
 AC_OUTPUT(Makefile
           include/Makefile include/openobex/Makefile
           lib/Makefile
-          glib/Makefile
           apps/Makefile apps/lib/Makefile apps/obex_test/Makefile
 	  apps/ircp/Makefile
 	  doc/Makefile doc/Doxyfile
 	  udev/Makefile udev/openobex.rules
-	  openobex.pc openobex-glib.pc)
+	  openobex.pc)

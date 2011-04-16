@@ -25,12 +25,6 @@ stamp-h1
 autom4te.cache
 
 openobex.pc
-openobex-glib.pc
-
-glib/obex-marshal.h
-glib/obex-marshal.c
-glib/test-lowlevel
-glib/test-client
 
 ircp/ircp
 apps/irxfer

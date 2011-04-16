@@ -135,13 +135,11 @@ if ( OPENOBEX_USB AND UNIX AND NOT WIN32 )
     endforeach ( lib )
   endif ( PKGCONFIG_LIBUSB_FOUND )
 endif ( OPENOBEX_USB AND UNIX AND NOT WIN32 )
-foreach ( file openobex openobex-glib )
-  configure_file (
-    ${CMAKE_CURRENT_SOURCE_DIR}/${file}.pc.in
-    ${CMAKE_CURRENT_BINARY_DIR}/${file}.pc
-    @ONLY
-  )
-endforeach ( file )
+configure_file (
+  ${CMAKE_CURRENT_SOURCE_DIR}/openobex.pc.in
+  ${CMAKE_CURRENT_BINARY_DIR}/openobex.pc
+  @ONLY
+)
 
 if ( NOT PKGCONFIG_INSTALL_DIR )
   set ( PKGCONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig
@@ -184,16 +182,6 @@ option ( BUILD_DOCUMENTATION "Build library and application documentation" ON)
 if ( BUILD_DOCUMENTATION )
   add_subdirectory ( doc )
 endif ( BUILD_DOCUMENTATION )
-
-
-#
-# build the glib binding library
-# not enabled by default because it requires an additional dependency
-#
-#option ( BUILD_GLIB_BINDING "Build the glib binding library")
-#if ( BUILD_GLIB_BINDING )
-#  add_subdirectory ( glib )
-#endif ( BUILD_GLIB_BINDING )
 
 
 #

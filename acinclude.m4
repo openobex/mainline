@@ -210,14 +210,6 @@ AC_DEFUN([AC_PATH_USB1], [
 	fi
 ])
 
-dnl AC_DEFUN([AC_PATH_GLIB], [
-dnl 	PKG_CHECK_MODULES(GLIB, glib-2.0 gobject-2.0 gthread-2.0, glib_found=yes, glib_found=no)
-dnl 	AC_SUBST(GLIB_CFLAGS)
-dnl 	AC_SUBST(GLIB_LIBS)
-dnl 	GLIB_GENMARSHAL=`$PKG_CONFIG --variable=glib_genmarshal glib-2.0`
-dnl 	AC_SUBST(GLIB_GENMARSHAL)
-dnl ])
-
 AC_DEFUN([AC_VISIBILITY], [
 	case $host in
 	*-*-mingw32*)
@@ -238,7 +230,6 @@ AC_DEFUN([AC_ARG_OPENOBEX], [
 	irda_enable=yes
 	bluetooth_enable=yes
 	usb_enable=yes
-	glib_enable=no
 	apps_enable=no
 	apps_doc_enable=no
 	debug_enable=no
@@ -260,10 +251,6 @@ AC_DEFUN([AC_ARG_OPENOBEX], [
 	AC_ARG_ENABLE(usb, AC_HELP_STRING([--disable-usb], [disable USB support]), [
 		usb_enable=${enableval}
 	])
-
-	dnl AC_ARG_ENABLE(glib, AC_HELP_STRING([--enable-glib], [enable GLib bindings]), [
-	dnl 	glib_enable=${enableval}
-	dnl ])
 
 	AC_ARG_ENABLE(apps, AC_HELP_STRING([--enable-apps], [enable test applications]), [
 		apps_enable=${enableval}
@@ -334,7 +321,6 @@ AC_DEFUN([AC_ARG_OPENOBEX], [
 		apps_doc_enable=no
 	fi
 
-	AM_CONDITIONAL(GLIB, test "${glib_enable}" = "yes" && test "${glib_found}" = "yes")
 	AM_CONDITIONAL(APPS, test "${apps_enable}" = "yes")
 	AM_CONDITIONAL(APPS_DOC, test "${apps_doc_enable}" = "yes")
 	case $host in
