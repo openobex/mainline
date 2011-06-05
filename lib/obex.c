@@ -475,9 +475,13 @@ LIB_SYMBOL
 int CALLAPI OBEX_TransportDisconnect(obex_t *self)
 {
 	DEBUG(4, "\n");
-
 	obex_return_val_if_fail(self != NULL, -1);
-	obex_transport_disconnect_request(self);
+
+	if (self->trans.fd != INVALID_SOCKET)
+		obex_transport_disconnect_request(self);
+	else if (self->trans.serverfd != INVALID_SOCKET)
+		obex_transport_disconnect_server(self);
+
 	return 0;
 }
 
