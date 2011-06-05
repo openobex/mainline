@@ -395,6 +395,11 @@ int ircp_put(ircp_client_t *cli, char *name)
 		char *dirname;
 		
 		err = chdir(name);
+		if (err < 0) {
+			perror("chdir:");
+			return -1;
+		}
+
 		name = ".";
 		
 		/* Get real name of new wd, extract last part of and do setpath to it */

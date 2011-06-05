@@ -285,8 +285,13 @@ int ircp_srv_receive(ircp_server_t *srv, obex_object_t *object, int finished)
 			srv->infocb(IRCP_EV_OK, "");
 		}
 		else {
-			if(srv->fd > 0)
+			if(srv->fd > 0) {
 				len = write(srv->fd, body, body_len);
+				if (len < 0) {
+					perror("write:");
+					return -1;
+				}
+			}
 		}
 		return 1;
 	}
@@ -360,6 +365,8 @@ int ircp_srv_recv(ircp_server_t *srv, char *inbox)
 	
 	/* Go back to inbox */
 	err = chdir(inbox);
-	
+	if (err < 0)
+		perror("chdir:");
+
 	return ret;
 }
