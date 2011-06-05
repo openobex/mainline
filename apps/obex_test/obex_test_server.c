@@ -238,7 +238,7 @@ void server_do(obex_t *handle)
 
 	gt->serverdone = FALSE;
 	while(!gt->serverdone) {
-	        ret = OBEX_HandleInput(handle, 10);
+	        ret = OBEX_HandleInput(handle, 60);
 		if(ret < 0) {
 			printf("Error while doing OBEX_HandleInput()\n");
 			break;

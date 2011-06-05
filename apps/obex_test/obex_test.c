@@ -467,6 +467,7 @@ int main (int argc, char *argv[])
 				}
 				/* No process server events */
 				server_do(handle);
+				OBEX_TransportDisconnect(handle);
 			break;
 			default:
 				printf("Unknown command %s\n", cmd);
