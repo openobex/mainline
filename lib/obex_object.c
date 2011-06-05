@@ -42,13 +42,11 @@
  */
 obex_object_t *obex_object_new(void)
 {
-	obex_object_t *object = malloc(sizeof(*object));
+	obex_object_t *object = calloc(1, sizeof(*object));
 
-	if (object != NULL) {
-		memset(object, 0, sizeof(*object));
+	if (object != NULL)
 		obex_object_setrsp(object, OBEX_RSP_NOT_IMPLEMENTED,
 						OBEX_RSP_NOT_IMPLEMENTED);
-	}
 
 	return object;
 }
@@ -181,11 +179,9 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 
 	maxlen = obex_object_getspace(self, object, flags);
 
-	element = malloc(sizeof(*element));
+	element = calloc(1, sizeof(*element));
 	if (element == NULL)
 		return -1;
-
-	memset(element, 0, sizeof(*element));
 
 	element->hi = hi;
 	element->flags = flags;
@@ -900,7 +896,7 @@ static int obex_object_rcv_one_header(obex_t *self, uint8_t hi,
 
 	DEBUG(4, "\n");
 
-	element = malloc(sizeof(*element));
+	element = calloc(1, sizeof(*element));
 	if (element == NULL) {
 		DEBUG(1, "Cannot allocate memory\n");
 		if (hi == OBEX_HDR_BODY_END && object->rx_body) {
@@ -910,8 +906,6 @@ static int obex_object_rcv_one_header(obex_t *self, uint8_t hi,
 
 		return -1;
 	}
-
-	memset(element, 0, sizeof(*element));
 
 	if (hi == OBEX_HDR_BODY_END)
 		hi = OBEX_HDR_BODY;

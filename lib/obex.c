@@ -111,10 +111,9 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb,
 
 	obex_return_val_if_fail(eventcb != NULL, NULL);
 
-	self = malloc(sizeof(*self));
+	self = calloc(1, sizeof(*self));
 	if (self == NULL)
 		return NULL;
-	memset(self, 0, sizeof(*self));
 
 	self->eventcb = eventcb;
 	self->init_flags = flags;
@@ -349,11 +348,9 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 		return NULL;
 
 	/* Allocate new instance */
-	self =  malloc(sizeof(*self));
+	self = calloc(1, sizeof(*self));
 	if (self == NULL)
 		return NULL;
-
-	memset(self, 0, sizeof(*self));
 
 	/* Set callback and callback data as needed */
 	if (eventcb != NULL)
