@@ -159,8 +159,12 @@ static int obex_transport_accept(obex_t *self)
 {
 	DEBUG(4, "\n");
 
-	if (self->trans.ops.server.accept)
-		return self->trans.ops.server.accept(self);
+	if (self->trans.ops.server.accept) {
+		if (self->trans.ops.server.accept(self) < 0)
+			return -1;
+		else
+			return 1;
+	}
 
 	errno = EINVAL;
 	return -1;
