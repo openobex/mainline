@@ -299,11 +299,10 @@ void put_client(obex_t *handle)
 	uint8_t *buf;
 	int file_size;
 
-	printf("PUT file (local, remote)> ");
+	printf("PUT file (local)> ");
 	memset(lname, 0, sizeof(lname));
-	memset(rname, 0, sizeof(rname));
-	num = scanf("%199c %199c", lname, rname);
-	if (num != 2) {
+	num = scanf("%199c", lname);
+	if (num != 1) {
 		perror("scanf:");
 		return;
 	}
@@ -315,6 +314,11 @@ void put_client(obex_t *handle)
 		return;
 	}
 
+	printf("PUT remote filename (default: %s)> ", lname);
+	memset(rname, 0, sizeof(rname));
+	num = scanf("%199c", rname);
+	if (num == 0)
+		strcpy(rname, lname);
 	printf("Going to send %d bytes\n", file_size);
 
 	/* Build object */
