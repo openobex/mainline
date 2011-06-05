@@ -22,6 +22,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#define _XOPEN_SOURCE 500
 
 #ifdef _WIN32
 #include <winsock2.h>

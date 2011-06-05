@@ -22,6 +22,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#define _BSD_SOURCE
 
 #include <openobex/obex.h>
 
@@ -40,6 +41,7 @@
 #else
 #include <sys/ioctl.h>
 #include <sys/time.h>
+#include <strings.h>
 #endif
 
 #include "obex_test_cable.h"

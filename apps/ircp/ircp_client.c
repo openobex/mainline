@@ -37,7 +37,7 @@
 #ifdef _WIN32
 #define getcwd(b,len) _getcwd(b,len)
 #define chdir(s) _chdir(s)
-#define S_IFDIR _S_IFDIR
+#define S_ISDIR(x) ((x & _S_IFDIR) != 0)
 #endif
 
 #define TRUE  1
@@ -390,7 +390,7 @@ int ircp_put(ircp_client_t *cli, char *name)
 	}
 	
 	/* This is a directory. CD into it */
-	if(statbuf.st_mode & S_IFDIR) {
+	if(S_ISDIR(statbuf.st_mode)) {
 		char *newrealdir = NULL;
 		char *dirname;
 		

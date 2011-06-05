@@ -1,6 +1,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#define _XOPEN_SOURCE 500
 
 #include <stdio.h>
 #include <string.h>

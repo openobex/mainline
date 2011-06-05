@@ -18,6 +18,7 @@
  * License along with OpenOBEX. If not, see <http://www.gnu.org/>.
  */
 
+#define _XOPEN_SOURCE 500
 #include <openobex/obex.h>
 #include <openobex/obex_const.h>
 
@@ -27,6 +28,8 @@
 
 #ifdef _WIN32
 #define strcasecmp _stricmp
+#else
+#include <strings.h>
 #endif
 
 static int verbose = 0;
