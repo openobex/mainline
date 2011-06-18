@@ -96,6 +96,11 @@ int obex_object_getnextheader(struct obex *self, struct obex_object *object, uin
 int obex_object_reparseheaders(struct obex *self, struct obex_object *object);
 void obex_object_setcmd(struct obex_object *object, uint8_t cmd);
 int obex_object_setrsp(struct obex_object *object, uint8_t rsp, uint8_t lastrsp);
+int obex_object_prepare_send(obex_t *self, obex_object_t *object,
+			     int allowfinalcmd, int forcefinalbit);
+int obex_object_finished(obex_t *self, obex_object_t *object,
+			 int allowfinalcmd);
+int obex_object_send_transmit(obex_t *self, obex_object_t *object);
 int obex_object_send(struct obex *self, struct obex_object *object,
 		     int allowfinalcmd, int forcefinalbit);
 

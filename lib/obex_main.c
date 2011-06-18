@@ -190,23 +190,20 @@ void obex_response_request(obex_t *self, uint8_t opcode)
 	obex_return_if_fail(self != NULL);
 
 	msg = buf_reuse(self->tx_msg);
-
-	obex_data_request(self, msg, opcode | OBEX_FINAL);
+	obex_data_request_prepare(self, msg, opcode | OBEX_FINAL);
+	obex_data_request(self, msg);
 }
 
 /*
- * Function obex_data_request (self, opcode, cmd)
+ * Function obex_data_request_prepare (self, opcode, cmd)
  *
- *    Send response or command code along with optional headers/data.
+ *    Prepare response or command code along with optional headers/data
+ *    to send.
  *
  */
-int obex_data_request(obex_t *self, buf_t *msg, int opcode)
+void obex_data_request_prepare(obex_t *self, buf_t *msg, int opcode)
 {
 	obex_common_hdr_t *hdr;
-	int status;
-
-	obex_return_val_if_fail(self != NULL, -1);
-	obex_return_val_if_fail(msg != NULL, -1);
 
 	/* Insert common header */
 	hdr = buf_reserve_begin(msg, sizeof(*hdr));
@@ -215,6 +212,21 @@ int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 	hdr->len = htons((uint16_t) msg->data_size);
 
 	DUMPBUFFER(1, "Tx", msg);
+}
+
+/*
+ * Function obex_data_request (self, opcode)
+ *
+ *    Send message.
+ *
+ */
+int obex_data_request(obex_t *self, buf_t *msg)
+{
+	int status;
+
+	obex_return_val_if_fail(self != NULL, -1);
+	obex_return_val_if_fail(msg != NULL, -1);
+
 	DEBUG(1, "len = %lu bytes\n", (unsigned long) msg->data_size);
 
 	do {

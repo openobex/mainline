@@ -446,30 +446,54 @@ static unsigned int obex_object_send_srm_flags (uint8_t flag)
 	}
 }
 
+static int obex_object_get_real_opcode(obex_object_t *object,
+				       int allowfinalcmd, int forcefinalbit)
+{
+	int real_opcode = object->opcode;
+
+	/* Decide which command to use, and if to use final-bit */
+	DEBUG(4, "allowfinalcmd: %d forcefinalbit:%d\n", allowfinalcmd,
+	      forcefinalbit);
+
+	/* Have more headers (or body) to send? */
+	if (!slist_is_empty(object->tx_headerq)) {
+		/* In server, final bit is always set.
+		 * In client, final bit is set only when we finish sending. */
+		if (forcefinalbit)
+			real_opcode |= OBEX_FINAL;
+
+	} else {
+		/* Have no more headers to send */
+		if (allowfinalcmd != FALSE) {
+			/* Allowed to send final command (== end data we are
+			 * sending) */
+			real_opcode = object->lastopcode;
+		}
+
+		real_opcode |= OBEX_FINAL;
+	}
+
+	return real_opcode;
+}
+
 /*
- * Function obex_object_send()
+ * Function obex_object_prepare_send()
  *
- *    Send away all headers attached to an object. Returns:
- *       1 on sucessfully done
- *       0 on progress made
- *     < 0 on error
+ *    Prepare to send away all headers attached to an object.
+ *    Returns:
+ *       1 when a message was created
+ *       0 when no message was created
+ *      -1 on error
  */
-int obex_object_send(obex_t *self, obex_object_t *object,
-					int allowfinalcmd, int forcefinalbit)
+int obex_object_prepare_send(obex_t *self, obex_object_t *object,
+			     int allowfinalcmd, int forcefinalbit)
 {
 	buf_t *txmsg;
-	int actual, real_opcode, finished = 0, addmore = TRUE;
+	int actual, real_opcode, addmore = TRUE;
 	uint16_t tx_left;
 	unsigned int srm_flags = 0;
 
-	DEBUG(4, "allowfinalcmd: %d forcefinalbit:%d\n", allowfinalcmd,
-			forcefinalbit);
-
-	/* Return finished if aborted */
-	if (object->abort)
-		return 1;
-
-	/* Don't do anything of object is suspended */
+	/* Don't do anything if object is suspended */
 	if (object->suspend)
 		return 0;
 
@@ -539,8 +563,8 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 					object->suspend = 1;
 
 				if (h->hi == OBEX_HDR_SRM_FLAGS)
-					srm_flags =
-						obex_object_send_srm_flags(h->buf->data[0]);
+					srm_flags = obex_object_send_srm_flags(
+							       h->buf->data[0]);
 
 				/* Remove from tx-queue */
 				object->tx_headerq =
@@ -570,46 +594,82 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 			addmore = FALSE;
 	}
 
-	/* Decide which command to use, and if to use final-bit */
-	if (object->tx_headerq) {
-		/* Have more headers (or body) to send */
-		real_opcode = object->opcode;
-
-		/* In server, final bit is always set.
-		 * In client, final bit is set only when we finish sending. */
-		if (forcefinalbit)
-			real_opcode |= OBEX_FINAL;
-
-		finished = 0;
-	} else {
-		/* Have no more headers to send */
-		if (allowfinalcmd == FALSE) {
-			/* Not allowed to send final command (== server,
-			 * receiving incomming request) */
-			real_opcode = object->opcode;
-
-		} else {
-			/* Allowed to send final command (== end data we are
-			 * sending) */
-			real_opcode = object->lastopcode;
-		}
-
-		real_opcode |= OBEX_FINAL;
-		finished = !!allowfinalcmd;
-	}
-
-	DEBUG(4, "Sending package with opcode %d\n", real_opcode);
-	actual = obex_data_request(self, txmsg, real_opcode);
-
-	if (actual < 0) {
-		DEBUG(4, "Send error\n");
-		return -1;
-	}
+	real_opcode = obex_object_get_real_opcode(self->object, allowfinalcmd,
+						  forcefinalbit);
+	DEBUG(4, "Generating packet with opcode %d\n", real_opcode);
+	obex_data_request_prepare(self, self->tx_msg, real_opcode);
 
 	self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_REMOTE;
 	self->srm_flags |= srm_flags;
 
+	return 1;
+}
+
+int obex_object_finished(obex_t *self, obex_object_t *object, int allowfinalcmd)
+{
+	int finished = 0;
+
+	if (object->abort)
+		return 1;
+
+	if (object->suspend)
+		return 0;
+
+	if (slist_is_empty(object->tx_headerq))
+		finished = !!allowfinalcmd;
+
 	return finished;
+}
+
+int obex_object_send_transmit(obex_t *self, obex_object_t *object)
+{
+	int ret;
+
+	if (!buf_empty(self->tx_msg)) {
+		ret = obex_data_request(self, self->tx_msg);
+		if (ret < 0) {
+			DEBUG(4, "Send error\n");
+			return -1;
+		}
+	}
+
+	return buf_empty(self->tx_msg);
+}
+
+/*
+ * Function obex_object_send()
+ *
+ *    Send away an object packet.
+ *    Returns:
+ *       1 complete
+ *       0 incomplete but no error
+ *      -1 error
+ */
+int obex_object_send(obex_t *self, obex_object_t *object, int allowfinalcmd,
+		     int forcefinalbit)
+{
+	int ret;
+
+	/* Return finished if aborted */
+	if (object->abort) {
+		(void)buf_reuse(self->tx_msg);
+		return 1;
+	}
+
+	if (buf_empty(self->tx_msg)) {
+		ret = obex_object_prepare_send(self, object, allowfinalcmd,
+					       forcefinalbit);
+		if (ret == -1) {
+			DEBUG(4, "Packet prepare error\n");
+			return -1;
+		} else if (ret == 0)
+			return 0;
+	}
+
+	ret = obex_object_send_transmit(self, object);
+	if (ret == 1)
+		ret = obex_object_finished(self, object, allowfinalcmd);
+	return ret;
 }
 
 /*
