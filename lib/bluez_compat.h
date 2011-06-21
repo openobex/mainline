@@ -66,6 +66,7 @@ extern bdaddr_t bluez_compat_bdaddr_any;
 #define rc_channel  bt_channel
 #define bacpy(dst,src) memcpy((dst),(src),sizeof(bdaddr_t))
 #define bacmp(a,b)     memcmp((a),(b),sizeof(bdaddr_t))
+#define str2ba(str, ba)	(bt_aton((str), (ba)) == 1 ? 0 : -1)
 
 #else
 #define bdaddr_t unsigned long
