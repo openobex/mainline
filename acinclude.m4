@@ -309,10 +309,12 @@ AC_DEFUN([AC_ARG_OPENOBEX], [
 
 		if (test "${netbsdbt_cv_found}" = "yes"); then
 			AC_DEFINE(HAVE_BLUETOOTH_NETBSD, 1, [Define if system supports Bluetooth stack for NetBSD])
+			BLUETOOTH_LIBS="-lbluetooth"
 		fi
 
 		if (test "${freebsdbt_cv_found}" = "yes"); then
 			AC_DEFINE(HAVE_BLUETOOTH_FREEBSD, 1, [Define if system supports Bluetooth stack for FreeBSD])
+			BLUETOOTH_LIBS="-lbluetooth"
 		fi
 
 		if (test "${bluez_found}" = "yes"); then

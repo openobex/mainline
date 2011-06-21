@@ -64,6 +64,14 @@ elseif ( CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" )
   )
   mark_as_advanced ( Bluetooth_INCLUDE_DIRS )
 
+  find_library ( Bluetooth_LIBRARIES
+    NAMES
+      bluetooth
+    PATH_SUFFIXES
+      lib
+  )
+  mark_as_advanced ( Bluetooth_LIBRARIES )
+
   if ( Bluetooth_INCLUDE_DIRS )
     set ( CMAKE_REQUIRED_INCLUDES ${Bluetooth_INLUDE_DIRS} )
     CHECK_C_SOURCE_COMPILES (
@@ -84,6 +92,14 @@ elseif ( CMAKE_SYSTEM_NAME STREQUAL "NetBSD" )
       include
   )
   mark_as_advanced ( Bluetooth_INCLUDE_DIRS )
+
+  find_library ( Bluetooth_LIBRARIES
+    NAMES
+      bluetooth
+    PATH_SUFFIXES
+      lib
+  )
+  mark_as_advanced ( Bluetooth_LIBRARIES )
 
   if ( Bluetooth_INCLUDE_DIRS )
     set ( CMAKE_REQUIRED_INCLUDES ${Bluetooth_INLUDE_DIRS} )
