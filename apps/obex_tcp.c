@@ -61,7 +61,9 @@ static int get_peer_addr(char *name, struct sockaddr_storage *peer)
 		.ai_family = AF_UNSPEC,
 		.ai_socktype = SOCK_STREAM,
 		.ai_protocol = 0,
+#if defined(AI_ADDRCONFIG)
 		.ai_flags = AI_ADDRCONFIG
+#endif
 
 	};
 	struct addrinfo *info;
