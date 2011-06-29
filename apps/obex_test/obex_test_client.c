@@ -235,18 +235,14 @@ void push_client(obex_t *handle)
 	unsigned int uname_size;
 	char *bfname;
 	uint8_t *uname;
-	int num;
 
 	obex_headerdata_t hd;
 	
 	uint8_t *buf;
 	int file_size;
 
-	printf("PUSH filename> ");
-	memset(fname, 0, sizeof(fname));
-	num = scanf("%199c", fname);
-	if (num != 1) {
-		perror("scanf");
+	if (read_input(fname, sizeof(fname), "PUSH file> ") <= 0) {
+		perror("Error reading file name");
 		return;
 	}
 
@@ -303,16 +299,12 @@ void put_client(obex_t *handle)
 	char rname[200];
 	unsigned int rname_size;
 	obex_headerdata_t hd;
-	int num;
 	
 	uint8_t *buf;
 	int file_size;
 
-	printf("PUT file (local)> ");
-	memset(lname, 0, sizeof(lname));
-	num = scanf("%199c", lname);
-	if (num != 1) {
-		perror("scanf:");
+	if (read_input(lname, sizeof(lname), "PUT file (local)> ") <= 0) {
+		perror("Error reading file name");
 		return;
 	}
 
@@ -323,10 +315,12 @@ void put_client(obex_t *handle)
 		return;
 	}
 
-	printf("PUT remote filename (default: %s)> ", lname);
-	memset(rname, 0, sizeof(rname));
-	num = scanf("%199c", rname);
-	if (num == 0)
+	if (read_input(rname, sizeof(rname),
+		       "PUT remote filename (default: %s)> ", lname) < 0) {
+		perror("Error reading file name");
+		return;
+	}
+	if (strlen(rname) == 0)
 		strcpy(rname, lname);
 	printf("Going to send %d bytes\n", file_size);
 
@@ -371,14 +365,11 @@ void get_client(obex_t *handle, struct context *gt)
 	obex_object_t *object;
 	uint8_t rname[200];
 	char req_name[200];
-	int num, rname_size;
+	int rname_size;
 	obex_headerdata_t hd;
 
-	printf("GET File> ");
-	memset(req_name, 0, sizeof(req_name));
-	num = scanf("%199c", req_name);
-	if (num != 1) {
-		perror("scanf:");
+	if (read_input(req_name, sizeof(req_name), "GET file> ") <= 0) {
+		perror("Error reading file name");
 		return;
 	}
 
@@ -447,14 +438,11 @@ void setpath_client(obex_t *handle)
 	uint8_t setpath_data[2] = { 0, 0 };
 	obex_object_t *object;
 	char path[200];
-	int num, path_size;
+	int path_size;
 	obex_headerdata_t hd;
 
-	printf("SETPATH> ");
-	memset(path, 0, sizeof(path));
-	num = scanf("%199c", path);
-	if (num != 1) {
-		perror("scanf:");
+	if (read_input(path, sizeof(path), "SETPATH> ") <= 0) {
+		perror("Error reading path");
 		return;
 	}
 

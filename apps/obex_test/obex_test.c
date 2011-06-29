@@ -54,6 +54,7 @@ static int str2ba(const char *str, bdaddr_t *ba) {
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #ifndef in_addr_t
 #define in_addr_t unsigned long
@@ -112,6 +113,21 @@ static void obex_event(obex_t *handle, obex_object_t *object, int mode,
 	}
 }
 
+int read_input(char *answer, size_t size, const char *question, ...)
+{
+	va_list ap;
+	va_start(ap, question);
+	vfprintf(stdout, question, ap);
+	va_end(ap);
+
+	fflush(stdout);
+	if (fgets(answer, size, stdin) == NULL)
+		return -1;
+
+	answer[strlen(answer)-1] = '\0'; /* remove trailing newline */
+	return strlen(answer);
+}	
+
 #if 0
 /*
  * Function get_peer_addr (name, peer)
@@ -159,7 +175,7 @@ static int inet_connect(obex_t *handle)
 int main (int argc, char *argv[])
 {
 	char cmd[10];
-	int num, end = 0;
+	int end = 0;
 	int cobex = FALSE, tcpobex = FALSE, btobex = FALSE, usbobex = FALSE;
 	obex_t *handle;
 #ifdef HAVE_BLUETOOTH
@@ -350,11 +366,9 @@ int main (int argc, char *argv[])
 	printf( "OBEX Interactive test client/server.\n");
 
 	while (!end) {
-		printf("> ");
-		num = scanf("%s", cmd);
-		if (num == EOF)
+		if (read_input(cmd, sizeof(cmd), "> ") < 0)
 			break;
-		switch (cmd[0] | 0x20)	{
+		switch(cmd[0]) {
 			case 'h':
 				printf("Commands:\n"
 				       " c - connect\n"
