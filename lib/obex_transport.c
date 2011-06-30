@@ -244,7 +244,7 @@ int obex_transport_handle_input(obex_t *self, int timeout)
 	self->trans.timeout = timeout;
 	if (obex_get_buffer_status(self->rx_msg)) {
 		DEBUG(4, "full message already in buffer\n");
-		return obex_data_indication(self);
+		return 1;
 	}
 
 	if (self->trans.ops.handle_input)

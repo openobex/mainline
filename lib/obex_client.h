@@ -25,7 +25,7 @@
 struct obex;
 struct databuffer;
 
-int obex_client(struct obex *self, struct databuffer *msg, int final);
+int obex_client(struct obex *self);
 int obex_client_send(obex_t *self, buf_t *msg, int rsp);
 
 #endif

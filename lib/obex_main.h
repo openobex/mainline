@@ -68,6 +68,8 @@ void obex_deliver_event(struct obex *self, int event, int cmd, int rsp, int del)
 int obex_work(struct obex *self, int timeout);
 int obex_get_buffer_status(buf_t *msg);
 int obex_data_indication(struct obex *self);
+buf_t* obex_data_receive(obex_t *self);
+void obex_data_receive_finished(obex_t *self);
 
 void obex_response_request(struct obex *self, uint8_t opcode);
 void obex_data_request_prepare(struct obex *self, struct databuffer *msg,

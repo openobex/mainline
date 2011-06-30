@@ -238,22 +238,29 @@ int obex_client_send(obex_t *self, buf_t *msg, int rsp)
  *    Handle client operations
  *
  */
-int obex_client(obex_t *self, buf_t *msg, int final)
+int obex_client(obex_t *self)
 {
+	int ret = -1;
+	buf_t *msg = obex_data_receive(self);
 	int rsp = msg_get_rsp(msg);
 
 	DEBUG(4, "\n");
 
 	switch (self->state) {
 	case STATE_SEND:
-		return obex_client_send(self, msg, rsp);
+		ret = obex_client_send(self, msg, rsp);
+		break;
 
 	case STATE_REC:
-		return obex_client_recv(self, msg, rsp);
+		ret = obex_client_recv(self, msg, rsp);
+		break;
 
 	default:
 		DEBUG(0, "Unknown state\n");
 		obex_deliver_event(self, OBEX_EV_PARSEERR, rsp, 0, TRUE);
 		return -1;
 	}
+
+	obex_data_receive_finished(self);
+	return ret;
 }

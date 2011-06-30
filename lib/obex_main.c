@@ -237,6 +237,20 @@ int obex_data_request(obex_t *self, buf_t *msg)
 	return status;
 }
 
+static int obex_mode(obex_t *self)
+{
+	switch (self->mode) {
+	case MODE_SRV:
+		return obex_server(self);
+
+	case MODE_CLI:
+		return obex_client(self);
+
+	default:
+		return -1;
+	}
+}
+
 /*
  * Function obex_work (self, timeout)
  *
@@ -245,6 +259,8 @@ int obex_data_request(obex_t *self, buf_t *msg)
  */
 int obex_work(obex_t *self, int timeout)
 {
+	int ret;
+
 	/* Waiting for an incoming packet will not work for single response mode
 	 * as the client is not supposed to send any when we (as server) are
 	 * sending the response.
@@ -253,8 +269,6 @@ int obex_work(obex_t *self, int timeout)
 			self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
 			self->state == STATE_SEND &&
 			!(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
-		int ret;
-
 		/* Still, we need to do a zero-wait check for an ABORT
 		 * and for connection errors. */
 		ret = obex_transport_handle_input(self, 0);
@@ -278,7 +292,10 @@ int obex_work(obex_t *self, int timeout)
 			return sizeof(obex_common_hdr_t);
 	}
 
-	return obex_transport_handle_input(self, timeout);
+	ret = obex_transport_handle_input(self, timeout);
+	if (ret == 1)
+		ret = obex_mode(self);
+	return ret;
 }
 
 /*
@@ -294,15 +311,14 @@ int obex_get_buffer_status(buf_t *msg) {
 /*
  * Function obex_data_indication (self)
  *
- *    Read/Feed some input from device and find out which packet it is
+ *    Read some input from device and find out which packet it is
  *
  */
 int obex_data_indication(obex_t *self)
 {
 	obex_common_hdr_t *hdr;
 	buf_t *msg;
-	uint8_t opcode;
-	int final, ret, actual = 0;
+	int actual;
 	unsigned int size;
 
 	DEBUG(4, "\n");
@@ -322,7 +338,7 @@ int obex_data_indication(obex_t *self)
 		 * partial buffer (custom transport) */
 		if (actual < 0) {
 			obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
-			return actual;
+			return -1;
 		}
 	}
 
@@ -346,14 +362,14 @@ int obex_data_indication(obex_t *self)
 			if (actual < 0) {
 				obex_deliver_event(self, OBEX_EV_LINKERR,
 								0, 0, TRUE);
-				return actual;
+				return -1;
 			}
 		}
 	} else {
 		/* Wait until we have at least 3 bytes data */
 		DEBUG(3, "Need at least 3 bytes got only %lu!\n",
 					(unsigned long) msg->data_size);
-		return actual;
+		return 0;
         }
 
 	/* New data has been inserted at the end of message */
@@ -372,16 +388,20 @@ int obex_data_indication(obex_t *self)
 				size, (unsigned long)msg->data_size);
 
 		/* I'll be back! */
-		return msg->data_size;
+		return 0;
 	}
 
 	DUMPBUFFER(2, "Rx", msg);
 
-	actual = msg->data_size;
-	opcode = hdr->opcode & ~OBEX_FINAL;
-	final = hdr->opcode & OBEX_FINAL; /* Extract final bit */
+	return 1;
+}
 
-	/* Dispatch to the mode we are in */
+buf_t* obex_data_receive(obex_t *self)
+{
+	buf_t *msg = self->rx_msg;
+	obex_common_hdr_t *hdr = (obex_common_hdr_t *)msg->data;
+	uint8_t opcode = hdr->opcode & ~OBEX_FINAL;
+
 	if (self->mode == MODE_SRV) {
 		/* Single response mode makes it possible for the client to send
 		 * the next request (e.g. PUT) while still receiving the last
@@ -391,23 +411,26 @@ int obex_data_indication(obex_t *self)
 				self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
 				self->state == STATE_SEND &&
 				!(opcode == OBEX_CMD_ABORT || opcode == self->object->cmd))
-			return 0;
+			return NULL;
+	}
 
-		self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_LOCAL;
-		ret = obex_server(self, msg, final);
-	} else
-		ret = obex_client(self, msg, final);
+	if (!obex_get_buffer_status(msg))
+		return NULL;
+
+	self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_LOCAL;
+	return msg;
+}
+
+void obex_data_receive_finished(obex_t *self)
+{
+	buf_t *msg = self->rx_msg;
+	obex_common_hdr_t *hdr = (obex_common_hdr_t *)msg->data;
+	unsigned int size = ntohs(hdr->len);
 
 	DEBUG(4, "Pulling %u bytes\n", size);
 	buf_remove_begin(msg, size);
 	if (msg->data_size == 0)
 		buf_reuse(msg);
-
-	/* Check parse errors */
-	if (ret < 0)
-		actual = ret;
-
-	return actual;
 }
 
 /*

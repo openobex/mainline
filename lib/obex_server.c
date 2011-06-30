@@ -324,22 +324,29 @@ static int obex_server_idle(obex_t *self, buf_t *msg, int final,
  *    Handle server-operations
  *
  */
-int obex_server(obex_t *self, buf_t *msg, int final)
+int obex_server(obex_t *self)
 {
+	int ret = -1;
+	buf_t *msg = obex_data_receive(self);
+	obex_common_hdr_t *hdr = (obex_common_hdr_t *)msg->data;
 	int cmd = msg_get_cmd(msg);
 	uint16_t len = msg_get_len(msg);
+	int final = hdr->opcode & OBEX_FINAL; /* Extract final bit */
 
 	DEBUG(4, "\n");
 
 	switch (self->state) {
 	case STATE_IDLE:
-		return obex_server_idle(self, msg, final, cmd, len);
+		ret = obex_server_idle(self, msg, final, cmd, len);
+		break;
 
 	case STATE_REC:
-		return obex_server_recv(self, msg, final, cmd, len);
+		ret = obex_server_recv(self, msg, final, cmd, len);
+		break;
 
 	case STATE_SEND:
-		return obex_server_send(self, msg, cmd, len);
+		ret = obex_server_send(self, msg, cmd, len);
+		break;
 
 	default:
 		DEBUG(0, "Unknown state\n");
@@ -347,4 +354,7 @@ int obex_server(obex_t *self, buf_t *msg, int final)
 		obex_deliver_event(self, OBEX_EV_PARSEERR, cmd, 0, TRUE);
 		return -1;
 	}
+
+	obex_data_receive_finished(self);
+	return ret;
 }
