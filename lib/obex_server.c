@@ -137,7 +137,7 @@ int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 	return 0;
 }
 
-static int obex_server_recv(obex_t *self, buf_t *msg, int final,
+static int obex_server_recv(obex_t *self, buf_t *msg, int first, int final,
 							int cmd, uint16_t len)
 {
 	int deny = 0;
@@ -191,10 +191,8 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int final,
 	/* Let the user decide whether to accept or deny a
 	 * multi-packet request by examining all headers in
 	 * the first packet */
-	if (!self->object->checked) {
+	if (first)
 		obex_deliver_event(self, OBEX_EV_REQCHECK, cmd, 0, FALSE);
-		self->object->checked = 1;
-	}
 
 	/* Everything except 0x1X and 0x2X means that the user
 	 * callback denied the request. In the denied cases
@@ -310,7 +308,7 @@ static int obex_server_idle(obex_t *self, buf_t *msg, int final,
 	case OBEX_RSP_CONTINUE:
 	case OBEX_RSP_SUCCESS:
 		self->state = STATE_REC;
-		return obex_server_recv(self, msg, final, cmd, len);
+		return obex_server_recv(self, msg, 1, final, cmd, len);
 
 	default:
 		self->state = STATE_SEND;
@@ -341,7 +339,7 @@ int obex_server(obex_t *self)
 		break;
 
 	case STATE_REC:
-		ret = obex_server_recv(self, msg, final, cmd, len);
+		ret = obex_server_recv(self, msg, 0, final, cmd, len);
 		break;
 
 	case STATE_SEND:
