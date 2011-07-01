@@ -261,36 +261,12 @@ int obex_work(obex_t *self, int timeout)
 {
 	int ret;
 
-	/* Waiting for an incoming packet will not work for single response mode
-	 * as the client is not supposed to send any when we (as server) are
-	 * sending the response.
-	 * For request reception, this is handled above */
-	if (self->mode == MODE_SRV &&
-			self->object &&
-			self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
-			self->state == STATE_SEND &&
-			!(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
-		/* Still, we need to do a zero-wait check for an ABORT
-		 * and for connection errors. */
-		ret = obex_transport_handle_input(self, 0);
-		if (ret == 0) /* timeout: no error, no input */
-			ret = obex_server_send(self, NULL, self->object->cmd, 0);
-		if (ret < 0)
-			return -1;
-		else
-			return sizeof(obex_common_hdr_t);
-
+	if (self->state == STATE_IDLE ||
+	    self->substate == SUBSTATE_RECEIVE_RX)
+	{
 		ret = obex_transport_handle_input(self, timeout);
 		if (ret <= 0)
 			return ret;
-
-	} else if (self->mode == MODE_CLI) {
-		if (self->substate == SUBSTATE_RECEIVE_RX) {
-			ret = obex_transport_handle_input(self, timeout);
-			if (ret <= 0)
-				return ret;
-		}
-
 	}
 
 	return obex_mode(self);
@@ -397,20 +373,6 @@ int obex_data_indication(obex_t *self)
 buf_t* obex_data_receive(obex_t *self)
 {
 	buf_t *msg = self->rx_msg;
-	obex_common_hdr_t *hdr = (obex_common_hdr_t *)msg->data;
-	uint8_t opcode = hdr->opcode & ~OBEX_FINAL;
-
-	if (self->mode == MODE_SRV) {
-		/* Single response mode makes it possible for the client to send
-		 * the next request (e.g. PUT) while still receiving the last
-		 * multi-packet response. So we must not consume any request
-		 * except ABORT. */
-		if (self->object &&
-				self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
-				self->state == STATE_SEND &&
-				!(opcode == OBEX_CMD_ABORT || opcode == self->object->cmd))
-			return NULL;
-	}
 
 	if (!obex_get_buffer_status(msg))
 		return NULL;

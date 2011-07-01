@@ -36,20 +36,103 @@
 
 static __inline int msg_get_cmd(const buf_t *msg)
 {
-	return ((obex_common_hdr_t *) msg->data)->opcode & ~OBEX_FINAL;
+	if (msg)
+		return ((obex_common_hdr_t *) msg->data)->opcode & ~OBEX_FINAL;
+	else
+		return 0;
 }
 
 static __inline uint16_t msg_get_len(const buf_t *msg)
 {
-	return ntohs(((obex_common_hdr_t *) msg->data)->len);
+	if (msg)
+		return ntohs(((obex_common_hdr_t *) msg->data)->len);
+	else
+		return 0;
 }
 
-int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
+static __inline int msg_get_final(const buf_t *msg)
+{
+	if (msg)
+		return ((obex_common_hdr_t *) msg->data)->opcode & OBEX_FINAL;
+	else
+		return 0;
+}
+
+static int obex_server_send_transmit_tx(obex_t *self)
+{
+	int ret;
+	int cmd = self->object->cmd;
+
+	DEBUG(4, "STATE: SEND/TRANSMIT_TX\n");
+
+	ret = obex_object_send_transmit(self, self->object);
+	if (ret == -1) {
+		/* Error sending response */
+		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
+		self->state = STATE_IDLE;
+
+	} else if (ret == 1) {
+		/* Made some progress */
+		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
+		if (obex_object_finished(self, self->object, TRUE)) {
+			self->state = STATE_IDLE;
+			/* Response sent and object finished! */
+			if (cmd == OBEX_CMD_DISCONNECT) {
+				DEBUG(2, "CMD_DISCONNECT done. Resetting MTU!\n");
+				self->mtu_tx = OBEX_MINIMUM_MTU;
+				self->rsp_mode = OBEX_RSP_MODE_NORMAL;
+				self->srm_flags = 0;
+			}
+			obex_deliver_event(self, OBEX_EV_REQDONE, cmd, 0, TRUE);
+
+		} else if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+			   !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
+			self->substate = SUBSTATE_PREPARE_TX;
+
+		} else
+			self->substate = SUBSTATE_RECEIVE_RX;
+	}
+
+	return ret;
+}
+
+static int obex_server_send_prepare_tx(obex_t *self)
 {
 	int ret;
 
-	/* Send back response */
-	DEBUG(4, "STATE_SEND\n");
+	DEBUG(4, "STATE: SEND/PREPARE_TX\n");
+
+	/* As a server, the final bit is always SET, and the "real final" packet
+	 * is distinguished by being SUCCESS instead of CONTINUE.
+	 * So, force the final bit here. */
+	ret = obex_object_prepare_send(self, self->object, TRUE, TRUE);
+	if (ret == 1) {
+		self->substate = SUBSTATE_TRANSMIT_TX;
+		return obex_server_send_transmit_tx(self);
+
+	} else
+		return ret;
+}
+
+static int obex_server_send(obex_t *self)
+{
+	int ret;
+	buf_t *msg = obex_data_receive(self);
+	int cmd = msg_get_cmd(msg);
+	uint16_t len = msg_get_len(msg);
+
+	DEBUG(4, "STATE: SEND/RECEIVE_RX\n");
+
+	/* Single response mode makes it possible for the client to send
+	 * the next request (e.g. PUT) while still receiving the last
+	 * multi-packet response. So we must not consume any request
+	 * except ABORT. */
+	if (self->object &&
+	    self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+	    !(cmd == OBEX_CMD_ABORT || cmd == self->object->cmd)) {
+		self->substate = SUBSTATE_PREPARE_TX;
+		return obex_server_send_prepare_tx(self);
+	}
 
 	/* Abort? */
 	if (cmd == OBEX_CMD_ABORT) {
@@ -104,47 +187,68 @@ int obex_server_send(obex_t *self, buf_t *msg, int cmd, uint16_t len)
 		 * consult them later. So, leave them here (== overhead). */
 	}
 
-	/* As a server, the final bit is always SET, and the "real final" packet
-	 * is distinguish by beeing SUCCESS instead of CONTINUE.
-	 * So, force the final bit here. */
-	self->object->continue_received = 1;
-
-	if (self->object->suspend)
-		return 0;
-
-	ret = obex_object_send(self, self->object, TRUE, TRUE);
-	if (ret == 0) {
-		/* Made some progress */
-		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
-		self->object->first_packet_sent = 1;
-		self->object->continue_received = 0;
-	} else if (ret < 0) {
-		/* Error sending response */
-		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
-		return -1;
-	} else {
-		/* Response sent! */
-		if (cmd == OBEX_CMD_DISCONNECT) {
-			DEBUG(2, "CMD_DISCONNECT done. Resetting MTU!\n");
-			self->mtu_tx = OBEX_MINIMUM_MTU;
-			self->rsp_mode = OBEX_RSP_MODE_NORMAL;
-			self->srm_flags = 0;
-		}
-		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_REQDONE, cmd, 0, TRUE);
-	}
-
-	return 0;
+	obex_data_receive_finished(self);
+	self->substate = SUBSTATE_PREPARE_TX;
+	return obex_server_send_prepare_tx(self);
 }
 
-static int obex_server_recv(obex_t *self, buf_t *msg, int first, int final,
-							int cmd, uint16_t len)
+static int obex_server_recv_transmit_tx(obex_t *self)
+{
+	int ret = 0;
+	int cmd = self->object->cmd;
+
+	DEBUG(4, "STATE: RECV/TRANSMIT_TX\n");
+
+	ret = obex_object_send_transmit(self, self->object);
+	if (ret == -1) {
+		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
+		self->state = STATE_IDLE;
+
+	} else if (ret == 1) {
+		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
+		self->substate = SUBSTATE_RECEIVE_RX;
+	}
+
+	return ret;
+}
+
+static int obex_server_recv_prepare_tx(obex_t *self)
+{
+	DEBUG(4, "STATE: RECV/PREPARE_TX\n");
+
+	if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL ||
+	    (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+	     self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
+	{
+		int ret = obex_object_prepare_send(self, self->object,
+						   FALSE, TRUE);
+		if (ret == 1) {
+			self->substate = SUBSTATE_TRANSMIT_TX;
+			return obex_server_recv_transmit_tx(self);
+
+		} else
+			return ret;
+
+	} else {
+		self->substate = SUBSTATE_RECEIVE_RX;
+		return 0;
+	}
+}
+
+static int obex_server_recv(obex_t *self, int first)
 {
 	int deny = 0;
 	uint64_t filter;
+	buf_t *msg = obex_data_receive(self);
+	int cmd;
+	int final;
 
-	DEBUG(4, "STATE_REC\n");
-	/* In progress of receiving a request */
+	DEBUG(4, "STATE: RECV/RECEIVE_RX\n");
+
+	if (msg == NULL)
+		return 0;
+	cmd = msg_get_cmd(msg);
+	final = msg_get_final(msg);
 
 	/* Abort? */
 	if (cmd == OBEX_CMD_ABORT) {
@@ -217,23 +321,12 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int first, int final,
 		break;
 	}
 
+	obex_data_receive_finished(self);
 	if (!final) {
-		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
-		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL ||
-				(self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE)) {
-			int ret = obex_object_send(self, self->object, FALSE,
-									TRUE);
-			if (ret < 0) {
-				obex_deliver_event(self, OBEX_EV_LINKERR,
-								cmd, 0, TRUE);
-				return -1;
-			}
-		}
+		self->substate = SUBSTATE_PREPARE_TX;
+		return obex_server_recv_prepare_tx(self);
 
-		return 0;
-	}
-
-	if (!self->object->first_packet_sent) {
+	} else {
 		/* Tell the app that a whole request has
 		 * arrived. While this event is delivered the
 		 * app should append the headers that should be
@@ -245,19 +338,24 @@ static int obex_server_recv(obex_t *self, buf_t *msg, int first, int final,
 		/* More connect-magic woodoo stuff */
 		if (cmd == OBEX_CMD_CONNECT)
 			obex_insert_connectframe(self, self->object);
-		/* Otherwise sanitycheck later will fail */
-		len = 3;
-	}
 
-	self->state = STATE_SEND;
-	return obex_server_send(self, msg, cmd, len);
+		self->state = STATE_SEND;
+		self->substate = SUBSTATE_PREPARE_TX;
+		return obex_server_send_prepare_tx(self);
+	}
 }
 
-static int obex_server_idle(obex_t *self, buf_t *msg, int final,
-							int cmd, uint16_t len)
+static int obex_server_idle(obex_t *self)
 {
+	buf_t *msg = obex_data_receive(self);
+	int cmd;
+
 	/* Nothing has been recieved yet, so this is probably a new request */
-	DEBUG(4, "STATE_IDLE\n");
+	DEBUG(4, "STATE: IDLE\n");
+
+	if (msg == NULL)
+		return 0;
+	cmd = msg_get_cmd(msg);
 
 	if (self->object) {
 		/* What shall we do here? I don't know!*/
@@ -304,15 +402,19 @@ static int obex_server_idle(obex_t *self, buf_t *msg, int final,
 		break;
 	}
 
+	/* Check the response from the REQHINT event */
 	switch ((self->object->opcode & ~OBEX_FINAL) & 0xF0) {
 	case OBEX_RSP_CONTINUE:
 	case OBEX_RSP_SUCCESS:
 		self->state = STATE_REC;
-		return obex_server_recv(self, msg, 1, final, cmd, len);
+		self->substate = SUBSTATE_RECEIVE_RX;
+		return obex_server_recv(self, 1);
 
 	default:
+		obex_data_receive_finished(self);
 		self->state = STATE_SEND;
-		return obex_server_send(self, msg, cmd, 3);
+		self->substate = SUBSTATE_PREPARE_TX;
+		return obex_server_send_prepare_tx(self);
 	}
 }
 
@@ -324,35 +426,42 @@ static int obex_server_idle(obex_t *self, buf_t *msg, int final,
  */
 int obex_server(obex_t *self)
 {
-	int ret = -1;
-	buf_t *msg = obex_data_receive(self);
-	obex_common_hdr_t *hdr = (obex_common_hdr_t *)msg->data;
-	int cmd = msg_get_cmd(msg);
-	uint16_t len = msg_get_len(msg);
-	int final = hdr->opcode & OBEX_FINAL; /* Extract final bit */
-
 	DEBUG(4, "\n");
 
 	switch (self->state) {
 	case STATE_IDLE:
-		ret = obex_server_idle(self, msg, final, cmd, len);
-		break;
+		return obex_server_idle(self);
 
 	case STATE_REC:
-		ret = obex_server_recv(self, msg, 0, final, cmd, len);
+		switch (self->substate) {
+		case SUBSTATE_RECEIVE_RX:
+			return obex_server_recv(self, 0);
+
+		case SUBSTATE_PREPARE_TX:
+			return obex_server_recv_prepare_tx(self);
+
+		case SUBSTATE_TRANSMIT_TX:
+			return obex_server_recv_transmit_tx(self);
+		}
 		break;
 
 	case STATE_SEND:
-		ret = obex_server_send(self, msg, cmd, len);
+		switch (self->substate) {
+		case SUBSTATE_RECEIVE_RX:
+			return obex_server_send(self);
+
+		case SUBSTATE_PREPARE_TX:
+			return obex_server_send_prepare_tx(self);
+
+		case SUBSTATE_TRANSMIT_TX:
+			return obex_server_send_transmit_tx(self);
+		}
 		break;
 
 	default:
 		DEBUG(0, "Unknown state\n");
-		obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-		obex_deliver_event(self, OBEX_EV_PARSEERR, cmd, 0, TRUE);
-		return -1;
+		break;
 	}
 
-	obex_data_receive_finished(self);
-	return ret;
+	return -1;
 }
