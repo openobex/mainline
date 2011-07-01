@@ -29,6 +29,12 @@ enum obex_state {
 	STATE_REC,
 };
 
+enum obex_substate {
+	SUBSTATE_RECEIVE_RX,
+	SUBSTATE_PREPARE_TX,
+	SUBSTATE_TRANSMIT_TX,
+};
+
 #define OBEX_SRM_FLAG_WAIT_LOCAL  (1 << 0)
 #define OBEX_SRM_FLAG_WAIT_REMOTE (1 << 1)
 

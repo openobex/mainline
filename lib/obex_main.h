@@ -41,6 +41,7 @@ struct obex {
 	uint16_t mtu_tx_max;		/* Maximum TX we can accept */
 
 	enum obex_state state;
+	enum obex_substate substate;
 	enum obex_mode mode;
 	enum obex_rsp_mode rsp_mode;	/* OBEX_RSP_MODE_* */
 
