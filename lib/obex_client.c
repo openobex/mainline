@@ -49,12 +49,63 @@ static __inline uint16_t msg_get_len(const buf_t *msg)
 		return 0;
 }
 
-static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
+static int obex_client_recv_transmit_tx(obex_t *self)
+{
+	int ret = 0;
+	int rsp = OBEX_RSP_CONTINUE;
+
+	DEBUG(4, "STATE: RECV/TRANSMIT_TX\n");
+
+	ret = obex_object_send_transmit(self, self->object);
+	if (ret == -1) {
+		obex_deliver_event(self, OBEX_EV_LINKERR,
+				   self->object->opcode, rsp, TRUE);
+		self->state = STATE_IDLE;
+
+	} else if (ret == 1) {
+		obex_deliver_event(self, OBEX_EV_PROGRESS,
+				   self->object->opcode, rsp, FALSE);
+		self->substate = SUBSTATE_RECEIVE_RX;
+	}
+
+	return ret;
+}
+
+static int obex_client_recv_prepare_tx(obex_t *self)
+{
+	DEBUG(4, "STATE: RECV/PREPARE_TX\n");
+
+	if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL ||
+	    (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+	     self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
+	{
+		int ret = obex_object_prepare_send(self, self->object, TRUE,
+						   FALSE);
+		if (ret == 1) {
+			self->substate = SUBSTATE_TRANSMIT_TX;
+			return obex_client_recv_transmit_tx(self);
+
+		} else
+			return ret;
+
+	} else {
+		self->substate = SUBSTATE_RECEIVE_RX;
+	}
+
+	return 0;
+}
+
+static int obex_client_recv(obex_t *self)
 {
 	int ret;
+	buf_t *msg = obex_data_receive(self);
+	int rsp;
 
-	/* Receiving answer of request */
-	DEBUG(4, "STATE_REC\n");
+	DEBUG(4, "STATE: RECV/RECEIVE_RX\n");
+
+	if (msg == NULL)
+		return 0;
+	rsp = msg_get_rsp(msg);
 
 	switch (self->object->opcode) {
 	case OBEX_CMD_CONNECT:
@@ -88,50 +139,33 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 		self->state = STATE_IDLE;
 		return -1;
 	}
+	obex_data_receive_finished(self);
 
 	/* Are we done yet? */
 	if (rsp == OBEX_RSP_CONTINUE) {
 		DEBUG(3, "Continue...\n");
-
-		self->object->continue_received = 1;
-
 		if (self->object->abort) {
 			DEBUG(3, "Ignoring CONTINUE because request was aborted\n");
 			return 0;
 		}
-
-		if (self->object->suspend) {
-			DEBUG(3, "Not sending new request because transfer is suspended\n");
-			return 0;
-		}
-
-		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL ||
-				(self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE)) {
-			ret = obex_object_send(self, self->object, TRUE, FALSE);
-			if (ret < 0)
-				obex_deliver_event(self, OBEX_EV_LINKERR,
-						self->object->opcode, rsp,
-						TRUE);
-		}
-		if (ret >= 0)
-			obex_deliver_event(self, OBEX_EV_PROGRESS,
-						self->object->opcode, rsp, FALSE);
-
-		if (self->object)
-			self->object->continue_received = 0;
+		self->substate = SUBSTATE_PREPARE_TX;
+		return obex_client_recv_prepare_tx(self);
 
 	} else {
 		/* Notify app that client-operation is done! */
+		ret = 0;
 		DEBUG(3, "Done! Rsp=%02x!\n", rsp);
 		if (self->object->abort) {
 			if (rsp == OBEX_RSP_SUCCESS)
 				obex_deliver_event(self, OBEX_EV_ABORT,
 							self->object->opcode,
 							rsp, TRUE);
-			else
+			else {
 				obex_deliver_event(self, OBEX_EV_LINKERR,
 							self->object->opcode,
 							rsp, TRUE);
+				ret = -1;
+			}
 
 		} else
 			obex_deliver_event(self, OBEX_EV_REQDONE,
@@ -139,9 +173,9 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 							rsp, TRUE);
 		self->mode = MODE_SRV;
 		self->state = STATE_IDLE;
+		return ret;
 	}
 
-	return 0;
 }
 
 int obex_client_send(obex_t *self, buf_t *msg, int rsp)
@@ -252,7 +286,16 @@ int obex_client(obex_t *self)
 		break;
 
 	case STATE_REC:
-		ret = obex_client_recv(self, msg, rsp);
+		switch (self->substate) {
+		case SUBSTATE_RECEIVE_RX:
+			return obex_client_recv(self);
+
+		case SUBSTATE_PREPARE_TX:
+			return obex_client_recv_prepare_tx(self);
+
+		case SUBSTATE_TRANSMIT_TX:
+			return obex_client_recv_transmit_tx(self);
+		}
 		break;
 
 	default:
