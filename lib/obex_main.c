@@ -265,37 +265,35 @@ int obex_work(obex_t *self, int timeout)
 	 * as the client is not supposed to send any when we (as server) are
 	 * sending the response.
 	 * For request reception, this is handled above */
-	if (self->object &&
+	if (self->mode == MODE_SRV &&
+			self->object &&
 			self->object->rsp_mode != OBEX_RSP_MODE_NORMAL &&
 			self->state == STATE_SEND &&
 			!(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
 		/* Still, we need to do a zero-wait check for an ABORT
 		 * and for connection errors. */
 		ret = obex_transport_handle_input(self, 0);
-		if (ret == 0) { /* timeout: no error, no input */
-			switch (self->mode) {
-			case MODE_SRV:
-				ret = obex_server_send(self, NULL, self->object->cmd, 0);
-				break;
-
-			case MODE_CLI:
-				ret = obex_client_send(self, NULL, OBEX_RSP_CONTINUE);
-				break;
-
-			default:
-				return -1;
-			}
-		}
+		if (ret == 0) /* timeout: no error, no input */
+			ret = obex_server_send(self, NULL, self->object->cmd, 0);
 		if (ret < 0)
 			return -1;
 		else
 			return sizeof(obex_common_hdr_t);
+
+		ret = obex_transport_handle_input(self, timeout);
+		if (ret <= 0)
+			return ret;
+
+	} else if (self->mode == MODE_CLI) {
+		if (self->substate == SUBSTATE_RECEIVE_RX) {
+			ret = obex_transport_handle_input(self, timeout);
+			if (ret <= 0)
+				return ret;
+		}
+
 	}
 
-	ret = obex_transport_handle_input(self, timeout);
-	if (ret == 1)
-		ret = obex_mode(self);
-	return ret;
+	return obex_mode(self);
 }
 
 /*

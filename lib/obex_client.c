@@ -178,91 +178,135 @@ static int obex_client_recv(obex_t *self)
 
 }
 
-int obex_client_send(obex_t *self, buf_t *msg, int rsp)
+static int obex_client_send_transmit_tx(obex_t *self)
 {
 	int ret;
 
-	/* In progress of sending request */
-	DEBUG(4, "STATE_SEND\n");
+	DEBUG(4, "STATE: SEND/TRANSMIT_TX\n");
 
-	if (self->object->first_packet_sent == 1) {
-		/* Any errors from peer? Win2k will send RSP_SUCCESS after
-		 * every fragment sent so we have to accept that too.*/
-		switch (rsp) {
-		case OBEX_RSP_SUCCESS:
-		case OBEX_RSP_CONTINUE:
-			break;
-
-		default:
-			DEBUG(0, "STATE_SEND. request not accepted.\n");
-			obex_deliver_event(self, OBEX_EV_REQDONE,
-						self->object->opcode, rsp, TRUE);
-			/* This is not an Obex error, it is just that the peer
-			 * doesn't accept the request, so return 0 - Jean II */
-			return 0;
-		}
-
-		if (msg_get_len(msg) > 3) {
-			/* For Single Response Mode, this is actually not
-			 * unexpected. */
-			if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
-				DEBUG(1, "STATE_SEND. Didn't excpect data from "
-						"peer (%u)\n", msg_get_len(msg));
-				DUMPBUFFER(4, "unexpected data", msg);
-				obex_deliver_event(self, OBEX_EV_UNEXPECTED,
-						self->object->opcode, 0, FALSE);
-			}
-
-			/* At this point, we are in the middle of sending our
-			 * request to the server, and it is already sending us
-			 * some data! This breaks the whole Request/Response
-			 * model! Most often, the server is sending some out of
-			 * band progress information for a PUT.
-			 * This is the way we will handle that:
-			 * Save this header in our Rx header list. We can have
-			 * duplicated headers, so no problem. User can check the
-			 * header in the next EV_PROGRESS, doing so will hide
-			 * the header (until reparse). If not, header will be
-			 * parsed at 'final', or just ignored (common case for
-			 * PUT).
-			 * No headeroffset needed because 'connect' is single
-			 * packet (or we deny it). */
-			ret = -1;
-			if (self->object->opcode == OBEX_CMD_CONNECT)
-				ret = obex_object_receive(self, msg);
-			if (ret < 0) {
-				obex_deliver_event(self, OBEX_EV_PARSEERR,
-						self->object->opcode, 0, TRUE);
-				self->mode = MODE_SRV;
-				self->state = STATE_IDLE;
-				return -1;
-			}
-
-			/* Note : we may want to get rid of received header,
-			 * however they are mixed with legitimate headers,
-			 * and the user may expect to consult them later.
-			 * So, leave them here (== overhead). */
-		}
-	}
-
-	ret = obex_object_send(self, self->object, TRUE, FALSE);
+	ret = obex_object_send_transmit(self, self->object);
 	if (ret < 0) {
 		/* Error while sending */
 		obex_deliver_event(self, OBEX_EV_LINKERR,
 					self->object->opcode, 0, TRUE);
 		self->mode = MODE_SRV;
 		self->state = STATE_IDLE;
-		return -1;
 
+	} else if (ret == 1) {
+		obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->opcode,
+								      0, FALSE);
+		if (obex_object_finished(self, self->object, TRUE)) {
+			self->state = STATE_REC;
+			self->substate = SUBSTATE_RECEIVE_RX;
+
+		} else {
+			int check = 0;
+			if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+			    !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
+				/* Still, we need to do a zero-wait check for an
+				 * negative response or for connection errors. */
+				check = obex_transport_handle_input(self, 0);
+				if (check <= 0) /* no input */
+					self->substate = SUBSTATE_RECEIVE_RX;
+				else
+					self->substate = SUBSTATE_PREPARE_TX;
+
+			} else
+				self->substate = SUBSTATE_RECEIVE_RX;
+		}
 	}
 
-	self->object->first_packet_sent = 1;
-	obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->opcode,
-								0, FALSE);
-	if (ret > 0)
-		self->state = STATE_REC;
+	return ret;
+}
 
-	return 0;
+static int obex_client_send_prepare_tx(obex_t *self)
+{
+	int ret;
+
+	DEBUG(4, "STATE: SEND/PREPARE_TX\n");
+
+	ret = obex_object_prepare_send(self, self->object, TRUE, FALSE);
+	if (ret == 1) {
+		self->substate = SUBSTATE_TRANSMIT_TX;
+		return obex_client_send_transmit_tx(self);
+
+	} else
+		return ret;
+}
+
+static int obex_client_send(obex_t *self)
+{
+	int ret;
+	buf_t *msg = obex_data_receive(self);
+	int rsp;
+
+	DEBUG(4, "STATE: SEND/RECEIVE_RX\n");
+
+	if (msg == NULL)
+		return 0;
+	rsp = msg_get_rsp(msg);
+
+	/* Any errors from peer? Win2k will send RSP_SUCCESS after
+	 * every fragment sent so we have to accept that too.*/
+	switch (rsp) {
+	case OBEX_RSP_SUCCESS:
+	case OBEX_RSP_CONTINUE:
+		break;
+
+	default:
+		DEBUG(0, "STATE_SEND. request not accepted.\n");
+		obex_deliver_event(self, OBEX_EV_REQDONE, self->object->opcode,
+								     rsp, TRUE);
+		/* This is not an Obex error, it is just that the peer
+		 * doesn't accept the request, so return 0 - Jean II */
+		return 0;
+	}
+
+	if (msg_get_len(msg) > 3) {
+		/* For Single Response Mode, this is actually not
+		 * unexpected. */
+		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
+			DEBUG(1, "STATE_SEND. Didn't excpect data from "
+			      "peer (%u)\n", msg_get_len(msg));
+			DUMPBUFFER(4, "unexpected data", msg);
+			obex_deliver_event(self, OBEX_EV_UNEXPECTED,
+						self->object->opcode, 0, FALSE);
+		}
+
+		/* At this point, we are in the middle of sending our
+		 * request to the server, and it is already sending us
+		 * some data! This breaks the whole Request/Response
+		 * model! Most often, the server is sending some out of
+		 * band progress information for a PUT.
+		 * This is the way we will handle that:
+		 * Save this header in our Rx header list. We can have
+		 * duplicated headers, so no problem. User can check the
+		 * header in the next EV_PROGRESS, doing so will hide
+		 * the header (until reparse). If not, header will be
+		 * parsed at 'final', or just ignored (common case for
+		 * PUT).
+		 * No headeroffset needed because 'connect' is single
+		 * packet (or we deny it). */
+		ret = -1;
+		if (self->object->opcode == OBEX_CMD_CONNECT)
+			ret = obex_object_receive(self, msg);
+		if (ret < 0) {
+			obex_deliver_event(self, OBEX_EV_PARSEERR,
+						 self->object->opcode, 0, TRUE);
+			self->mode = MODE_SRV;
+			self->state = STATE_IDLE;
+			return -1;
+		}
+
+		/* Note : we may want to get rid of received header,
+		 * however they are mixed with legitimate headers,
+		 * and the user may expect to consult them later.
+		 * So, leave them here (== overhead). */
+	}
+
+	obex_data_receive_finished(self);
+	self->substate = SUBSTATE_PREPARE_TX;
+	return obex_client_send_prepare_tx(self);
 }
 
 
@@ -274,15 +318,20 @@ int obex_client_send(obex_t *self, buf_t *msg, int rsp)
  */
 int obex_client(obex_t *self)
 {
-	int ret = -1;
-	buf_t *msg = obex_data_receive(self);
-	int rsp = msg_get_rsp(msg);
-
 	DEBUG(4, "\n");
 
 	switch (self->state) {
 	case STATE_SEND:
-		ret = obex_client_send(self, msg, rsp);
+		switch (self->substate) {
+		case SUBSTATE_RECEIVE_RX:
+			return obex_client_send(self);
+
+		case SUBSTATE_PREPARE_TX:
+			return obex_client_send_prepare_tx(self);
+
+		case SUBSTATE_TRANSMIT_TX:
+			return obex_client_send_transmit_tx(self);
+		}
 		break;
 
 	case STATE_REC:
@@ -300,10 +349,8 @@ int obex_client(obex_t *self)
 
 	default:
 		DEBUG(0, "Unknown state\n");
-		obex_deliver_event(self, OBEX_EV_PARSEERR, rsp, 0, TRUE);
-		return -1;
+		break;
 	}
 
-	obex_data_receive_finished(self);
-	return ret;
+	return -1;
 }

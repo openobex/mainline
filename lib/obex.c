@@ -44,7 +44,6 @@
 #include "obex_main.h"
 #include "obex_object.h"
 #include "obex_connect.h"
-#include "obex_client.h"
 #include "databuffer.h"
 
 #include "fdobex.h"
@@ -510,10 +509,10 @@ int CALLAPI OBEX_GetFD(obex_t *self)
 }
 
 /**
-	Start a request (as client).
+	Schedule a request (as client).
 	\param self OBEX handle
 	\param object Object containing request
-	\return -1 or negative error code on error
+	\return -1 on error, 0 on success.
  */
 LIB_SYMBOL
 int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
@@ -533,8 +532,9 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 	self->object = object;
 	self->mode = MODE_CLI;
         self->state = STATE_SEND;
+	self->substate = SUBSTATE_PREPARE_TX;
 
-	return obex_client_send(self, NULL, 0);
+	return 0;
 }
 
 /**
