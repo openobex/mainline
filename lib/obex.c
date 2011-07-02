@@ -573,7 +573,7 @@ LIB_SYMBOL
 int CALLAPI OBEX_ResumeRequest(obex_t *self)
 {
 	obex_return_val_if_fail(self->object != NULL, -1);
-	return obex_object_resume(self, self->object);
+	return obex_object_resume(self->object);
 }
 
 /**

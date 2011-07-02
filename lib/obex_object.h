@@ -109,6 +109,6 @@ int obex_object_receive(struct obex *self, struct databuffer *msg);
 
 int obex_object_readstream(struct obex *self, struct obex_object *object, const uint8_t **buf);
 int obex_object_suspend(struct obex_object *object);
-int obex_object_resume(struct obex *self, struct obex_object *object);
+int obex_object_resume(struct obex_object *object);
 
 #endif

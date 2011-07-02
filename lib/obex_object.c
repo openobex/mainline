@@ -1146,49 +1146,18 @@ int obex_object_readstream(obex_t *self, obex_object_t *object,
 
 int obex_object_suspend(obex_object_t *object)
 {
+	if (object->suspend == 1)
+		return -1;
+
 	object->suspend = 1;
 	return 0;
 }
 
-int obex_object_resume(obex_t *self, obex_object_t *object)
+int obex_object_resume(obex_object_t *object)
 {
-	int ret;
-	uint8_t cmd = obex_object_getcmd(self, object);
-	int allowfinalcmd = TRUE, forcefinalbit = FALSE;
-
-	if (!object->suspend)
-		return 0;
+	if (object->suspend == 0)
+		return -1;
 
 	object->suspend = 0;
-
-	if (object->first_packet_sent && !object->continue_received)
-		return 0;
-
-	if (self->mode == MODE_SRV) {
-		forcefinalbit = TRUE;
-		if (self->state == STATE_REC)
-			allowfinalcmd = FALSE;
-	}
-
-	ret = obex_object_send(self, object, allowfinalcmd, forcefinalbit);
-
-	if (ret < 0) {
-		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
-		return -1;
-	} else if (ret == 0) {
-		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
-		object->first_packet_sent = 1;
-		object->continue_received = 0;
-	} else {
-		if (self->mode == MODE_SRV) {
-			obex_deliver_event(self, OBEX_EV_REQDONE,
-							cmd, 0, TRUE);
-			self->state = STATE_IDLE;
-			return 0;
-		}
-	}
-
-	self->state = STATE_REC;
-
 	return 0;
 }
