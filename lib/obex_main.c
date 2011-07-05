@@ -416,39 +416,12 @@ int obex_cancelrequest(obex_t *self, int nice)
 		 * signal link error to app */
 		obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, FALSE);
 		return 1;
+
 	} else {
-		obex_object_t *object;
-
-		object = obex_object_new();
-		if (object == NULL)
-			return -1;
-
-		if (self->mode == MODE_SRV) {
-			/* Do not send continue */
-			if (self->object->opcode != OBEX_RSP_CONTINUE)
-				obex_object_setrsp(object, self->object->opcode,
-							self->object->lastopcode);
-			else
-				obex_object_setrsp(object,
-						OBEX_RSP_INTERNAL_SERVER_ERROR,
-						OBEX_RSP_INTERNAL_SERVER_ERROR);
-		} else
-			obex_object_setcmd(object, OBEX_CMD_ABORT);
-
-		if (obex_object_send(self, object, TRUE, TRUE) < 0) {
-			obex_object_delete(object);
-			return -1;
-		}
-
-		obex_object_delete(object);
-
+		/* The client or server code will take action at the
+		 * right time. */
 		self->object->abort = TRUE;
-		self->state = self->mode == MODE_SRV ? STATE_IDLE : STATE_REC;
 
-		if (self->state == STATE_IDLE)
-			/* Deliver event will delete the object */
-			obex_deliver_event(self, OBEX_EV_ABORT, 0, 0, TRUE);
-
-		return 0;
+		return 1;
 	}
 }

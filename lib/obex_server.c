@@ -58,6 +58,42 @@ static __inline int msg_get_final(const buf_t *msg)
 		return 0;
 }
 
+static int obex_server_abort_transmit(obex_t *self)
+{
+	int ret = 0;
+	int rsp = OBEX_RSP_CONTINUE;
+
+	DEBUG(4, "STATE: ABORT/TRANSMIT_TX\n");
+
+	ret = obex_object_send_transmit(self, NULL);
+	if (ret == -1) {
+		obex_deliver_event(self, OBEX_EV_LINKERR,
+				   self->object->opcode, rsp, TRUE);
+
+	} else if (ret == 1) {
+		obex_deliver_event(self, OBEX_EV_ABORT,
+				   self->object->opcode, rsp, FALSE);
+	}
+
+	self->state = STATE_IDLE;
+	return ret;
+}
+
+static int obex_server_abort_prepare(obex_t *self)
+{
+	buf_t *msg = buf_reuse(self->tx_msg);
+	int opcode = OBEX_RSP_INTERNAL_SERVER_ERROR;
+
+	DEBUG(4, "STATE: ABORT/PREPARE_TX\n");
+
+	/* Do not send continue */
+	if (self->object->opcode != OBEX_RSP_CONTINUE)
+		opcode = self->object->lastopcode;
+	obex_data_request_prepare(self, msg, opcode | OBEX_FINAL);
+	self->substate = SUBSTATE_TRANSMIT_TX;
+	return obex_server_abort_transmit(self);
+}
+
 static int obex_server_send_transmit_tx(obex_t *self)
 {
 	int ret;
@@ -102,6 +138,11 @@ static int obex_server_send_prepare_tx(obex_t *self)
 
 	DEBUG(4, "STATE: SEND/PREPARE_TX\n");
 
+	if (self->object->abort == 1) {
+		self->state = STATE_ABORT;
+		return obex_server_abort_prepare(self);
+	}
+
 	/* As a server, the final bit is always SET, and the "real final" packet
 	 * is distinguished by being SUCCESS instead of CONTINUE.
 	 * So, force the final bit here. */
@@ -139,7 +180,7 @@ static int obex_server_send(obex_t *self)
 		DEBUG(1, "Got OBEX_ABORT request!\n");
 		obex_response_request(self, OBEX_RSP_SUCCESS);
 		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode, cmd, TRUE);
+		obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode, 0, TRUE);
 		/* This is not an Obex error, it is just that the peer
 		 * aborted the request, so return 0 - Jean II */
 		return 0;
@@ -220,8 +261,14 @@ static int obex_server_recv_prepare_tx(obex_t *self)
 	    (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
 	     self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
 	{
-		int ret = obex_object_prepare_send(self, self->object,
-						   FALSE, TRUE);
+		int ret;
+
+		if (self->object->abort == 1) {
+			self->state = STATE_ABORT;
+			return obex_server_abort_prepare(self);
+		}
+
+		ret = obex_object_prepare_send(self, self->object, FALSE, TRUE);
 		if (ret == 1) {
 			self->substate = SUBSTATE_TRANSMIT_TX;
 			return obex_server_recv_transmit_tx(self);
@@ -256,7 +303,7 @@ static int obex_server_recv(obex_t *self, int first)
 		obex_response_request(self, OBEX_RSP_SUCCESS);
 		self->state = STATE_IDLE;
 		obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode,
-								cmd, TRUE);
+								0, TRUE);
 		/* This is not an Obex error, it is just that the peer
 		 * aborted the request, so return 0 - Jean II */
 		return 0;
@@ -364,6 +411,17 @@ static int obex_server_idle(obex_t *self)
 		return -1;
 	}
 
+	/* If ABORT command is done while we are not handling another command,
+	 * we don't need to send a request hint to the application */
+	if (cmd == OBEX_CMD_ABORT) {
+		DEBUG(1, "Got OBEX_ABORT request!\n");
+		obex_response_request(self, OBEX_RSP_SUCCESS);
+		self->state = STATE_IDLE;
+		obex_deliver_event(self, OBEX_EV_ABORT, cmd, 0, TRUE);
+		obex_data_receive_finished(self);
+		return 0;
+	}
+
 	self->object = obex_object_new();
 	if (self->object == NULL) {
 		DEBUG(1, "Allocation of object failed!\n");
@@ -374,14 +432,10 @@ static int obex_server_idle(obex_t *self)
 	self->object->cmd = cmd;
 	self->object->rsp_mode = self->rsp_mode;
 
-	/* If ABORT command is done while we are not handling another command,
-	 * we don't need to send a request hint to the application */
-	if (cmd != OBEX_CMD_ABORT) {
-		/* Hint app that something is about to come so that
-		 * the app can deny a PUT-like request early, or
-		 * set the header-offset */
-		obex_deliver_event(self, OBEX_EV_REQHINT, cmd, 0, FALSE);
-	}
+	/* Hint app that something is about to come so that
+	 * the app can deny a PUT-like request early, or
+	 * set the header-offset */
+	obex_deliver_event(self, OBEX_EV_REQHINT, cmd, 0, FALSE);
 
 	/* Some commands needs special treatment (data outside headers) */
 	switch (cmd) {
@@ -455,6 +509,19 @@ int obex_server(obex_t *self)
 
 		case SUBSTATE_TRANSMIT_TX:
 			return obex_server_send_transmit_tx(self);
+		}
+		break;
+
+	case STATE_ABORT:
+		switch (self->substate) {
+		case SUBSTATE_PREPARE_TX:
+			return obex_server_abort_prepare(self);
+
+		case SUBSTATE_TRANSMIT_TX:
+			return obex_server_abort_transmit(self);
+
+		default:
+			break;
 		}
 		break;
 

@@ -27,6 +27,7 @@ enum obex_state {
 	STATE_IDLE,
 	STATE_SEND,
 	STATE_REC,
+	STATE_ABORT,
 };
 
 enum obex_substate {
