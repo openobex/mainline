@@ -56,6 +56,7 @@ int obex_debug;
 int obex_dump;
 
 #include "cloexec.h"
+#include "nonblock.h"
 
 /*
  * Function obex_create_socket()
@@ -79,6 +80,9 @@ socket_t obex_create_socket(obex_t *self, int domain)
 		fd = socket_cloexec(domain, type, proto);
 	else
 		fd = socket(domain, type, proto);
+
+	if (self->init_flags & OBEX_FL_NONBLOCK)
+		socket_set_nonblocking(fd);
 
 	return fd;
 }
@@ -191,7 +195,11 @@ void obex_response_request(obex_t *self, uint8_t opcode)
 
 	msg = buf_reuse(self->tx_msg);
 	obex_data_request_prepare(self, msg, opcode | OBEX_FINAL);
-	obex_data_request(self, msg);
+	do {
+		int status = obex_data_request(self, msg);
+		if (status < 0)
+			break;
+	} while (!buf_empty(msg));
 }
 
 /*
@@ -229,11 +237,10 @@ int obex_data_request(obex_t *self, buf_t *msg)
 
 	DEBUG(1, "len = %lu bytes\n", (unsigned long) msg->data_size);
 
-	do {
-		status = obex_transport_write(self, msg);
-		if (status > 0)
-			buf_remove_begin(msg, status);
-	} while (status >= 0 && !buf_empty(msg));
+	status = obex_transport_write(self, msg);
+	if (status > 0)
+		buf_remove_begin(msg, status);
+
 	return status;
 }
 

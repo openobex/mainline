@@ -46,6 +46,7 @@ bdaddr_t bluez_compat_bdaddr_any = { BTH_ADDR_NULL };
 #endif
 
 #include "cloexec.h"
+#include "nonblock.h"
 
 static int btobex_init(obex_t *self)
 {
@@ -213,6 +214,8 @@ static int btobex_accept(obex_t *self)
 		return -1;
 
 	trans->mtu = OBEX_DEFAULT_MTU;
+	if (self->init_flags & OBEX_FL_NONBLOCK)
+		socket_set_nonblocking(trans->fd);	
 
 	return 0;
 }
@@ -248,7 +251,14 @@ static int btobex_connect_request(obex_t *self)
 
 	ret = connect(trans->fd, (struct sockaddr*) &data->peer,
 							sizeof(data->peer));
-	if (ret < 0) {
+#if defined(_WIN32)
+	if (ret == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
+		ret = 0;
+#else
+	if (ret == -1 && errno == EINPROGRESS)
+		ret = 0;
+#endif
+	if (ret == -1) {
 		DEBUG(4, "connect(): error %d\n", errno);
 		goto out_freesock;
 	}

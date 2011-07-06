@@ -80,6 +80,7 @@
 			- #OBEX_FL_FILTERHINT : Filter target devices based on Obex hint bit
 			- #OBEX_FL_FILTERIAS  : Filter target devices based on IAS entry
 			- #OBEX_FL_CLOEXEC    : Open all sockets with SO_CLOEXEC set
+			- #OBEX_FL_NONBLOCK   : Open all sockets non-blocking
 	\return an OBEX handle or NULL on error.
  */
 LIB_SYMBOL

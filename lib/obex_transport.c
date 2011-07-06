@@ -359,6 +359,10 @@ int obex_transport_do_send (obex_t *self, buf_t *msg)
 	struct obex_transport *trans = &self->trans;
 	socket_t fd = trans->fd;
 	size_t size = msg->data_size;
+	int status;
+	fd_set fdset;
+	struct timeval *time_ptr = NULL;
+	struct timeval timeout = {trans->timeout, 0};
 
 	if (size == 0)
 		return 0;
@@ -367,21 +371,28 @@ int obex_transport_do_send (obex_t *self, buf_t *msg)
 		size = trans->mtu;
 	DEBUG(1, "sending %lu bytes\n", (unsigned long)size);
 
-	if (trans->timeout >= 0) {
-		/* setup everything to check for blocking writes */
-		fd_set fdset;
-		struct timeval time = {trans->timeout, 0};
-		int status;
-
-		FD_ZERO(&fdset);
-		FD_SET(fd, &fdset);
-		status = select((int)fd+1, NULL, &fdset, NULL, &time);
-		if (status == 0)
-			return 0;
-	}
+	FD_ZERO(&fdset);
+	FD_SET(fd, &fdset);
+	if (trans->timeout >= 0)
+		time_ptr = &timeout;
+	status = select((int)fd+1, NULL, &fdset, NULL, time_ptr);
+	if (status == 0)
+		return 0;
 
 	/* call send() if no error */
-	return send(fd, (void*)msg->data, size, 0);
+	status = send(fd, msg->data, size, 0);
+
+	/* The following are not really transport errors. */
+#if defined(_WIN32)
+	if (status == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
+		status = 0;
+#else
+	if (status == -1 &&
+	    (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
+		status = 0;
+#endif
+
+	return status;
 }
 
 /*
@@ -401,7 +412,19 @@ int obex_transport_write(obex_t *self, buf_t *msg)
 int obex_transport_do_recv (obex_t *self, void *buf, int buflen)
 {
 	struct obex_transport *trans = &self->trans;
-	return recv(trans->fd, buf, buflen, 0);
+	int status = recv(trans->fd, buf, buflen, 0);
+
+	/* The following are not really transport errors. */
+#if defined(_WIN32)
+	if (status == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
+		status = 0;
+#else
+	if (status == -1 &&
+	    (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
+		status = 0;
+#endif
+
+	return status;
 }
 
 /*

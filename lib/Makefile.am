@@ -20,7 +20,7 @@ libopenobex_la_SOURCES = \
 	usbutils.c usbutils.h \
 	usbobex.c usb1obex.c usbobex.h \
 	bluez_compat.h \
-	visibility.h defines.h debug.h cloexec.h
+	visibility.h defines.h debug.h cloexec.h nonblock.h
 
 libopenobex_la_CPPFLAGS = -I$(top_srcdir)/include
 libopenobex_la_CFLAGS = -D_GNU_SOURCE @CFLAG_VISIBILITY@ @USB1_CFLAGS@

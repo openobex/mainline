@@ -167,6 +167,7 @@ typedef union {
 #define OBEX_FL_FILTERHINT	(1 <<  2) /* Filter devices based on hint bit */
 #define OBEX_FL_FILTERIAS	(1 <<  3) /* Filter devices based on IAS entry */
 #define OBEX_FL_CLOEXEC		(1 <<  4) /* Set CLOEXEC flag on file descriptors */
+#define OBEX_FL_NONBLOCK	(1 <<  5) /* Set the NONBLOCK flag on file descriptors */ 
 
 /* For OBEX_ObjectAddHeader */
 #define OBEX_FL_FIT_ONE_PACKET	0x01	/* This header must fit in one packet */

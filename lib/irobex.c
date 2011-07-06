@@ -59,6 +59,7 @@
 #include "obex_main.h"
 #include "irobex.h"
 #include "cloexec.h"
+#include "nonblock.h"
 
 static int irobex_init (obex_t *self)
 {
@@ -363,6 +364,8 @@ static int irobex_accept(obex_t *self)
 
 	trans->mtu = irobex_get_mtu(self);
 	DEBUG(3, "transport mtu=%d\n", trans->mtu);
+	if (self->init_flags & OBEX_FL_NONBLOCK)
+		socket_set_nonblocking(trans->fd);	
 
 	return 1;
 }
@@ -519,20 +522,24 @@ static int irobex_connect_request(obex_t *self)
 
 	ret = connect(trans->fd, (struct sockaddr*) &data->peer,
 							sizeof(data->peer));
-	if (ret < 0) {
+#if defined(_WIN32)
+	if (ret == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
+		ret = 0;
+#else
+	if (ret == -1 && errno == EINPROGRESS)
+		ret = 0;
+#endif
+	if (ret == -1) {
 		DEBUG(4, "ret=%d\n", ret);
-		goto out_freesock;
+		obex_delete_socket(self, trans->fd);
+		trans->fd = INVALID_SOCKET;
+		return ret;
 	}
 
 	trans->mtu = irobex_get_mtu(self);
 	DEBUG(3, "transport mtu=%d\n", trans->mtu);
 
 	return 1;
-
-out_freesock:
-	obex_delete_socket(self, trans->fd);
-	trans->fd = INVALID_SOCKET;
-	return ret;
 }
 
 /*

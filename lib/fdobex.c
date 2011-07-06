@@ -65,6 +65,9 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 	struct obex_transport *trans = &self->trans;
 	int fd = trans->data.fd.writefd;
 	size_t size = msg->data_size;
+	int status;
+	fd_set fdset;
+	struct timeval time = {trans->timeout, 0};
 
 	if (size == 0)
 		return 0;
@@ -73,35 +76,58 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 		size = trans->mtu;
 	DEBUG(1, "sending %lu bytes\n", (unsigned long)size);
 
-	if (trans->timeout >= 0) {
-		/* setup everything to check for blocking writes */
-		fd_set fdset;
-		struct timeval time = {trans->timeout, 0};
-		int status;
+	FD_ZERO(&fdset);
+	FD_SET(fd, &fdset);
+	if (trans->timeout >= 0)
+		status = select((int)fd+1, NULL, &fdset, NULL, &time);
+	else
+		status = select((int)fd+1, NULL, &fdset, NULL, NULL);
 
-		FD_ZERO(&fdset);
-		FD_SET((socket_t)fd, &fdset);
-		status = select(fd+1, NULL, &fdset, NULL, &time);
-		if (status == 0)
-			return 0;
-	}
+	if (status == 0)
+		return 0;
 
-#ifdef _WIN32
-	return _write(fd, msg->data, size);
+#if defined(_WIN32)
+	status = _write(fd, msg->data, size);
 #else
-	return write(fd, msg->data, size);
+	status = write(fd, msg->data, size);
+	/* The following are not really transport errors. */
+	if (status == -1 &&
+	    (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
+		status = 0;
 #endif
+
+	return status;
 }
 
 static int fdobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct obex_transport *trans = &self->trans;
+	int status;
+	int fd = trans->fd;
+	fd_set fdset;
+	struct timeval time = {trans->timeout, 0};
+
+	FD_ZERO(&fdset);
+	FD_SET(fd, &fdset);
+	if (trans->timeout >= 0)
+		status = select((int)fd+1, NULL, &fdset, NULL, &time);
+	else
+		status = select((int)fd+1, NULL, &fdset, NULL, NULL);
+
+	if (status == 0)
+		return 0;
 
 #ifdef _WIN32
-	return  _read((int)trans->fd, buf, buflen);
+	status = _read(fd, buf, buflen);
 #else
-	return read(trans->fd, buf, buflen);
+	status = read(fd, buf, buflen);
+	/* The following are not really transport errors */
+	if (status == -1 &&
+	    (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
+		status = 0;
 #endif
+
+	return status;
 }
 
 void fdobex_get_ops(struct obex_transport_ops* ops)

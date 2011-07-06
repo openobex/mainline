@@ -53,6 +53,7 @@ set ( HEADERS
   fdobex.h
   customtrans.h
   cloexec.h
+  nonblock.h
 )
 
 set ( openobex_PUBLIC_HEADER
