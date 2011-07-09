@@ -12,7 +12,7 @@ add_executable ( ircp EXCLUDE_FROM_ALL ${ircp_SOURCES} )
 target_link_libraries ( ircp openobex )
 get_target_property ( ircp_EXECUTABLE ircp LOCATION )
 install ( PROGRAMS ${ircp_EXECUTABLE}
-  DESTINATION bin
+  DESTINATION ${CMAKE_INSTALL_BINDIR}
   COMPONENT applications
   OPTIONAL
 )

@@ -1,4 +1,4 @@
-cmake_minimum_required ( VERSION 2.6.3 FATAL_ERROR )
+cmake_minimum_required ( VERSION 2.8.5 FATAL_ERROR )
 
 project ( openobex C )
 
@@ -31,6 +31,7 @@ if ( NOT CMAKE_BUILD_TYPE )
 endif ( NOT CMAKE_BUILD_TYPE )
 
 include ( MaintainerMode )
+include ( GNUInstallDirs )
 
 #
 # define how to build libraries
@@ -112,8 +113,8 @@ endif ( OPENOBEX_BLUETOOTH )
 #
 set ( prefix      "${CMAKE_INSTALL_PREFIX}" )
 set ( exec_prefix "\${prefix}" )
-set ( libdir      "\${prefix}/lib${LIB_SUFFIX}" )
-set ( includedir  "\${prefix}/include" )
+set ( libdir      "\${prefix}/${CMAKE_INSTALL_LIBDIR}" )
+set ( includedir  "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}" )
 set ( top_srcdir   "${CMAKE_SOURCE_DIR}" )
 set ( top_builddir "${CMAKE_BINARY_DIR}" )
 if ( OPENOBEX_BLUETOOTH AND UNIT AND NOT WIN32 )
@@ -143,7 +144,7 @@ foreach ( file openobex openobex-glib )
 endforeach ( file )
 
 if ( NOT PKGCONFIG_INSTALL_DIR )
-  set ( PKGCONFIG_INSTALL_DIR lib${LIB_SUFFIX}/pkgconfig
+  set ( PKGCONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig
         CACHE PATH "Where to install .pc files to" FORCE )
 endif ( NOT PKGCONFIG_INSTALL_DIR )
 mark_as_advanced ( PKGCONFIG_INSTALL_DIR )
@@ -181,18 +182,6 @@ add_subdirectory ( apps )
 #
 option ( BUILD_DOCUMENTATION "Build library and application documentation" ON)
 if ( BUILD_DOCUMENTATION )
-  if ( NOT DOCUMENTATION_INSTALL_DIR )
-    set ( DOCUMENTATION_INSTALL_DIR share/doc/openobex
-      CACHE PATH "Where to install generic documentation files to" FORCE )
-  endif ( NOT DOCUMENTATION_INSTALL_DIR )
-  mark_as_advanced ( DOCUMENTATION_INSTALL_DIR )
-
-  if ( NOT MANPAGE_INSTALL_DIR )
-    set ( MANPAGE_INSTALL_DIR share/man
-      CACHE PATH "Where to install manpage files to" FORCE )
-  endif ( NOT MANPAGE_INSTALL_DIR )
-  mark_as_advanced ( MANPAGE_INSTALL_DIR )
-
   add_subdirectory ( doc )
 endif ( BUILD_DOCUMENTATION )
 

@@ -37,7 +37,7 @@ foreach ( prog ${OPENOBEX_APPS} )
   target_link_libraries ( ${prog} ${${prog}_LIBS} )
   get_target_property ( ${prog}_EXECUTABLE ${prog} LOCATION )
   install ( PROGRAMS ${${prog}_EXECUTABLE}
-    DESTINATION bin
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT applications
     OPTIONAL
   )

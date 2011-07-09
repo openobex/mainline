@@ -27,7 +27,7 @@ endif ( WIN32 )
 
 get_target_property ( obex_test_EXECUTABLE obex_test LOCATION )
 install ( PROGRAMS ${obex_test_EXECUTABLE}
-  DESTINATION bin
+  DESTINATION ${CMAKE_INSTALL_BINDIR}
   COMPONENT applications
   OPTIONAL
 )

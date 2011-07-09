@@ -48,7 +48,7 @@ if ( DOXYGEN_FOUND )
   add_dependencies ( doc apidoc_html )
 
   install ( DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/html"
-    DESTINATION ${DOCUMENTATION_INSTALL_DIR}
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
     COMPONENT documentation
   )
 endif ( DOXYGEN_FOUND )
@@ -72,7 +72,7 @@ if ( Docbook_FOUND )
       string ( REGEX REPLACE "^[.]" "" fileExt ${fileExt} )
       install (
 	FILES ${CMAKE_CURRENT_BINARY_DIR}/${file}
-	DESTINATION ${MANPAGE_INSTALL_DIR}/man${fileExt}
+	DESTINATION ${CMAKE_INSTALL_MANDIR}/man${fileExt}
 	PERMISSIONS OWNER_READ OWNER_WRITE
                     GROUP_READ
                     WORLD_READ
@@ -89,7 +89,7 @@ if ( Docbook_FOUND )
       list ( APPEND OPENOBEX_HELP_FILES ${file} )
       install (
 	FILES ${CMAKE_CURRENT_BINARY_DIR}/${file}
-	DESTINATION ${DOCUMENTATION_INSTALL_DIR}
+	DESTINATION ${CMAKE_INSTALL_DOCDIR}
 	PERMISSIONS OWNER_READ OWNER_WRITE
                     GROUP_READ
                     WORLD_READ
