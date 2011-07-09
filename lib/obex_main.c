@@ -172,10 +172,7 @@ void obex_deliver_event(obex_t *self, int event, int cmd, int rsp, int del)
 	if (del == TRUE)
 		self->object = NULL;
 
-	if (self->mode == MODE_SRV)
-		self->eventcb(self, object, OBEX_MODE_SERVER, event, cmd, rsp);
-	else
-		self->eventcb(self, object, OBEX_MODE_CLIENT, event, cmd, rsp);
+	self->eventcb(self, object, self->mode, event, cmd, rsp);
 
 	if (del == TRUE)
 		obex_object_delete(object);
@@ -247,10 +244,10 @@ int obex_data_request(obex_t *self, buf_t *msg)
 static int obex_mode(obex_t *self)
 {
 	switch (self->mode) {
-	case MODE_SRV:
+	case OBEX_MODE_SERVER:
 		return obex_server(self);
 
-	case MODE_CLI:
+	case OBEX_MODE_CLIENT:
 		return obex_client(self);
 
 	default:

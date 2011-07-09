@@ -278,7 +278,7 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 static uint8_t obex_object_getcmd(const obex_t *self,
 						const obex_object_t *object)
 {
-	if (self->mode == MODE_SRV)
+	if (self->mode == OBEX_MODE_SERVER)
 		return object->cmd;
 	else
 		return (object->opcode & ~OBEX_FINAL);

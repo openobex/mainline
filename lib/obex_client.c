@@ -99,7 +99,7 @@ static int obex_client_abort(obex_t *self)
 	if (event == OBEX_EV_LINKERR)
 		ret = -1;
 
-	self->mode = MODE_SRV;
+	self->mode = OBEX_MODE_SERVER;
 	self->state = STATE_IDLE;
 	return ret;
 }
@@ -176,7 +176,7 @@ static int obex_client_recv(obex_t *self)
 		if (obex_parse_connect_header(self, msg) < 0) {
 			obex_deliver_event(self, OBEX_EV_PARSEERR,
 						self->object->opcode, 0, TRUE);
-			self->mode = MODE_SRV;
+			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
 			return -1;
 		}
@@ -198,7 +198,7 @@ static int obex_client_recv(obex_t *self)
 		if (ret < 0) {
 			obex_deliver_event(self, OBEX_EV_PARSEERR,
 						self->object->opcode, 0, TRUE);
-			self->mode = MODE_SRV;
+			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
 			return -1;
 		}
@@ -216,7 +216,7 @@ static int obex_client_recv(obex_t *self)
 		DEBUG(3, "Done! Rsp=%02x!\n", rsp);
 		obex_deliver_event(self, OBEX_EV_REQDONE, self->object->opcode,
 								     rsp, TRUE);
-		self->mode = MODE_SRV;
+		self->mode = OBEX_MODE_SERVER;
 		self->state = STATE_IDLE;
 		return 0;
 	}
@@ -234,7 +234,7 @@ static int obex_client_send_transmit_tx(obex_t *self)
 		/* Error while sending */
 		obex_deliver_event(self, OBEX_EV_LINKERR,
 					self->object->opcode, 0, TRUE);
-		self->mode = MODE_SRV;
+		self->mode = OBEX_MODE_SERVER;
 		self->state = STATE_IDLE;
 
 	} else if (ret == 1) {
@@ -344,7 +344,7 @@ static int obex_client_send(obex_t *self)
 		if (ret < 0) {
 			obex_deliver_event(self, OBEX_EV_PARSEERR,
 						 self->object->opcode, 0, TRUE);
-			self->mode = MODE_SRV;
+			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
 			return -1;
 		}

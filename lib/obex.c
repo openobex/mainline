@@ -117,7 +117,7 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb,
 
 	self->eventcb = eventcb;
 	self->init_flags = flags;
-	self->mode = MODE_SRV;
+	self->mode = OBEX_MODE_SERVER;
 	self->state = STATE_IDLE;
 	self->rsp_mode = OBEX_RSP_MODE_NORMAL;
 
@@ -382,7 +382,7 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 		goto out_err;
 
 	obex_transport_split(self, server);
-	self->mode = MODE_SRV;
+	self->mode = OBEX_MODE_SERVER;
         self->state = STATE_IDLE;
 	self->rsp_mode = server->rsp_mode;
 
@@ -531,7 +531,7 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 
 	object->rsp_mode = self->rsp_mode;
 	self->object = object;
-	self->mode = MODE_CLI;
+	self->mode = OBEX_MODE_CLIENT;
         self->state = STATE_SEND;
 	self->substate = SUBSTATE_PREPARE_TX;
 
