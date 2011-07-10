@@ -151,19 +151,33 @@ enum obex_mode {
 	OBEX_MODE_SERVER = 1, /**< server mode */
 };
 
-/* Possible events */
-#define OBEX_EV_PROGRESS	0	/* Progress has been made */
-#define OBEX_EV_REQHINT		1	/* An incoming request is about to come */
-#define OBEX_EV_REQ		2	/* An incoming request has arrived */
-#define OBEX_EV_REQDONE		3	/* Request has finished */
-#define OBEX_EV_LINKERR		4	/* Link has been disconnected */
-#define OBEX_EV_PARSEERR	5	/* Malformed data encountered */
-#define OBEX_EV_ACCEPTHINT	6	/* Connection accepted */
-#define OBEX_EV_ABORT		7	/* Request was aborted */
-#define OBEX_EV_STREAMEMPTY	8	/* Need to feed more data when sending a stream */
-#define OBEX_EV_STREAMAVAIL	9	/* Time to pick up data when receiving a stream */
-#define OBEX_EV_UNEXPECTED	10	/* Unexpected data, not fatal */
-#define OBEX_EV_REQCHECK	11	/* First packet of an incoming request has been parsed */
+/** Possible events */
+enum obex_event {
+	/** Progress has been made */
+	OBEX_EV_PROGRESS = 0,
+	/** An incoming request is about to come */
+	OBEX_EV_REQHINT = 1,
+	/** An incoming request has arrived */
+	OBEX_EV_REQ = 2,
+	/** Request has finished */
+	OBEX_EV_REQDONE = 3,
+	/** Link has been disconnected */
+	OBEX_EV_LINKERR = 4,
+	/** Malformed data encountered */
+	OBEX_EV_PARSEERR = 5,
+	/** Connection accepted */
+	OBEX_EV_ACCEPTHINT = 6,
+	/** Request was aborted */
+	OBEX_EV_ABORT = 7,
+	/** Need to feed more data when sending a stream */
+	OBEX_EV_STREAMEMPTY = 8,
+	/** Time to pick up data when receiving a stream */
+	OBEX_EV_STREAMAVAIL = 9,
+	/** Unexpected data, not fatal */
+	OBEX_EV_UNEXPECTED = 10,
+	/** First packet of an incoming request has been parsed */
+	OBEX_EV_REQCHECK = 11,
+};
 
 /* For OBEX_Init() */
 #define OBEX_FL_KEEPSERVER	(1 <<  1) /* Keep the server alive */
