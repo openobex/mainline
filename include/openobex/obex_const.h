@@ -193,13 +193,15 @@ enum obex_event {
 #define OBEX_FL_STREAM_DATAEND	0x08	/* Body stream last data */
 #define OBEX_FL_SUSPEND		0x10	/* Suspend after sending this header */
 
-/* Transports */
-#define OBEX_TRANS_IRDA		1
-#define OBEX_TRANS_INET		2
-#define OBEX_TRANS_CUSTOM	3
-#define OBEX_TRANS_BLUETOOTH	4
-#define OBEX_TRANS_FD		5
-#define OBEX_TRANS_USB		6
+/** Possible transports */
+enum obex_transport_type {
+	OBEX_TRANS_IRDA = 1,      /**< Infrared */
+	OBEX_TRANS_INET = 2,      /**< TCP over IPv4/v6 */
+	OBEX_TRANS_CUSTOM = 3,    /**< Custom transport with callbacks */
+	OBEX_TRANS_BLUETOOTH = 4, /**< Bluetooth RFCOMM */
+	OBEX_TRANS_FD = 5,        /**< file descriptors */
+	OBEX_TRANS_USB = 6,       /**< USB CDC OBEX */
+};
 
 /* Standard headers */
 #define OBEX_HDR_TYPE_UNICODE	(0 << 6)  /* zero terminated unicode string (network byte order) */
