@@ -85,12 +85,6 @@ static void syncwait(obex_t *handle)
 			printf("Error while doing OBEX_HandleInput()\n");
 			break;
 		}
-		if(ret == 0) {
-			/* If running cable. We get no link-errors, so cancel on timeout */
-			printf("Timeout waiting for data. Aborting\n");
-			OBEX_CancelRequest(handle, FALSE);
-			break;
-		}
 	}
 
 	gt->clientdone = FALSE;
