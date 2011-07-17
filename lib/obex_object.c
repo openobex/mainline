@@ -634,42 +634,6 @@ int obex_object_send_transmit(obex_t *self, obex_object_t *object)
 }
 
 /*
- * Function obex_object_send()
- *
- *    Send away an object packet.
- *    Returns:
- *       1 complete
- *       0 incomplete but no error
- *      -1 error
- */
-int obex_object_send(obex_t *self, obex_object_t *object, int allowfinalcmd,
-		     int forcefinalbit)
-{
-	int ret;
-
-	/* Return finished if aborted */
-	if (object->abort) {
-		(void)buf_reuse(self->tx_msg);
-		return 1;
-	}
-
-	if (buf_empty(self->tx_msg)) {
-		ret = obex_object_prepare_send(self, object, allowfinalcmd,
-					       forcefinalbit);
-		if (ret == -1) {
-			DEBUG(4, "Packet prepare error\n");
-			return -1;
-		} else if (ret == 0)
-			return 0;
-	}
-
-	ret = obex_object_send_transmit(self, object);
-	if (ret == 1)
-		ret = obex_object_finished(self, object, allowfinalcmd);
-	return ret;
-}
-
-/*
  * Function obex_object_getnextheader()
  *
  * Return the next header in the rx-queue
