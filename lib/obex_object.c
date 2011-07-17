@@ -744,9 +744,9 @@ static void obex_object_receive_stream(obex_t *self, uint8_t hi,
 }
 
 /*
- * Function obex_object_receive_body()
+ * Function obex_object_receive_buffered()
  *
- *    Handle receiving of body
+ *    Handle receiving of buffered body
  *
  */
 static int obex_object_receive_buffered(obex_t *self, uint8_t hi,
