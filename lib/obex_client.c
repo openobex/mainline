@@ -338,21 +338,22 @@ static int obex_client_send(obex_t *self)
 		 * PUT).
 		 * No headeroffset needed because 'connect' is single
 		 * packet (or we deny it). */
-		ret = -1;
-		if (self->object->opcode == OBEX_CMD_CONNECT)
-			ret = obex_object_receive(self, msg);
-		if (ret < 0) {
-			obex_deliver_event(self, OBEX_EV_PARSEERR,
+		if (!self->object->abort) {
+			ret = -1;
+			if (self->object->opcode != OBEX_CMD_CONNECT)
+				ret = obex_object_receive(self, msg);
+			if (ret < 0) {
+				obex_deliver_event(self, OBEX_EV_PARSEERR,
 						 self->object->opcode, 0, TRUE);
-			self->mode = OBEX_MODE_SERVER;
-			self->state = STATE_IDLE;
-			return -1;
+				self->mode = OBEX_MODE_SERVER;
+				self->state = STATE_IDLE;
+				return -1;
+			}
+			/* Note : we may want to get rid of received header,
+			 * however they are mixed with legitimate headers,
+			 * and the user may expect to consult them later.
+			 * So, leave them here (== overhead). */
 		}
-
-		/* Note : we may want to get rid of received header,
-		 * however they are mixed with legitimate headers,
-		 * and the user may expect to consult them later.
-		 * So, leave them here (== overhead). */
 	}
 
 	obex_data_receive_finished(self);

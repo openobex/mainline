@@ -609,9 +609,6 @@ int obex_object_finished(obex_t *self, obex_object_t *object, int allowfinalcmd)
 {
 	int finished = 0;
 
-	if (object->abort)
-		return 1;
-
 	if (object->suspend)
 		return 0;
 
@@ -761,11 +758,6 @@ static void obex_object_receive_stream(obex_t *self, uint8_t hi,
 	uint8_t cmd = obex_object_getcmd(self, object);
 
 	DEBUG(4, "\n");
-
-	if (object->abort) {
-		DEBUG(3, "Ignoring incoming data because request was aborted\n");
-		return;
-	}
 
 	/* Spare the app this empty nonlast body-hdr */
 	if (hi == OBEX_HDR_BODY && len == 0)

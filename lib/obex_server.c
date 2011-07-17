@@ -241,15 +241,18 @@ static int obex_server_send(obex_t *self)
 		 * condition itself.
 		 * No headeroffset needed because 'connect' is single packet (or
 		 * we deny it). */
-		ret = -1;
-		if (cmd != OBEX_CMD_CONNECT)
-			ret = obex_object_receive(self, msg);
-		if (ret < 0)
-			return obex_server_bad_request(self);
+		if (!self->object->abort) {
+			ret = -1;
+			if (cmd != OBEX_CMD_CONNECT)
+				ret = obex_object_receive(self, msg);
+			if (ret < 0)
+				return obex_server_bad_request(self);
 
-		/* Note: we may want to get rid of received header, however they
-		 * are mixed with legitimate headers, and the user may expect to
-		 * consult them later. So, leave them here (== overhead). */
+			/* Note: we may want to get rid of received header,
+			 * however they are mixed with legitimate headers, and
+			 * the user may expect to consult them later. So, leave
+			 * them here (== overhead). */
+		}
 	}
 
 	obex_data_receive_finished(self);
