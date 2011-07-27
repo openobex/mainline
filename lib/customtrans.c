@@ -115,4 +115,4 @@ int custom_register(obex_t *self, const obex_ctrans_t *in)
 void custom_get_ops(struct obex_transport_ops* ops)
 {
 	ops->clone = &custom_clone;
-};
+}

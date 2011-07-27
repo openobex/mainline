@@ -410,4 +410,4 @@ void inobex_get_ops(struct obex_transport_ops* ops)
 	ops->server.disconnect = &inobex_disconnect_server;
 	ops->client.connect = &inobex_connect_request;
 	ops->client.disconnect = &inobex_disconnect_request;
-};
+}

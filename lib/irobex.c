@@ -594,6 +594,6 @@ void irobex_get_ops(struct obex_transport_ops* ops)
 	ops->client.find_interfaces = &irobex_find_interfaces;
 	ops->client.free_interface = &irobex_free_interface;
 	ops->client.select_interface = &irobex_select_interface;
-};
+}
 
 #endif /* HAVE_IRDA */

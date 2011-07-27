@@ -581,6 +581,6 @@ void usbobex_get_ops(struct obex_transport_ops* ops)
 	ops->client.find_interfaces = &usbobex_find_interfaces;
 	ops->client.free_interface = &usbobex_free_interface;
 	ops->client.select_interface = &usbobex_select_interface;
-};
+}
 
 #endif /* HAVE_USB1 */

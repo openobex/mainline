@@ -569,7 +569,7 @@ int obex_object_send(obex_t *self, obex_object_t *object,
 
 		if (tx_left == 0)
 			addmore = FALSE;
-	};
+	}
 
 	/* Decide which command to use, and if to use final-bit */
 	if (object->tx_headerq) {
