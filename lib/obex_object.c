@@ -412,12 +412,14 @@ static int send_body(obex_object_t *object, struct obex_header_element *h,
 		/* We have completely filled the tx-buffer */
 		actual = tx_left;
 	} else {
-		DEBUG(4, "Add BODY_END header\n");
-
-		if (slist_has_more(object->tx_headerq))
-			hdr->hi = OBEX_HDR_BODY_END;
-		else
+		if (slist_has_more(object->tx_headerq)) {
+			DEBUG(4, "Add BODY header\n");
 			hdr->hi = OBEX_HDR_BODY;
+		} else {
+			DEBUG(4, "Add BODY_END header\n");
+			hdr->hi = OBEX_HDR_BODY_END;
+		}
+
 		hdr->hl = htons((uint16_t)(h->buf->data_size + sizeof(*hdr)));
 		buf_insert_end(txmsg, h->buf->data, h->buf->data_size);
 		actual = h->buf->data_size;
