@@ -141,8 +141,8 @@ OPENOBEX_SYMBOL(int) IrOBEX_TransportConnect(obex_t *self, const char *service);
 #    define bt_addr_t unsigned long
 #  endif
 #endif
-OPENOBEX_SYMBOL(int) BtOBEX_ServerRegister(obex_t *self, bt_addr_t *src, uint8_t channel);
-OPENOBEX_SYMBOL(int) BtOBEX_TransportConnect(obex_t *self, bt_addr_t *src, bt_addr_t *dst, uint8_t channel);
+OPENOBEX_SYMBOL(int) BtOBEX_ServerRegister(obex_t *self, const bt_addr_t *src, uint8_t channel);
+OPENOBEX_SYMBOL(int) BtOBEX_TransportConnect(obex_t *self, const bt_addr_t *src, const bt_addr_t *dst, uint8_t channel);
 
 /*
  * OBEX File API
