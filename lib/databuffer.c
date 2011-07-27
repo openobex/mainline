@@ -113,6 +113,13 @@ size_t buf_total_size(const buf_t *p)
 	return p->head_avail + p->data_avail + p->tail_avail + p->data_size;
 }
 
+int buf_empty(const buf_t *p)
+{
+	if (!p)
+		return 1;
+	return (p->data_size == 0);
+}
+
 void buf_resize(buf_t *p, size_t new_size)
 {
 	uint8_t *tmp;

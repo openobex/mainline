@@ -221,7 +221,7 @@ int obex_data_request(obex_t *self, buf_t *msg, int opcode)
 		status = obex_transport_write(self, msg);
 		if (status > 0)
 			buf_remove_begin(msg, status);
-	} while (status >= 0 && obex_get_buffer_status(msg));
+	} while (status >= 0 && !buf_empty(msg));
 	return status;
 }
 

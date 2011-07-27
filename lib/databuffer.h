@@ -47,6 +47,7 @@ typedef struct databuffer buf_t;
 
 buf_t *buf_new(size_t default_size);
 size_t buf_total_size(const buf_t *p);
+int buf_empty(const buf_t *p);
 void buf_resize(buf_t *p, size_t new_size);
 buf_t *buf_reuse(buf_t *p);
 void *buf_reserve_begin(buf_t *p, size_t data_size);
