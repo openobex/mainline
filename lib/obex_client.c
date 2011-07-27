@@ -61,10 +61,10 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 		/* Response of a CMD_CONNECT needs some special treatment.*/
 		DEBUG(2, "We expect a connect-rsp\n");
 		if (obex_parse_connect_header(self, msg) < 0) {
-			self->mode = MODE_SRV;
-			self->state = STATE_IDLE;
 			obex_deliver_event(self, OBEX_EV_PARSEERR,
 						self->object->opcode, 0, TRUE);
+			self->mode = MODE_SRV;
+			self->state = STATE_IDLE;
 			return -1;
 		}
 		self->object->headeroffset=4;
@@ -82,10 +82,10 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 	/* Receive any headers */
 	ret = obex_object_receive(self, msg);
 	if (ret < 0) {
-		self->mode = MODE_SRV;
-		self->state = STATE_IDLE;
 		obex_deliver_event(self, OBEX_EV_PARSEERR,
 						self->object->opcode, 0, TRUE);
+		self->mode = MODE_SRV;
+		self->state = STATE_IDLE;
 		return -1;
 	}
 
@@ -123,8 +123,6 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 	} else {
 		/* Notify app that client-operation is done! */
 		DEBUG(3, "Done! Rsp=%02x!\n", rsp);
-		self->mode = MODE_SRV;
-		self->state = STATE_IDLE;
 		if (self->object->abort) {
 			if (rsp == OBEX_RSP_SUCCESS)
 				obex_deliver_event(self, OBEX_EV_ABORT,
@@ -139,6 +137,8 @@ static int obex_client_recv(obex_t *self, buf_t *msg, int rsp)
 			obex_deliver_event(self, OBEX_EV_REQDONE,
 							self->object->opcode,
 							rsp, TRUE);
+		self->mode = MODE_SRV;
+		self->state = STATE_IDLE;
 	}
 
 	return 0;
@@ -197,10 +197,10 @@ int obex_client_send(obex_t *self, buf_t *msg, int rsp)
 			if (self->object->opcode == OBEX_CMD_CONNECT)
 				ret = obex_object_receive(self, msg);
 			if (ret < 0) {
-				self->mode = MODE_SRV;
-				self->state = STATE_IDLE;
 				obex_deliver_event(self, OBEX_EV_PARSEERR,
 						self->object->opcode, 0, TRUE);
+				self->mode = MODE_SRV;
+				self->state = STATE_IDLE;
 				return -1;
 			}
 
