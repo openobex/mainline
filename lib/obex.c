@@ -1058,7 +1058,7 @@ int CALLAPI IrOBEX_TransportConnect(obex_t *self, const char *service)
 	An easier server function to use for Bluetooth (Bluetooth OBEX) only.
  */
 LIB_SYMBOL
-int CALLAPI BtOBEX_ServerRegister(obex_t *self, bdaddr_t *src, uint8_t channel)
+int CALLAPI BtOBEX_ServerRegister(obex_t *self, bt_addr_t *src, uint8_t channel)
 {
 	DEBUG(3, "\n");
 
@@ -1085,8 +1085,8 @@ int CALLAPI BtOBEX_ServerRegister(obex_t *self, bdaddr_t *src, uint8_t channel)
 	An easier connect function to use for Bluetooth (Bluetooth OBEX) only.
  */
 LIB_SYMBOL
-int CALLAPI BtOBEX_TransportConnect(obex_t *self, bdaddr_t *src,
-					bdaddr_t *dst, uint8_t channel)
+int CALLAPI BtOBEX_TransportConnect(obex_t *self, bt_addr_t *src,
+					bt_addr_t *dst, uint8_t channel)
 {
 	DEBUG(4, "\n");
 
