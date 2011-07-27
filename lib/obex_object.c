@@ -307,7 +307,7 @@ static int send_stream(obex_t *self,
 	actual = sizeof(*hdr);
 
 	do {
-		if (object->s_len == 0) {
+		if (object->s_len == 0 && !object->s_stop) {
 			/* Ask app for more data if no more */
 			object->s_offset = 0;
 			object->s_buf = NULL;
@@ -315,20 +315,9 @@ static int send_stream(obex_t *self,
 								0, FALSE);
 			DEBUG(4, "s_len=%d, s_stop = %d\n",
 						object->s_len, object->s_stop);
-			/* End of stream ?*/
-			if (object->s_stop)
-				break;
-
-			/* User suspended and didn't provide any new data */
-			if (object->suspend && object->s_buf == NULL)
-				break;
-
-			/* Error ?*/
-			if (object->s_buf == NULL) {
-				DEBUG(1, "Unexpected end-of-stream\n");
-				return -1;
-			}
 		}
+		if (object->s_len == 0)
+			break;
 
 		if (tx_left < object->s_len) {
 			/* There is more data left in buffer than tx_left */
@@ -359,13 +348,21 @@ static int send_stream(obex_t *self,
 	DEBUG(4, "txmsg full or no more stream-data. actual = %d\n", actual);
 	hdr->hi = OBEX_HDR_BODY;
 
-	if (object->s_stop && object->s_len == 0) {
+	if (object->s_len == 0) {
+		if (object->s_stop)
+			/* End of stream */
+			hdr->hi = OBEX_HDR_BODY_END;
+
+		else if (object->s_buf == NULL &&
+					!slist_has_more(object->tx_headerq))
+			/* User didn't provide any new data but there are also
+			 * no more header. This is not correct as the
+			 * application should have signalled STREAM_DATAEND in
+			 * this case. */
+			return -1;
+
 		/* We are done. Remove header from tx-queue */
 		object->tx_headerq = slist_remove(object->tx_headerq, h);
-		if (slist_has_more(object->tx_headerq))
-			hdr->hi = OBEX_HDR_BODY;
-		else
-			hdr->hi = OBEX_HDR_BODY_END;
 		buf_free(h->buf);
 		free(h);
 	}
