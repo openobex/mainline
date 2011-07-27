@@ -106,7 +106,7 @@ if ( OPENOBEX_USB )
   list ( APPEND openobex_LIBRARIES
     ${LibUSB_LIBRARIES}
   )
-  include_directories ( BEFORE SYSTEM ${LibUSB_INCLUDE_DIRS} )
+  include_directories ( SYSTEM ${LibUSB_INCLUDE_DIRS} )
   if ( LibUSB_VERSION_1.0 )
     list ( APPEND SOURCES
       usb1obex.c
