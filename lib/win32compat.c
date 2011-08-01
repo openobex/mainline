@@ -19,7 +19,9 @@
 	License along with OpenOBEX. If not, see <http://www.gnu.org/>.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -27,12 +29,22 @@
 
 #include "obex_main.h"
 
-// The VC proprocessor can't handle variable argument macros,
-// so we are forced to do an ugly thing like this.
-
-void DEBUG(unsigned int n, const char *format, void *a1, void *a2, void *a3, void *a4, 
-		void *a5, void *a6, void *a7, void *a8, void *a9, void *a10)
+// The MSVC preprocessor can't handle variable argument macros,
+// so we are forced to do it as a function
+void log_debug(char *format, ...)
 {
-	if (n <= obex_debug)
-		fprintf(stderr, format, a1,a2,a3,a4,a5,a6,a7,a8,a9,a10);
+	va_list ap;
+	va_start(ap, format);
+	vfprintf(stderr, format, ap);
+	va_end(ap);
+}
+
+void DEBUG(int n, const char *format, ...)
+{
+	if (n <= obex_debug) {
+		va_list ap;
+		va_start(ap, format);
+		vfprintf(stderr, format, ap);
+		va_end(ap);
+	}
 }

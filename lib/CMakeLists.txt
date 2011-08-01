@@ -158,6 +158,11 @@ if ( WIN32 )
     file ( APPEND "${OPENOBEX_DEF_FILE}" "EXPORTS\n" )
     file ( READ "${CMAKE_CURRENT_SOURCE_DIR}/obex.sym" OPENOBEX_SYMBOLS )
     file ( APPEND "${OPENOBEX_DEF_FILE}" "${OPENOBEX_SYMBOLS}\n" )
+
+    # MSVC <= 7.1 needs some special tricks
+    if ( MSVC_VERSION LESS "1400" )
+      list ( APPEND SOURCES win32compat.c )
+    endif ( MSVC_VERSION LESS "1400" )
   endif ( MSVC )
 endif ( WIN32 )
 

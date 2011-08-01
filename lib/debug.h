@@ -2,7 +2,7 @@
 #define OPENOBEX_DEBUG_H
 
 #if defined(_MSC_VER) && _MSC_VER < 1400
-static void log_debug(char *format, ...) {}
+void log_debug(char *format, ...);
 #define log_debug_prefix ""
 
 #elif defined(OBEX_SYSLOG) && !defined(_WIN32)
@@ -23,7 +23,7 @@ static void log_debug(char *format, ...) {}
 extern int obex_debug;
 
 #if defined(_MSC_VER) && _MSC_VER < 1400
-static void DEBUG(int n, char *format, ...) {}
+void DEBUG(int n, const char *format, ...);
 
 #else
 #  define DEBUG(n, format, ...) \
