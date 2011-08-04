@@ -37,7 +37,9 @@
 #ifdef _WIN32
 #define getcwd(b,len) _getcwd(b,len)
 #define chdir(s) _chdir(s)
+#ifndef S_ISDIR
 #define S_ISDIR(x) ((x & _S_IFDIR) != 0)
+#endif
 #endif
 
 #define TRUE  1
