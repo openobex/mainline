@@ -41,7 +41,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>		/* perror */
-
+#include <limits.h>
 #include <usb.h>
 
 #include "obex_main.h"
