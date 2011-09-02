@@ -52,12 +52,13 @@ static __inline uint16_t msg_get_len(const buf_t *msg)
 static int obex_client_abort_transmit(obex_t *self)
 {
 	int ret = 0;
-	int rsp = OBEX_RSP_CONTINUE;
 
 	DEBUG(4, "STATE: ABORT/TRANSMIT_TX\n");
 
 	ret = obex_object_send_transmit(self, NULL);
 	if (ret == -1) {
+		int rsp = OBEX_RSP_CONTINUE;
+
 		obex_deliver_event(self, OBEX_EV_LINKERR,
 				   self->object->opcode, rsp, TRUE);
 		self->state = STATE_IDLE;
@@ -244,20 +245,18 @@ static int obex_client_send_transmit_tx(obex_t *self)
 			self->state = STATE_REC;
 			self->substate = SUBSTATE_RECEIVE_RX;
 
-		} else {
-			int check = 0;
-			if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
-			    !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
-				/* Still, we need to do a zero-wait check for an
-				 * negative response or for connection errors. */
-				check = obex_transport_handle_input(self, 0);
-				if (check <= 0) /* no input */
-					self->substate = SUBSTATE_RECEIVE_RX;
-				else
-					self->substate = SUBSTATE_PREPARE_TX;
-
-			} else
+		} else if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+			   !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
+			/* Still, we need to do a zero-wait check for an
+			 * negative response or for connection errors. */
+			int check = obex_transport_handle_input(self, 0);
+			if (check <= 0) /* no input */
 				self->substate = SUBSTATE_RECEIVE_RX;
+			else
+				self->substate = SUBSTATE_PREPARE_TX;
+
+		} else {
+			self->substate = SUBSTATE_RECEIVE_RX;
 		}
 	}
 

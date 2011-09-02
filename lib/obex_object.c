@@ -620,10 +620,8 @@ int obex_object_finished(obex_t *self, obex_object_t *object, int allowfinalcmd)
 
 int obex_object_send_transmit(obex_t *self, obex_object_t *object)
 {
-	int ret;
-
 	if (!buf_empty(self->tx_msg)) {
-		ret = obex_data_request(self, self->tx_msg);
+		int ret = obex_data_request(self, self->tx_msg);
 		if (ret < 0) {
 			DEBUG(4, "Send error\n");
 			return -1;

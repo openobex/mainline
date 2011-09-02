@@ -242,12 +242,10 @@ static int obex_mode(obex_t *self)
  */
 int obex_work(obex_t *self, int timeout)
 {
-	int ret;
-
 	if (self->state == STATE_IDLE ||
 	    self->substate == SUBSTATE_RECEIVE_RX)
 	{
-		ret = obex_transport_handle_input(self, timeout);
+		int ret = obex_transport_handle_input(self, timeout);
 		if (ret <= 0)
 			return ret;
 	}

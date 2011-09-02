@@ -191,7 +191,6 @@ static int obex_server_send_prepare_tx(obex_t *self)
 
 static int obex_server_send(obex_t *self)
 {
-	int ret;
 	buf_t *msg = obex_data_receive(self);
 	int cmd = msg_get_cmd(msg);
 	uint16_t len = msg_get_len(msg);
@@ -242,7 +241,7 @@ static int obex_server_send(obex_t *self)
 		 * No headeroffset needed because 'connect' is single packet (or
 		 * we deny it). */
 		if (!self->object->abort) {
-			ret = -1;
+			int ret = -1;
 			if (cmd != OBEX_CMD_CONNECT)
 				ret = obex_object_receive(self, msg);
 			if (ret < 0)
