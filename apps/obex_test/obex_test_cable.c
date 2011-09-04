@@ -180,7 +180,7 @@ static int cobex_init(struct cobex_context *gt)
 	}
 
 	tcgetattr(gt->ttyfd, &gt->oldtio);
-	bzero(&gt->newtio, sizeof(struct termios));
+	memset(&gt->newtio, 0, sizeof(gt->newtio));
 	gt->newtio.c_cflag = B115200 | CS8 | CREAD | CRTSCTS;
 	gt->newtio.c_iflag = IGNPAR;
 	gt->newtio.c_oflag = 0;
