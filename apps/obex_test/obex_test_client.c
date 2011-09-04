@@ -247,6 +247,7 @@ void push_client(obex_t *handle)
 	buf = easy_readfile(fname, &file_size);
 	if(buf == NULL) {
 	        printf("file not found: %s\n", fname);
+		free(bfname);
 		return;
 	}
 	fileDesc = open(fname, O_RDONLY, 0);

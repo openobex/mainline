@@ -93,7 +93,9 @@ uint8_t* easy_readfile(const char *filename, int *file_size)
 		return NULL;
 	}
 	
-	if(! (buf = malloc(*file_size)) )	{
+	buf = malloc(*file_size);
+	if(!buf) {
+		close(fd);
 		return NULL;
 	}
 
