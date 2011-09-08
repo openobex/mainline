@@ -47,9 +47,10 @@ static int visit_dir(char *path, visit_cb cb, void *userdata)
 		}
 		else {
 			snprintf(t, MAXPATHLEN, "%s/%s", path, dirent->d_name);
-			if(lstat(t, &statbuf) < 0) {
-				return -1;
-			}
+			ret = lstat(t, &statbuf);
+			if(ret < 0)
+				goto out;
+
 			else if(S_ISREG(statbuf.st_mode)) {
 				ret = cb(VISIT_FILE, t, "", userdata);
 				if( ret  < 0)
@@ -78,6 +79,7 @@ static int visit_dir(char *path, visit_cb cb, void *userdata)
 	}
 
 out:
+	closedir(dir);
 	return ret;
 
 #else
