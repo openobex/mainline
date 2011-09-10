@@ -24,7 +24,7 @@
 #endif
 
 #ifdef HAVE_BLUETOOTH
-#include "../lib/bluez_compat.h"
+#include "../lib/transport/bluez_compat.h"
 #ifdef _WIN32
 bdaddr_t bluez_compat_bdaddr_any = { BTH_ADDR_NULL };
 static int str2ba(const char *str, bdaddr_t *ba) {

@@ -39,11 +39,8 @@
 
 #endif /* _WIN32 */
 
-#ifdef HAVE_BLUETOOTH
-#include "bluez_compat.h"
-#endif /*HAVE_BLUETOOTH*/
-
 #include "obex_main.h"
+#include "obex_transport.h"
 #include "obex_object.h"
 #include "obex_header.h"
 #include "obex_server.h"

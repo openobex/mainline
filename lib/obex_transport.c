@@ -37,22 +37,6 @@
 #include <io.h>
 #endif
 
-#include "fdobex.h"
-#include "customtrans.h"
-#include "inobex.h"
-
-#ifdef HAVE_IRDA
-#include "irobex.h"
-#endif
-
-#ifdef HAVE_USB
-#include "usbobex.h"
-#endif
-
-#ifdef HAVE_BLUETOOTH
-#include "btobex.h"
-#endif
-
 int obex_transport_init(obex_t *self, int transport)
 {
 	struct obex_transport *trans = &self->trans;

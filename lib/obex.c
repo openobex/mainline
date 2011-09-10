@@ -46,22 +46,6 @@
 #include "obex_connect.h"
 #include "databuffer.h"
 
-#include "fdobex.h"
-#include "customtrans.h"
-#include "inobex.h"
-
-#ifdef HAVE_IRDA
-#include "irobex.h"
-#endif
-
-#ifdef HAVE_USB
-#include "usbobex.h"
-#endif
-
-#ifdef HAVE_BLUETOOTH
-#include "btobex.h"
-#endif
-
 #include "obex_incl.h"
 
 /**

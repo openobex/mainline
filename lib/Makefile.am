@@ -10,19 +10,19 @@ libopenobex_la_SOURCES = \
 	obex_transport.c obex_transport.h \
 	obex_server.c obex_server.h \
 	obex_client.c obex_client.h \
-	irobex.c irobex.h \
-	inobex.c inobex.h \
-	btobex.c btobex.h \
-	fdobex.c fdobex.h \
-	customtrans.c customtrans.h \
 	databuffer.c databuffer.h \
-	irda_wrap.h \
-	usbutils.c usbutils.h \
-	usbobex.c usb1obex.c usbobex.h \
-	bluez_compat.h \
-	visibility.h defines.h debug.h cloexec.h nonblock.h
+	visibility.h defines.h debug.h cloexec.h nonblock.h \
+	transport/irobex.c transport/irobex.h \
+	transport/irda_wrap.h \
+	transport/inobex.c transport/inobex.h \
+	transport/btobex.c transport/btobex.h \
+	transport/bluez_compat.h \
+	transport/fdobex.c transport/fdobex.h \
+	transport/customtrans.c transport/customtrans.h \
+	transport/usbobex.c transport/usb1obex.c transport/usbobex.h \
+	transport/usbutils.c transport/usbutils.h
 
-libopenobex_la_CPPFLAGS = -I$(top_srcdir)/include
+libopenobex_la_CPPFLAGS = -I$(top_srcdir)/include -I$(srcdir)
 libopenobex_la_CFLAGS = -D_GNU_SOURCE @CFLAG_VISIBILITY@ @USB1_CFLAGS@
 
 libopenobex_la_LDFLAGS = \

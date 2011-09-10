@@ -31,11 +31,12 @@ set ( SOURCES
   obex_server.c
   obex_transport.c
   databuffer.c
-  inobex.c
-  fdobex.c
-  customtrans.c
+  transport/inobex.c
+  transport/fdobex.c
+  transport/customtrans.c
 )
 
+include_directories ( ${CMAKE_CURRENT_SOURCE_DIR} )
 set ( HEADERS
   obex_client.h
   obex_connect.h
@@ -49,11 +50,11 @@ set ( HEADERS
   defines.h
   obex_incl.h
   visibility.h
-  inobex.h
-  fdobex.h
-  customtrans.h
   cloexec.h
   nonblock.h
+  transport/inobex.h
+  transport/fdobex.h
+  transport/customtrans.h
 )
 
 set ( openobex_PUBLIC_HEADER
@@ -85,21 +86,21 @@ list ( APPEND openobex_COMPILE_DEFINITIONS OBEX_DUMP=${OBEX_DUMP} )
 
 if ( OPENOBEX_IRDA )
   list ( APPEND SOURCES
-    irobex.c
+    transport/irobex.c
   )
   list ( APPEND HEADERS
-    irobex.h
-    irda_wrap.h
+    transport/irobex.h
+    transport/irda_wrap.h
   )
 endif ( OPENOBEX_IRDA )
 
 if ( OPENOBEX_BLUETOOTH )
   list ( APPEND SOURCES
-    btobex.c
+    transport/btobex.c
   )
   list ( APPEND HEADERS
-    btobex.h
-    bluez_compat.h
+    transport/btobex.h
+    transport/bluez_compat.h
   )
 endif ( OPENOBEX_BLUETOOTH )
 
@@ -110,18 +111,18 @@ if ( OPENOBEX_USB )
   include_directories ( SYSTEM ${LibUSB_INCLUDE_DIRS} )
   if ( LibUSB_VERSION_1.0 )
     list ( APPEND SOURCES
-      usb1obex.c
-      usbutils.c
+      transport/usb1obex.c
+      transport/usbutils.c
     )
   else ( LibUSB_VERSION_1.0 )
     list ( APPEND SOURCES
-      usbobex.c
-      usbutils.c
+      transport/usbobex.c
+      transport/usbutils.c
     )
   endif ( LibUSB_VERSION_1.0 )
   list ( APPEND HEADERS
-    usbobex.h
-    usbutils.h
+    transport/usbobex.h
+    transport/usbutils.h
   )
 endif ( OPENOBEX_USB )
 

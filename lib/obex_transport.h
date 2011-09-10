@@ -39,17 +39,17 @@
 struct obex_transport_ops;
 
 #ifdef HAVE_IRDA
-#include "irobex.h"
+#include "transport/irobex.h"
 #endif /*HAVE_IRDA*/
 #ifdef HAVE_BLUETOOTH
-#include "btobex.h"
+#include "transport/btobex.h"
 #endif /*HAVE_BLUETOOTH*/
 #ifdef HAVE_USB
-#include "usbobex.h"
+#include "transport/usbobex.h"
 #endif /*HAVE_USB*/
-#include "inobex.h"
-#include "customtrans.h"
-#include "fdobex.h"
+#include "transport/inobex.h"
+#include "transport/customtrans.h"
+#include "transport/fdobex.h"
 
 #include <inttypes.h>
 
