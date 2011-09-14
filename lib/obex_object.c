@@ -398,12 +398,12 @@ static int send_body(obex_object_t *object, struct obex_header_element *h,
 		h->body_touched = TRUE;
 	}
 
-	if (tx_left < (h->buf->data_size + sizeof(*hdr))) {
+	if (tx_left < (buf_size(h->buf) + sizeof(*hdr))) {
 		DEBUG(4, "Add BODY header\n");
 		hdr->hi = OBEX_HDR_BODY;
 		hdr->hl = htons((uint16_t)tx_left);
 
-		buf_insert_end(txmsg, h->buf->data, tx_left - sizeof(*hdr));
+		buf_insert_end(txmsg, buf_get(h->buf), tx_left - sizeof(*hdr));
 
 		buf_remove_begin(h->buf, tx_left - sizeof(*hdr));
 		/* We have completely filled the tx-buffer */
@@ -417,9 +417,9 @@ static int send_body(obex_object_t *object, struct obex_header_element *h,
 			hdr->hi = OBEX_HDR_BODY_END;
 		}
 
-		hdr->hl = htons((uint16_t)(h->buf->data_size + sizeof(*hdr)));
-		buf_insert_end(txmsg, h->buf->data, h->buf->data_size);
-		actual = h->buf->data_size;
+		hdr->hl = htons((uint16_t)(buf_size(h->buf) + sizeof(*hdr)));
+		buf_insert_end(txmsg, buf_get(h->buf), buf_size(h->buf));
+		actual = buf_size(h->buf);
 
 		object->tx_headerq = slist_remove(object->tx_headerq, h);
 		buf_free(h->buf);
@@ -511,9 +511,9 @@ int obex_object_prepare_send(obex_t *self, obex_object_t *object,
 	/* Add nonheader-data first if any (SETPATH, CONNECT)*/
 	if (object->tx_nonhdr_data) {
 		DEBUG(4, "Adding %lu bytes of non-headerdata\n",
-			(unsigned long) object->tx_nonhdr_data->data_size);
-		buf_insert_end(txmsg, object->tx_nonhdr_data->data,
-					object->tx_nonhdr_data->data_size);
+		      (unsigned long)buf_size(object->tx_nonhdr_data));
+		buf_insert_end(txmsg, buf_get(object->tx_nonhdr_data),
+			       buf_size(object->tx_nonhdr_data));
 
 		buf_free(object->tx_nonhdr_data);
 		object->tx_nonhdr_data = NULL;
@@ -557,14 +557,16 @@ int obex_object_prepare_send(obex_t *self, obex_object_t *object,
 			if (h->length <= tx_left) {
 				/* There is room for more data in tx msg */
 				DEBUG(4, "Adding non-body header\n");
-				buf_insert_end(txmsg, h->buf->data, h->length);
+				buf_insert_end(txmsg, buf_get(h->buf), h->length);
 				tx_left -= h->length;
 				if (h->flags & OBEX_FL_SUSPEND)
 					object->suspend = 1;
 
-				if (h->hi == OBEX_HDR_SRM_FLAGS)
+				if (h->hi == OBEX_HDR_SRM_FLAGS) {
+					uint8_t *hdrdata = buf_get(h->buf);
 					srm_flags = obex_object_send_srm_flags(
-							       h->buf->data[0]);
+								    hdrdata[0]);
+				}
 
 				/* Remove from tx-queue */
 				object->tx_headerq =
@@ -640,6 +642,7 @@ int obex_object_send_transmit(obex_t *self, obex_object_t *object)
 int obex_object_getnextheader(obex_t *self, obex_object_t *object, uint8_t *hi,
 				obex_headerdata_t *hv, uint32_t *hv_size)
 {
+	uint8_t *bq1;
 	uint32_t *bq4;
 	struct obex_header_element *h;
 
@@ -663,20 +666,18 @@ int obex_object_getnextheader(obex_t *self, obex_object_t *object, uint8_t *hi,
 
 	switch (h->hi & OBEX_HDR_TYPE_MASK) {
 		case OBEX_HDR_TYPE_BYTES:
-			hv->bs = &h->buf->data[0];
-			break;
-
 		case OBEX_HDR_TYPE_UNICODE:
-			hv->bs = &h->buf->data[0];
+			hv->bs = buf_get(h->buf);
 			break;
 
 		case OBEX_HDR_TYPE_UINT32:
-			bq4 = (uint32_t*) h->buf->data;
+			bq4 = buf_get(h->buf);
 			hv->bq4 = ntohl(*bq4);
 			break;
 
 		case OBEX_HDR_TYPE_UINT8:
-			hv->bq1 = h->buf->data[0];
+			bq1 = buf_get(h->buf);
+			hv->bq1 = bq1[0];
 			break;
 	}
 
@@ -795,7 +796,7 @@ static int obex_object_receive_buffered(obex_t *self, uint8_t hi,
 int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
 {
 	obex_object_t *object = self->object;
-	uint8_t *msgdata = msg->data + sizeof(struct obex_common_hdr);
+	uint8_t *msgdata = buf_get(msg) + sizeof(struct obex_common_hdr);
 
 	DEBUG(4, "\n");
 
@@ -808,7 +809,7 @@ int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
 		return -1;
 	buf_insert_end(object->rx_nonhdr_data, msgdata,	object->headeroffset);
 	DEBUG(4, "Command has %lu bytes non-headerdata\n",
-			(unsigned long) object->rx_nonhdr_data->data_size);
+	      (unsigned long)buf_size(object->rx_nonhdr_data));
 
 	return 0;
 }
@@ -822,7 +823,7 @@ static int obex_object_get_hdrdata(buf_t *msg, uint16_t offset,
 		struct obex_byte_stream_hdr *bstream;
 	} h;
 	int err = 0;
-	uint8_t *msgdata = msg->data + offset;
+	uint8_t *msgdata = buf_get(msg) + offset;
 	uint8_t hi = msgdata[0];
 
 	switch (hi & OBEX_HDR_TYPE_MASK) {
@@ -1004,7 +1005,7 @@ static unsigned int obex_object_rcv_srm_flags(uint8_t flag)
  */
 int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 {
-	struct obex_common_hdr *hdr = (struct obex_common_hdr *) msg->data;
+	struct obex_common_hdr *hdr = buf_get(msg);
 	uint16_t offset = sizeof(*hdr) + self->object->headeroffset;
 	int consumed = 0;
 	const uint64_t body_filter = (1 << OBEX_HDR_ID_BODY |
@@ -1014,7 +1015,7 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 	DEBUG(4, "\n");
 
 	while (offset < msglen) {
-		uint8_t hi = msg->data[offset];
+		uint8_t hi = ((uint8_t *)buf_get(msg))[offset];
 		uint8_t *source = NULL;
 		unsigned int len = 0;
 		unsigned int hlen = 0;

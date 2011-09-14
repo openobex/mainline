@@ -342,7 +342,7 @@ int obex_transport_do_send (obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
 	socket_t fd = trans->fd;
-	size_t size = msg->data_size;
+	size_t size = buf_size(msg);
 	int status;
 	fd_set fdset;
 	struct timeval *time_ptr = NULL;
@@ -364,7 +364,7 @@ int obex_transport_do_send (obex_t *self, buf_t *msg)
 		return 0;
 
 	/* call send() if no error */
-	status = send(fd, msg->data, size, 0);
+	status = send(fd, buf_get(msg), size, 0);
 
 	/* The following are not really transport errors. */
 #if defined(_WIN32)

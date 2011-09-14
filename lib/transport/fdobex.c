@@ -64,7 +64,7 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
 	int fd = trans->data.fd.writefd;
-	size_t size = msg->data_size;
+	size_t size = buf_size(msg);
 	int status;
 	fd_set fdset;
 	struct timeval time = {trans->timeout, 0};
@@ -87,9 +87,9 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 		return 0;
 
 #if defined(_WIN32)
-	status = _write(fd, msg->data, size);
+	status = _write(fd, buf_get(msg), size);
 #else
-	status = write(fd, msg->data, size);
+	status = write(fd, buf_get(msg), size);
 	/* The following are not really transport errors. */
 	if (status == -1 &&
 	    (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))

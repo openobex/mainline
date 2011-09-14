@@ -509,8 +509,8 @@ static int usbobex_write(obex_t *self, buf_t *msg)
 	DEBUG(4, "Endpoint %d\n", data->self.data_endpoint_write);
 	usberror = libusb_bulk_transfer(data->self.dev,
 					data->self.data_endpoint_write,
-					(unsigned char *) msg->data,
-					msg->data_size, &actual,
+					buf_get(msg),
+					buf_size(msg), &actual,
 					usbobex_get_timeout(trans->timeout));
 	switch (usberror) {
 	case 0:

@@ -25,6 +25,7 @@
 #define __need_size_t
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 /*
  * Implements a single linked list
@@ -58,6 +59,20 @@ void buf_remove_begin(buf_t *p, size_t data_size);
 void buf_remove_end(buf_t *p, size_t data_size);
 void buf_dump(buf_t *p, const char *label);
 void buf_free(buf_t *p);
+
+static __inline void* buf_get(const buf_t *p) {
+	if (!p)
+		return NULL;
+	else
+		return p->data;
+}
+
+static __inline size_t buf_size(const buf_t *p) {
+	if (!p)
+		return 0;
+	else
+		return p->data_size;
+}
 
 #define slist_is_empty(l) ((l) == NULL)
 int slist_has_more(slist_t *list);

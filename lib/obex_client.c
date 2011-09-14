@@ -37,15 +37,18 @@ static __inline int msg_get_rsp(const buf_t *msg)
 {
 	if (!msg)
 		return OBEX_RSP_BAD_REQUEST;
-	else
-		return ((obex_common_hdr_t *)msg->data)->opcode & ~OBEX_FINAL;
+	else {
+		obex_common_hdr_t *hdr = buf_get(msg);
+		return hdr->opcode & ~OBEX_FINAL;
+	}
 }
 
 static __inline uint16_t msg_get_len(const buf_t *msg)
 {
-	if (msg)
-		return ntohs(((obex_common_hdr_t *) msg->data)->len);
-	else
+	if (msg) {
+		obex_common_hdr_t *hdr = buf_get(msg);
+		return ntohs(hdr->len);
+	} else
 		return 0;
 }
 

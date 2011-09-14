@@ -190,7 +190,7 @@ void obex_data_request_prepare(obex_t *self, buf_t *msg, int opcode)
 	hdr = buf_reserve_begin(msg, sizeof(*hdr));
 
 	hdr->opcode = opcode;
-	hdr->len = htons((uint16_t) msg->data_size);
+	hdr->len = htons((uint16_t)buf_size(msg));
 
 	DUMPBUFFER(1, "Tx", msg);
 }
@@ -208,7 +208,7 @@ int obex_data_request(obex_t *self, buf_t *msg)
 	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail(msg != NULL, -1);
 
-	DEBUG(1, "len = %lu bytes\n", (unsigned long) msg->data_size);
+	DEBUG(1, "len = %lu bytes\n", (unsigned long)buf_size(msg));
 
 	status = obex_transport_write(self, msg);
 	if (status > 0)
@@ -254,10 +254,10 @@ int obex_work(obex_t *self, int timeout)
  * Check if a message buffer contains at least one full message.
  */
 int obex_get_buffer_status(buf_t *msg) {
-	obex_common_hdr_t *hdr = (obex_common_hdr_t *)msg->data;
+	obex_common_hdr_t *hdr = buf_get(msg);
 
-	return (msg->data_size >= sizeof(*hdr) &&
-					msg->data_size >= ntohs(hdr->len));
+	return (buf_size(msg) >= sizeof(*hdr) &&
+		buf_size(msg) >= ntohs(hdr->len));
 }
 
 /*
@@ -280,8 +280,8 @@ int obex_data_indication(obex_t *self)
 	msg = self->rx_msg;
 
 	/* First we need 3 bytes to be able to know how much data to read */
-	if (msg->data_size < sizeof(*hdr))  {
-		actual = obex_transport_read(self, sizeof(*hdr)-msg->data_size);
+	if (buf_size(msg) < sizeof(*hdr))  {
+		actual = obex_transport_read(self, sizeof(*hdr)-buf_size(msg));
 
 		DEBUG(4, "Got %d bytes\n", actual);
 
@@ -295,18 +295,18 @@ int obex_data_indication(obex_t *self)
 	}
 
 	/* If we have 3 bytes data we can decide how big the packet is */
-	if (msg->data_size >= sizeof(*hdr)) {
-		hdr = (obex_common_hdr_t *) msg->data;
+	if (buf_size(msg) >= sizeof(*hdr)) {
+		hdr = buf_get(msg);
 		size = ntohs(hdr->len);
 
 		actual = 0;
-		if (msg->data_size < size) {
+		if (buf_size(msg) < size) {
 
 			actual = obex_transport_read(self,
-							size - msg->data_size);
+						     size - buf_size(msg));
 			/* hdr might not be valid anymore if the _read
 			 * did a realloc */
-			hdr = (obex_common_hdr_t *) msg->data;
+			hdr = buf_get(msg);
 
 			/* Check if we are still connected */
 			/* do not error if the data is from non-empty
@@ -320,13 +320,13 @@ int obex_data_indication(obex_t *self)
 	} else {
 		/* Wait until we have at least 3 bytes data */
 		DEBUG(3, "Need at least 3 bytes got only %lu!\n",
-					(unsigned long) msg->data_size);
+		      (unsigned long)buf_size(msg));
 		return 0;
         }
 
 	/* New data has been inserted at the end of message */
 	DEBUG(1, "Got %d bytes msg len=%lu\n", actual,
-					(unsigned long) msg->data_size);
+	      (unsigned long)buf_size(msg));
 
 	/*
 	 * Make sure that the buffer we have, actually has the specified
@@ -335,9 +335,9 @@ int obex_data_indication(obex_t *self)
 	 */
 
 	/* Make sure we have a whole packet */
-	if (size > msg->data_size) {
+	if (size > buf_size(msg)) {
 		DEBUG(3, "Need more data, size=%d, len=%lu!\n",
-				size, (unsigned long)msg->data_size);
+		      size, (unsigned long)buf_size(msg));
 
 		/* I'll be back! */
 		return 0;
@@ -362,12 +362,12 @@ buf_t* obex_data_receive(obex_t *self)
 void obex_data_receive_finished(obex_t *self)
 {
 	buf_t *msg = self->rx_msg;
-	obex_common_hdr_t *hdr = (obex_common_hdr_t *)msg->data;
+	obex_common_hdr_t *hdr = buf_get(msg);
 	unsigned int size = ntohs(hdr->len);
 
 	DEBUG(4, "Pulling %u bytes\n", size);
 	buf_remove_begin(msg, size);
-	if (msg->data_size == 0)
+	if (buf_size(msg) == 0)
 		buf_reuse(msg);
 }
 

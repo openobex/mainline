@@ -65,7 +65,7 @@ int obex_insert_connectframe(obex_t *self, obex_object_t *object)
  */
 int obex_parse_connect_header(obex_t *self, buf_t *msg)
 {
-	obex_common_hdr_t *common_hdr = (obex_common_hdr_t *)msg->data;
+	obex_common_hdr_t *common_hdr = buf_get(msg);
 	obex_connect_hdr_t *conn_hdr = (obex_connect_hdr_t *)(common_hdr + 1);
 
 	/* Remember opcode and size for later */
@@ -79,8 +79,8 @@ int obex_parse_connect_header(obex_t *self, buf_t *msg)
 				opcode != (OBEX_CMD_CONNECT | OBEX_FINAL))
 		return 1;
 
-	DEBUG(4, "Len: %lu\n", (unsigned long)msg->data_size);
-	if (msg->data_size >= sizeof(*common_hdr)+sizeof(*conn_hdr)) {
+	DEBUG(4, "Len: %lu\n", (unsigned long)buf_size(msg));
+	if (buf_size(msg) >= sizeof(*common_hdr)+sizeof(*conn_hdr)) {
 		/* Get what we need */
 		uint16_t mtu = ntohs(conn_hdr->mtu);
 

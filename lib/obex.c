@@ -795,8 +795,8 @@ int CALLAPI OBEX_ObjectGetNonHdrData(obex_object_t *object, uint8_t **buffer)
 	if (!object->rx_nonhdr_data)
 		return 0;
 
-	*buffer = object->rx_nonhdr_data->data;
-	return object->rx_nonhdr_data->data_size;
+	*buffer = buf_get(object->rx_nonhdr_data);
+	return buf_size(object->rx_nonhdr_data);
 }
 
 /**
