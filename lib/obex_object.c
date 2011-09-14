@@ -57,14 +57,14 @@ obex_object_t *obex_object_new(void)
  *    Free all headers in a header queue.
  *
  */
-static void free_headerq(slist_t **q)
+static void free_headerq(slist_t *q)
 {
 	struct obex_header_element *h;
 
 	DEBUG(4, "\n");
-	while (*q != NULL) {
-		h = (*q)->data;
-		*q = slist_remove(*q, h);
+	while (!slist_is_empty(q)) {
+		h = slist_get(q);
+		q = slist_remove(q, h);
 		buf_free(h->buf);
 		free(h);
 	}
@@ -82,9 +82,9 @@ int obex_object_delete(obex_object_t *object)
 	obex_return_val_if_fail(object != NULL, -1);
 
 	/* Free the headerqueues */
-	free_headerq(&object->tx_headerq);
-	free_headerq(&object->rx_headerq);
-	free_headerq(&object->rx_headerq_rm);
+	free_headerq(object->tx_headerq);
+	free_headerq(object->rx_headerq);
+	free_headerq(object->rx_headerq_rm);
 
 	/* Free tx and rx msgs */
 	buf_free(object->tx_nonhdr_data);
@@ -646,7 +646,7 @@ int obex_object_getnextheader(obex_t *self, obex_object_t *object, uint8_t *hi,
 	DEBUG(4, "\n");
 
 	/* No more headers */
-	if (object->rx_headerq == NULL)
+	if (slist_is_empty(object->rx_headerq))
 		return 0;
 
 	/* New headers are appended at the end of the list while
@@ -654,7 +654,7 @@ int obex_object_getnextheader(obex_t *self, obex_object_t *object, uint8_t *hi,
 	 * free the mem used just yet just put the header in another
 	 * list so we can free it when the object is deleted. */
 
-	h = object->rx_headerq->data;
+	h = slist_get(object->rx_headerq);
 	object->rx_headerq = slist_remove(object->rx_headerq, h);
 	object->rx_headerq_rm = slist_append(object->rx_headerq_rm, h);
 
