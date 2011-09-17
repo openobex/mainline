@@ -71,18 +71,6 @@ struct obex_unicode_hdr {
 
 #define obex_byte_stream_hdr obex_unicode_hdr
 
-typedef struct {
-	uint8_t identifier;    /* Header ID */
-	int  length;         /* Total lenght of header */
-
-	int  val_size;       /* Size of value */
-	union {
-		int   integer;
-		char   *string;
-		uint8_t *oct_seq;
-	} t;
-} obex_header_t;
-
 int insert_uint_header(struct databuffer *msg, uint8_t identifier, uint32_t value);
 int insert_ubyte_header(struct databuffer *msg, uint8_t identifier, uint8_t value);
 int insert_unicode_header(struct databuffer *msg, uint8_t opcode, const uint8_t *text,
@@ -90,7 +78,4 @@ int insert_unicode_header(struct databuffer *msg, uint8_t opcode, const uint8_t 
 
 int insert_byte_stream_header(struct databuffer *msg, uint8_t opcode,
 			      const uint8_t *stream, int size);
-
-int obex_extract_header(struct databuffer *msg, obex_header_t *header);
-
 #endif

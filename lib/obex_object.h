@@ -48,8 +48,6 @@ struct obex_header_element {
 };
 
 struct obex_object {
-	time_t time;
-
 	struct databuffer_list *tx_headerq;	/* List of headers to transmit*/
 	struct databuffer_list *rx_headerq;	/* List of received headers */
 	struct databuffer_list *rx_headerq_rm;	/* List of recieved header already read by the app */
