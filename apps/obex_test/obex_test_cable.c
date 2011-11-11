@@ -37,7 +37,9 @@
 #include <io.h>
 #define read _read
 #define write _write
+#if ! defined(strcasecmp)
 #define strcasecmp(a,b) _stricmp(a,b)
+#endif
 #else
 #include <sys/ioctl.h>
 #include <sys/time.h>

@@ -357,7 +357,7 @@ void obex_transport_disconnect_server(obex_t *self)
 int obex_transport_do_send (obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
-	int fd = trans->fd;
+	socket_t fd = trans->fd;
 	size_t size = msg->data_size;
 
 	if (size == 0)
@@ -365,7 +365,7 @@ int obex_transport_do_send (obex_t *self, buf_t *msg)
 
 	if (size > trans->mtu)
 		size = trans->mtu;
-	DEBUG(1, "sending %zu bytes\n", size);
+	DEBUG(1, "sending %lu bytes\n", (unsigned long)size);
 
 	if (trans->timeout >= 0) {
 		/* setup everything to check for blocking writes */
@@ -381,7 +381,7 @@ int obex_transport_do_send (obex_t *self, buf_t *msg)
 	}
 
 	/* call send() if no error */
-	return send(fd, msg->data, size, 0);
+	return send(fd, (void*)msg->data, size, 0);
 }
 
 /*

@@ -254,9 +254,9 @@ void irobex_prepare_listen(obex_t *self, const char *service)
 
 static void irobex_set_hint_bit(obex_t *self)
 {
+#ifndef _WIN32
 	struct obex_transport *trans = &self->trans;
 
-#ifndef _WIN32
 	/* Hint be we advertise */
 	unsigned char hints[4] = {
 		HINT_EXTENSION, HINT_OBEX, 0, 0,
@@ -385,7 +385,7 @@ static int irobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 	unsigned char buf[sizeof(*list) + ((MAX_DEVICES-1) * sizeof(*dev))];
 	socklen_t len = sizeof(buf);
 	int count = 0;
-	int fd = obex_create_socket(self, AF_IRDA);
+	socket_t fd = obex_create_socket(self, AF_IRDA);
 	int i;
 	uint32_t k = 0;
 

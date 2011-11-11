@@ -27,6 +27,11 @@
 #include "../lib/bluez_compat.h"
 #ifdef _WIN32
 bdaddr_t bluez_compat_bdaddr_any = { BTH_ADDR_NULL };
+static int str2ba(const char *str, bdaddr_t *ba) {
+	//TODO
+	*ba = *BDADDR_ANY;
+	return 0;
+}
 #endif
 #endif
 
@@ -155,7 +160,7 @@ int main (int argc, char *argv[])
 {
 	char cmd[10];
 	int num, end = 0;
-	int cobex = FALSE, tcpobex = FALSE, btobex = FALSE, r320 = FALSE, usbobex = FALSE;
+	int cobex = FALSE, tcpobex = FALSE, btobex = FALSE, usbobex = FALSE;
 	obex_t *handle;
 #ifdef HAVE_BLUETOOTH
 	bdaddr_t bdaddr;
@@ -169,7 +174,7 @@ int main (int argc, char *argv[])
 	struct context global_context = {0,};
 
 #ifndef _WIN32
-
+	int r320 = FALSE;
 	char *port;
 	obex_ctrans_t custfunc;
 
@@ -251,7 +256,6 @@ int main (int argc, char *argv[])
 		}
 	}
 	else if(btobex) {
-#ifndef _WIN32
 		switch (argc) {
 #ifdef HAVE_BLUETOOTH
 		case 4:
@@ -280,9 +284,6 @@ int main (int argc, char *argv[])
 			perror( "OBEX_Init failed");
 			exit(0);
 		}
-#else
-		printf("Not implemented in Win32 yet.\n");
-#endif	// _WIN32
 	}
 	else if(usbobex) {
 #ifdef HAVE_USB

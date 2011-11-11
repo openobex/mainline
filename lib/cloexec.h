@@ -7,7 +7,7 @@ static __inline void fcntl_cloexec(socket_t fd)
 		(void)fcntl(fd, F_SETFD, FD_CLOEXEC);
 }
 #else
-#define fcntl_cloexec
+static __inline void fcntl_cloexec(socket_t fd) { fd = fd; }
 #endif
 
 static __inline socket_t socket_cloexec(int domain, int type, int proto)

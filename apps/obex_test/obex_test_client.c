@@ -35,10 +35,18 @@
 #define read _read
 #define write _write
 #define open _open
-#if ! defined(_MSC_VER)
-#warning "No implementation for basename() in win32!"
+#if defined(_MSC_VER)
+static char *basename(const char *s) {
+  static char base[_MAX_FNAME+_MAX_EXT] = {0};
+
+  _splitpath(s, NULL, NULL, base, NULL);
+  _splitpath(s, NULL, NULL, NULL, base+strlen(base));
+  return base;
+}
+#else /* MinGW compiler */
+#include <libgen.h>
 #endif
-#define basename(x) (x)
+
 #else
 #include <libgen.h>
 #endif

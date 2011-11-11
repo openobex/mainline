@@ -49,7 +49,7 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 
 	if (size > trans->mtu)
 		size = trans->mtu;
-	DEBUG(1, "sending %zu bytes\n", size);
+	DEBUG(1, "sending %lu bytes\n", (unsigned long)size);
 
 	if (trans->timeout >= 0) {
 		/* setup everything to check for blocking writes */
@@ -58,8 +58,8 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 		int status;
 
 		FD_ZERO(&fdset);
-		FD_SET(fd, &fdset);
-		status = select((int)fd+1, NULL, &fdset, NULL, &time);
+		FD_SET((socket_t)fd, &fdset);
+		status = select(fd+1, NULL, &fdset, NULL, &time);
 		if (status == 0)
 			return 0;
 	}
@@ -76,7 +76,7 @@ static int fdobex_read(obex_t *self, void *buf, int buflen)
 	struct obex_transport *trans = &self->trans;
 
 #ifdef _WIN32
-	return  _read(trans->fd, buf, buflen);
+	return  _read((int)trans->fd, buf, buflen);
 #else
 	return read(trans->fd, buf, buflen);
 #endif

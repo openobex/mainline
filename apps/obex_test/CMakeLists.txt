@@ -1,9 +1,18 @@
 
-add_executable ( obex_test EXCLUDE_FROM_ALL
+set ( obex_test_SOURCES
   obex_test.c obex_test.h
   obex_test_client.c obex_test_client.h
   obex_test_server.c obex_test_server.h
-  obex_test_cable.c obex_test_cable.h
+)
+
+if ( NOT WIN32 )
+  list ( APPEND obex_test_SOURCES
+    obex_test_cable.c obex_test_cable.h
+  )
+endif ( NOT WIN32 )
+
+add_executable ( obex_test EXCLUDE_FROM_ALL
+  ${obex_test_SOURCES}
 )
 
 target_link_libraries ( obex_test
