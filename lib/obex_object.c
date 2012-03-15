@@ -757,7 +757,7 @@ static int obex_object_receive_buffered(obex_t *self, uint8_t hi,
 	DEBUG(4, "This is a body-header. Len=%d\n", len);
 
 	if (!object->rx_body) {
-		int alloclen = OBEX_OBJECT_ALLOCATIONTRESHOLD + len;
+		int alloclen = len;
 
 		if (object->hinted_body_len)
 			alloclen = object->hinted_body_len;
@@ -768,22 +768,8 @@ static int obex_object_receive_buffered(obex_t *self, uint8_t hi,
 			return -1;
 	}
 
-	/* Reallocate body buffer if needed */
-	if (object->rx_body->data_avail + object->rx_body->tail_avail < (unsigned int) len) {
-		int t;
-		size_t needed;
-		DEBUG(4, "Buffer too small. Go realloc\n");
-		t = buf_total_size(object->rx_body);
-		needed = t + OBEX_OBJECT_ALLOCATIONTRESHOLD + len;
-		buf_resize(object->rx_body, needed);
-		if (buf_total_size(object->rx_body) != needed) {
-			DEBUG(1, "Can't realloc rx_body\n");
-			return -1;
-			/* FIXME: Handle this in a nice way... */
-		}
-	}
-
-	buf_insert_end(object->rx_body, source, len);
+	if (buf_insert_end(object->rx_body, source, len) < 0)
+		return -1;
 
 	return 1;
 }
@@ -928,7 +914,7 @@ static int obex_object_rcv_one_header(obex_t *self, uint8_t hi,
 
 	if (hi == OBEX_HDR_BODY && object->rx_body) {
 		DEBUG(4, "Body receive done\n");
-		element->length = object->rx_body->data_size;
+		element->length = buf_size(object->rx_body);
 		element->buf = object->rx_body;
 		object->rx_body = NULL;
 	} else if (len == 0) {

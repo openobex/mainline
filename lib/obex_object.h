@@ -34,10 +34,6 @@
 struct databuffer;
 struct databuffer_list;
 
-/* If an object has no expected length we have to reallocated every
- * OBEX_OBJECT_ALLOCATIONTRESHOLD bytes */
-#define OBEX_OBJECT_ALLOCATIONTRESHOLD 10240
-
 struct obex_header_element {
 	struct databuffer *buf;
 	uint8_t hi;

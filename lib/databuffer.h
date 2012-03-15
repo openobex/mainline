@@ -36,43 +36,44 @@ struct databuffer_list {
 };
 typedef struct databuffer_list slist_t;
 
+/** This implements an abstracted data buffer. */
+struct databuffer_ops {
+	void* (*new)(size_t default_size);
+	void (*delete)(void *self);
+	size_t (*get_offset)(void *self);
+	void (*set_offset)(void *self, size_t offset);
+	size_t (*get_size)(void *self);
+	int (*set_size)(void *self, size_t new_size);
+	size_t (*get_length)(const void *self);
+	void *(*get)(const void *self);
+	void (*clear)(void *self, size_t len);
+	int (*append)(void *self, const void *data, size_t len);
+};
+
 struct databuffer {
-	uint8_t *buffer; // buffer containing the allocated space
-	uint8_t *data; // pointer to the location of *buffer where there is valid data
-	size_t head_avail; // number of allocated space available in front of buffer
-	size_t data_avail; // allocated space available not specific for head or tail
-	size_t tail_avail; // number of allocated space available at end of buffer
-	size_t data_size; // number of allocated space used
+	struct databuffer_ops *ops;
+	void *ops_data;
 };
 typedef struct databuffer buf_t;
 
-buf_t *buf_new(size_t default_size);
+#include <membuf.h>
+#define buf_new(x)  membuf_create(x)
+
+struct databuffer *buf_create(size_t default_size, struct databuffer_ops *ops);
 size_t buf_total_size(const buf_t *p);
 int buf_empty(const buf_t *p);
 void buf_resize(buf_t *p, size_t new_size);
 buf_t *buf_reuse(buf_t *p);
 void *buf_reserve_begin(buf_t *p, size_t data_size);
 void *buf_reserve_end(buf_t *p, size_t data_size);
-void buf_insert_begin(buf_t *p, const uint8_t *data, size_t data_size);
-void buf_insert_end(buf_t *p, const uint8_t *data, size_t data_size);
+void buf_insert_begin(buf_t *p, const void *data, size_t data_size);
+int buf_insert_end(buf_t *p, const void *data, size_t data_size);
 void buf_remove_begin(buf_t *p, size_t data_size);
 void buf_remove_end(buf_t *p, size_t data_size);
 void buf_dump(buf_t *p, const char *label);
 void buf_free(buf_t *p);
-
-static __inline void* buf_get(const buf_t *p) {
-	if (!p)
-		return NULL;
-	else
-		return p->data;
-}
-
-static __inline size_t buf_size(const buf_t *p) {
-	if (!p)
-		return 0;
-	else
-		return p->data_size;
-}
+void* buf_get(const buf_t *p);
+size_t buf_size(const buf_t *p);
 
 #define slist_is_empty(l) ((l) == NULL)
 int slist_has_more(slist_t *list);

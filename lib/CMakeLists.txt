@@ -31,6 +31,7 @@ set ( SOURCES
   obex_server.c
   obex_transport.c
   databuffer.c
+  membuf.c
   transport/inobex.c
   transport/fdobex.c
   transport/customtrans.c
@@ -46,6 +47,7 @@ set ( HEADERS
   obex_server.h
   obex_transport.h
   databuffer.h
+  membuf.h
   debug.h
   defines.h
   obex_incl.h
