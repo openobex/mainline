@@ -103,44 +103,72 @@ struct databuffer *buf_create(size_t default_size, struct databuffer_ops *ops) {
 	return self;
 }
 
-size_t buf_total_size(const buf_t *p)
-{
-	if (!p)
-		return 0;
-	return p->ops->get_size(p->ops_data);
+void buf_delete(struct databuffer *self) {
+	if (self->ops->delete)
+		self->ops->delete(self->ops_data);
+	free(self);
 }
 
-void* buf_get(const buf_t *p)
-{
-	if (!p)
+size_t buf_get_offset(struct databuffer *self) {
+	if (self->ops->get_offset)
+		return self->ops->get_offset(self->ops_data);
+	else
 		return 0;
-	return p->ops->get(p->ops_data);
 }
 
-size_t buf_size(const buf_t *p)
-{
-	if (!p)
+void buf_set_offset(struct databuffer *self, size_t offset) {
+	if (self->ops->set_offset)
+		self->ops->set_offset(self->ops_data, offset);
+}
+
+size_t buf_get_size(struct databuffer *self) {
+	if (self->ops->get_size)
+		return self->ops->get_size(self->ops_data);
+	else
 		return 0;
-	return p->ops->get_length(p->ops_data);
+}
+
+int buf_set_size(struct databuffer *self, size_t new_size) {
+	if (self->ops->set_size)
+		return self->ops->set_size(self->ops_data, new_size);
+	else
+		return 0;
+}
+
+size_t buf_get_length(const struct databuffer *self) {
+	if (self->ops->get_length)
+		return self->ops->get_length(self->ops_data);
+	else
+		return 0;
+}
+
+void *buf_get(const struct databuffer *self) {
+	if (self->ops->get)
+		return self->ops->get(self->ops_data);
+	else
+		return NULL;
+}
+
+void buf_clear(struct databuffer *self, size_t len) {
+	if (self->ops->clear)
+		self->ops->clear(self->ops_data, len);
+}
+
+int buf_append(struct databuffer *self, const void *data, size_t len) {
+	if (self->ops->append)
+		return self->ops->append(self->ops_data, data, len);
+	else
+		return -EINVAL;
 }
 
 int buf_empty(const buf_t *p)
 {
-	return (buf_size(p) == 0);
-}
-
-void buf_resize(buf_t *p, size_t new_size)
-{
-	if (!p)
-		return;
-	p->ops->set_size(p->ops_data, new_size);
+	return (buf_get_length(p) == 0);
 }
 
 buf_t *buf_reuse(buf_t *p)
 {
-	if (!p)
-		return NULL;
-	p->ops->clear(p->ops_data, p->ops->get_length(p->ops_data));
+	buf_clear(p, buf_get_length(p));
 	return p;
 }
 
@@ -156,13 +184,13 @@ void *buf_reserve_begin(buf_t *p, size_t data_size)
 	old_offset = p->ops->get_offset(old);
 	p->ops->set_offset(old, 0);
 
-	p->ops_data = p->ops->new(buf_total_size(p)+data_size);
-	p->ops->append(p->ops_data, p->ops->get(old), old_offset);
-	p->ops->set_offset(p->ops_data, old_offset);
+	p->ops_data = p->ops->new(buf_get_size(p)+data_size);
+	buf_append(p, p->ops->get(old), old_offset);
+	buf_set_offset(p, old_offset);
 	p->ops->set_offset(old, old_offset);
 
-	p->ops->append(p->ops_data, NULL, data_size);
-	p->ops->append(p->ops_data, p->ops->get(old), p->ops->get_length(old));
+	buf_append(p, NULL, data_size);
+	buf_append(p, p->ops->get(old), p->ops->get_length(old));
 	p->ops->delete(old);
 	return buf_get(p);
 }
@@ -174,7 +202,7 @@ void *buf_reserve_end(buf_t *p, size_t data_size)
 	if (!p)
 		return NULL;
 
-	len = buf_size(p);
+	len = buf_get_length(p);
 	if (p->ops->append(p, NULL, data_size) < 0)
 		return NULL;
 
@@ -191,27 +219,6 @@ void buf_insert_begin(buf_t *p, const void *data, size_t data_size)
 	dest = buf_reserve_begin(p, data_size);
 	assert(dest != NULL);
 	memcpy(dest, data, data_size);
-}
-
-int buf_insert_end(buf_t *p, const void *data, size_t data_size)
-{
-	if (!p)
-		return -EINVAL;
-	return p->ops->append(p->ops_data, data, data_size);
-}
-
-void buf_remove_begin(buf_t *p, size_t data_size)
-{
-	if (!p)
-		return;
-	p->ops->clear(p->ops_data, data_size);
-}
-
-void buf_remove_end(buf_t *p, size_t data_size)
-{
-	if (!p)
-		return;
-	p->ops->set_size(p->ops_data, buf_size(p) - data_size);
 }
 
 void buf_dump(buf_t *p, const char *label)
@@ -232,12 +239,4 @@ void buf_dump(buf_t *p, const char *label)
 		} else
 			n++;
 	}
-}
-
-void buf_free(buf_t *p)
-{
-	if (!p)
-		return;
-	p->ops->delete(p->ops_data);
-	free(p);
 }
