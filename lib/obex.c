@@ -80,7 +80,7 @@
 			- #OBEX_FL_KEEPSERVER : Keep the server alive after incomming request
 			- #OBEX_FL_FILTERHINT : Filter target devices based on Obex hint bit
 			- #OBEX_FL_FILTERIAS  : Filter target devices based on IAS entry
-			- #OBEX_FL_CLOSEXEC   : Open all sockets with SO_CLOEXEC set
+			- #OBEX_FL_CLOEXEC    : Open all sockets with SO_CLOEXEC set
 	\return an OBEX handle or NULL on error.
  */
 LIB_SYMBOL
