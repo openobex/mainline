@@ -1,3 +1,16 @@
+ver 1.6:
+	Change ABI from 1 to 2 because:
+		Redo the USB changes from version 1.4
+		Remove InOBEX_* function, use the TcpOBEX_* functions instead
+		Remove the simple Unicode<->ASCII functions
+	Add support for Single Response Mode
+	Add manpages for all example applications
+	Add special app to allow udev support
+	Add new example app to find IrDA and USB OBEX devices
+	Add fixes for FreeBSD
+	Add support for libusb-1.x
+	Add support for close-on-exec
+
 ver 1.5:
 	Revert USB changes that broke the ABI.
 	Add more documentation and update manual pages.
