@@ -20,6 +20,8 @@
  */
 
 #ifndef _WIN32
+#include <sys/types.h> 
+#include <sys/socket.h>
 #include <fcntl.h>
 static __inline void fcntl_cloexec(socket_t fd)
 {
@@ -40,6 +42,15 @@ static __inline socket_t socket_cloexec(int domain, int type, int proto)
 	return fd;
 #endif
 }
+
+/* This supports an accept4() equivalent on NetBSD 6 and later */
+#if defined(SOCK_CLOEXEC) && defined(__NetBSD__)
+static __inline int accept4(int s, struct sockaddr * addr, socklen_t *addrlen,
+			    int flags)
+{
+     return paccept(s, addr, addrlen, NULL, flags);
+}
+#endif
 
 static __inline socket_t accept_cloexec(socket_t sockfd, struct sockaddr *addr,
 				      socklen_t *addrlen)
