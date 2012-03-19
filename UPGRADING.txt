@@ -1,0 +1,23 @@
+Upgrade guide from previous version of openobex
+===============================================
+
+
+version 1.5 -> 1.6
+------------------
+
+The function OBEX_UnicodeToAscii() and its counterpart OBEX_AsciiToUnicode()
+are gone. Please use the more complete functionality from your toolkit.
+
+If you use one of the functions InOBEX_ServerRegister() and
+InOBEX_TransportConnect(), please change to TcpOBEX_ServerRegister() and
+TcpOBEX_TransportConnect().
+
+The functions OBEX_GetCustomData() and OBEX_SetCustomData() will really only
+work with OBEX_TRANS_CUSTOM. Also, obex_t and obex_object_t changed the
+declared type. If you pass it around, make sure to use them as pointer.
+
+To use the bluetooth function, include the bluetooth headers of your system
+before including openobex/obex.h or define bt_addr_t to the proper type.
+
+The function OBEX_FindInterfaces is replaced by the functions
+OBEX_EnumerateInterfaces() and OBEX_GetInterfaceByIndex().
