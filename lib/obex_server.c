@@ -58,25 +58,59 @@ static __inline int msg_get_final(const buf_t *msg)
 		return 0;
 }
 
+static void obex_response_request(obex_t *self, uint8_t opcode)
+{
+	buf_t *msg;
+
+	obex_return_if_fail(self != NULL);
+
+	msg = buf_reuse(self->tx_msg);
+	obex_data_request_prepare(self, msg, opcode | OBEX_FINAL);
+	do {
+		int status = obex_data_request(self, msg);
+		if (status < 0)
+			break;
+	} while (!buf_empty(msg));
+}
+
+static int obex_server_bad_request(obex_t *self)
+{
+	int opcode = self->object->opcode;
+
+	obex_response_request(self, OBEX_RSP_BAD_REQUEST);
+	self->state = STATE_IDLE;
+	obex_deliver_event(self, OBEX_EV_PARSEERR, opcode, 0, TRUE);
+	return -1;
+}
+
 static int obex_server_abort_transmit(obex_t *self)
 {
 	int ret = 0;
 	int rsp = OBEX_RSP_CONTINUE;
+	int opcode = OBEX_CMD_ABORT;
 
 	DEBUG(4, "STATE: ABORT/TRANSMIT_TX\n");
 
 	ret = obex_object_send_transmit(self, NULL);
-	if (ret == -1) {
-		obex_deliver_event(self, OBEX_EV_LINKERR,
-				   self->object->opcode, rsp, TRUE);
-
-	} else if (ret == 1) {
-		obex_deliver_event(self, OBEX_EV_ABORT,
-				   self->object->opcode, rsp, FALSE);
-	}
+	if (self->object)
+		opcode = self->object->opcode;
+	if (ret == -1)
+		obex_deliver_event(self, OBEX_EV_LINKERR, opcode, rsp, TRUE);
+	else if (ret == 1)
+		obex_deliver_event(self, OBEX_EV_ABORT, opcode, rsp, FALSE);
 
 	self->state = STATE_IDLE;
 	return ret;
+}
+
+static int obex_server_abort_response(obex_t *self)
+{
+	buf_t *msg = buf_reuse(self->tx_msg);
+
+	obex_data_request_prepare(self, msg, OBEX_RSP_SUCCESS | OBEX_FINAL);
+	self->state = STATE_ABORT;
+	self->substate = SUBSTATE_TRANSMIT_TX;
+	return obex_server_abort_transmit(self);
 }
 
 static int obex_server_abort_prepare(obex_t *self)
@@ -178,12 +212,7 @@ static int obex_server_send(obex_t *self)
 	/* Abort? */
 	if (cmd == OBEX_CMD_ABORT) {
 		DEBUG(1, "Got OBEX_ABORT request!\n");
-		obex_response_request(self, OBEX_RSP_SUCCESS);
-		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode, 0, TRUE);
-		/* This is not an Obex error, it is just that the peer
-		 * aborted the request, so return 0 - Jean II */
-		return 0;
+		return obex_server_abort_response(self);
 	}
 
 	if (len > 3) {
@@ -215,13 +244,8 @@ static int obex_server_send(obex_t *self)
 		ret = -1;
 		if (cmd != OBEX_CMD_CONNECT)
 			ret = obex_object_receive(self, msg);
-		if (ret < 0) {
-			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-			self->state = STATE_IDLE;
-			obex_deliver_event(self, OBEX_EV_PARSEERR,
-						self->object->opcode, 0, TRUE);
-			return -1;
-		}
+		if (ret < 0)
+			return obex_server_bad_request(self);
 
 		/* Note: we may want to get rid of received header, however they
 		 * are mixed with legitimate headers, and the user may expect to
@@ -300,25 +324,14 @@ static int obex_server_recv(obex_t *self, int first)
 	/* Abort? */
 	if (cmd == OBEX_CMD_ABORT) {
 		DEBUG(1, "Got OBEX_ABORT request!\n");
-		obex_response_request(self, OBEX_RSP_SUCCESS);
-		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_ABORT, self->object->opcode,
-								0, TRUE);
-		/* This is not an Obex error, it is just that the peer
-		 * aborted the request, so return 0 - Jean II */
-		return 0;
+		return obex_server_abort_response(self);
 	}
 
 	/* Sanity check */
-	if (cmd != self->object->cmd) {
+	if (cmd != self->object->cmd)
 		/* The cmd-field of this packet is not the
 		 * same as int the first fragment. Bail out! */
-		obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_PARSEERR,
-					self->object->opcode, cmd, TRUE);
-		return -1;
-	}
+		return obex_server_bad_request(self);
 
 	/* Get the non-header data and look at all non-body headers.
 	 * Leaving the body headers out here has advantages:
@@ -331,13 +344,8 @@ static int obex_server_recv(obex_t *self, int first)
 	 */
 	filter = (1 << OBEX_HDR_ID_BODY | 1 << OBEX_HDR_ID_BODY_END);
 	if (obex_object_receive_nonhdr_data(self, msg) < 0 ||
-			obex_object_receive_headers(self, msg, filter) < 0) {
-		obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_PARSEERR,
-						self->object->opcode, 0, TRUE);
-		return -1;
-	}
+			obex_object_receive_headers(self, msg, filter) < 0)
+		return obex_server_bad_request(self);
 
 	/* Let the user decide whether to accept or deny a
 	 * multi-packet request by examining all headers in
@@ -353,13 +361,8 @@ static int obex_server_recv(obex_t *self, int first)
 	switch ((self->object->opcode & ~OBEX_FINAL) & 0xF0) {
 	case OBEX_RSP_CONTINUE:
 	case OBEX_RSP_SUCCESS:
-		if (obex_object_receive_headers(self, msg, ~filter) < 0) {
-			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-			self->state = STATE_IDLE;
-			obex_deliver_event(self, OBEX_EV_PARSEERR,
-						self->object->opcode, 0, TRUE);
-			return -1;
-		}
+		if (obex_object_receive_headers(self, msg, ~filter) < 0)
+			return obex_server_bad_request(self);
 		break;
 
 	default:
@@ -415,11 +418,8 @@ static int obex_server_idle(obex_t *self)
 	 * we don't need to send a request hint to the application */
 	if (cmd == OBEX_CMD_ABORT) {
 		DEBUG(1, "Got OBEX_ABORT request!\n");
-		obex_response_request(self, OBEX_RSP_SUCCESS);
-		self->state = STATE_IDLE;
-		obex_deliver_event(self, OBEX_EV_ABORT, cmd, 0, TRUE);
 		obex_data_receive_finished(self);
-		return 0;
+		return obex_server_abort_response(self);
 	}
 
 	self->object = obex_object_new();
@@ -442,12 +442,8 @@ static int obex_server_idle(obex_t *self)
 	case OBEX_CMD_CONNECT:
 		DEBUG(4, "Got CMD_CONNECT\n");
 		/* Connect needs some extra special treatment */
-		if (obex_parse_connect_header(self, msg) < 0) {
-			obex_response_request(self, OBEX_RSP_BAD_REQUEST);
-			obex_deliver_event(self, OBEX_EV_PARSEERR,
-						self->object->opcode, 0, TRUE);
-			return -1;
-		}
+		if (obex_parse_connect_header(self, msg) < 0)
+			return obex_server_bad_request(self);
 		self->object->headeroffset = 4;
 		break;
 

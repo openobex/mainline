@@ -179,27 +179,6 @@ void obex_deliver_event(obex_t *self, int event, int cmd, int rsp, int del)
 }
 
 /*
- * Function obex_response_request (self, opcode)
- *
- *    Send a response to peer device
- *
- */
-void obex_response_request(obex_t *self, uint8_t opcode)
-{
-	buf_t *msg;
-
-	obex_return_if_fail(self != NULL);
-
-	msg = buf_reuse(self->tx_msg);
-	obex_data_request_prepare(self, msg, opcode | OBEX_FINAL);
-	do {
-		int status = obex_data_request(self, msg);
-		if (status < 0)
-			break;
-	} while (!buf_empty(msg));
-}
-
-/*
  * Function obex_data_request_prepare (self, opcode, cmd)
  *
  *    Prepare response or command code along with optional headers/data
