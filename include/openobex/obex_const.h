@@ -11,7 +11,7 @@
 	Copyright (C) 2005  Herton Ronaldo Krzesinski <herton@conectiva.com.br>
 	Copyright (C) 2005-2008  Alex Kanavin <ak@sensi.org>
 	Copyright (C) 2006  Johan Hedberg <johan.hedberg@nokia.com>
-	Copyright (C) 2007-2008  Hendrik Sattler <post@hendrik-sattler.de>
+	Copyright (C) 2007-2012  Hendrik Sattler <post@hendrik-sattler.de>
 
 	OpenOBEX is free software; you can redistribute it and/or modify
 	it under the terms of the GNU Lesser General Public License as
@@ -142,7 +142,6 @@ typedef union {
 	obex_irda_intf_t irda;
 	/** USB-specific OBEX interface information */
 	obex_usb_intf_t usb;
-	//obex_bluetooth_intf_t bt; // to be added
 } obex_interface_t;
 
 /** Possible modes */
@@ -180,18 +179,18 @@ enum obex_event {
 };
 
 /* For OBEX_Init() */
-#define OBEX_FL_KEEPSERVER	(1 <<  1) /* Keep the server alive */
-#define OBEX_FL_FILTERHINT	(1 <<  2) /* Filter devices based on hint bit */
-#define OBEX_FL_FILTERIAS	(1 <<  3) /* Filter devices based on IAS entry */
-#define OBEX_FL_CLOEXEC		(1 <<  4) /* Set CLOEXEC flag on file descriptors */
-#define OBEX_FL_NONBLOCK	(1 <<  5) /* Set the NONBLOCK flag on file descriptors */ 
+#define OBEX_FL_KEEPSERVER	(1 <<  1) /**< Keep the server alive */
+#define OBEX_FL_FILTERHINT	(1 <<  2) /**< Filter devices based on hint bit */
+#define OBEX_FL_FILTERIAS	(1 <<  3) /**< Filter devices based on IAS entry */
+#define OBEX_FL_CLOEXEC		(1 <<  4) /**< Set CLOEXEC flag on file descriptors */
+#define OBEX_FL_NONBLOCK	(1 <<  5) /**< Set the NONBLOCK flag on file descriptors */ 
 
 /* For OBEX_ObjectAddHeader */
-#define OBEX_FL_FIT_ONE_PACKET	0x01	/* This header must fit in one packet */
-#define OBEX_FL_STREAM_START	0x02	/* Start of streaming body */
-#define OBEX_FL_STREAM_DATA	0x04	/* Body-stream data */
-#define OBEX_FL_STREAM_DATAEND	0x08	/* Body stream last data */
-#define OBEX_FL_SUSPEND		0x10	/* Suspend after sending this header */
+#define OBEX_FL_FIT_ONE_PACKET	(1 <<  0) /**< This header must fit in one packet */
+#define OBEX_FL_STREAM_START	(1 <<  1) /**< Start of streaming body */
+#define OBEX_FL_STREAM_DATA	(1 <<  2) /**< Body-stream data */
+#define OBEX_FL_STREAM_DATAEND	(1 <<  3) /**< Body stream last data */
+#define OBEX_FL_SUSPEND		(1 <<  4) /**< Suspend after sending this header */
 
 /** Possible transports */
 enum obex_transport_type {
@@ -204,38 +203,75 @@ enum obex_transport_type {
 };
 
 /* Standard headers */
-#define OBEX_HDR_TYPE_UNICODE	(0 << 6)  /* zero terminated unicode string (network byte order) */
-#define OBEX_HDR_TYPE_BYTES	(1 << 6)  /* byte array */
-#define OBEX_HDR_TYPE_UINT8	(2 << 6)  /* 8bit unsigned integer */
-#define OBEX_HDR_TYPE_UINT32	(3 << 6)  /* 32bit unsigned integer */
+#define OBEX_HDR_TYPE_SHIFT	6
 #define OBEX_HDR_TYPE_MASK	0xc0
+#define OBEX_HDR_ID_MASK	0x3f
 
-#define OBEX_HDR_ID_COUNT	 0x00	/* Number of objects (used by connect) */
-#define OBEX_HDR_ID_NAME	 0x01	/* Name of the object */
-#define OBEX_HDR_ID_TYPE	 0x02	/* Type of the object */
-#define OBEX_HDR_ID_LENGTH	 0x03	/* Total length of object */
-#define OBEX_HDR_ID_TIME	 0x04	/* Last modification time of (ISO8601) */
-#define OBEX_HDR_ID_DESCRIPTION	 0x05	/* Description of object */
-#define OBEX_HDR_ID_TARGET	 0x06	/* Identifies the target for the object */
-#define OBEX_HDR_ID_HTTP	 0x07	/* An HTTP 1.x header */
-#define OBEX_HDR_ID_BODY	 0x08	/* Data part of the object */
-#define OBEX_HDR_ID_BODY_END	 0x09	/* Last data part of the object */
-#define OBEX_HDR_ID_WHO		 0x0a	/* Identifies the sender of the object */
-#define OBEX_HDR_ID_CONNECTION	 0x0b	/* Connection identifier */
-#define OBEX_HDR_ID_APPARAM	 0x0c	/* Application parameters */
-#define OBEX_HDR_ID_AUTHCHAL	 0x0d	/* Authentication challenge */
-#define OBEX_HDR_ID_AUTHRESP	 0x0e	/* Authentication response */
-#define OBEX_HDR_ID_CREATOR	 0x0f	/* indicates the creator of an object */
-#define OBEX_HDR_ID_WANUUID	 0x10	/* uniquely identifies the network client (OBEX server) */
-#define OBEX_HDR_ID_OBJECTCLASS	 0x11	/* OBEX Object class of object */
-#define OBEX_HDR_ID_SESSIONPARAM 0x12	/* Parameters used in session commands/responses */
-#define OBEX_HDR_ID_SESSIONSEQ	 0x13	/* Sequence number used in each OBEX packet for reliability */
-#define OBEX_HDR_ID_ACTION_ID	 0x14	/* Specifies the action for the ACTION command */
-#define OBEX_HDR_ID_DESTNAME	 0x15	/* Destination object name */
-#define OBEX_HDR_ID_PERMISSIONS	 0x16	/* bit mask for setting permissions */
-#define OBEX_HDR_ID_SRM          0x17   /* response mode selection */
-#define OBEX_HDR_ID_SRM_FLAGS    0x18   /* flags for single response mode */
-#define OBEX_HDR_ID_MASK	 0x3f
+/** Type part of an obex header value */
+enum obex_hdr_type {
+	/** zero terminated unicode string (network byte order) */
+	OBEX_HDR_TYPE_UNICODE = (0 << OBEX_HDR_TYPE_SHIFT),
+	/** byte array */
+	OBEX_HDR_TYPE_BYTES   = (1 << OBEX_HDR_TYPE_SHIFT),
+	/** 8bit unsigned integer */
+	OBEX_HDR_TYPE_UINT8   = (2 << OBEX_HDR_TYPE_SHIFT),
+	/** 32bit unsigned integer */
+	OBEX_HDR_TYPE_UINT32  = (3 << OBEX_HDR_TYPE_SHIFT),
+};
+
+/** Identifier part of an obex header value */
+enum obex_hdr_id {
+	/** Number of objects (used by connect) */
+	OBEX_HDR_ID_COUNT        = 0,
+	/** Name of the object */
+	OBEX_HDR_ID_NAME         = 1,
+	/** Type of the object */
+	OBEX_HDR_ID_TYPE         = 2,
+	/** Total length of object */
+	OBEX_HDR_ID_LENGTH       = 3,
+	/** Last modification time of (ISO8601) */
+	OBEX_HDR_ID_TIME         = 4,
+	/** Description of object */
+	OBEX_HDR_ID_DESCRIPTION  = 5,
+	/** Identifies the target for the object */
+	OBEX_HDR_ID_TARGET       = 6,
+	/** An HTTP 1.x header */
+	OBEX_HDR_ID_HTTP         = 7,
+	/** Data part of the object */
+	OBEX_HDR_ID_BODY         = 8,
+	/** Last data part of the object */
+	OBEX_HDR_ID_BODY_END     = 9,
+	/** Identifies the sender of the object */
+	OBEX_HDR_ID_WHO          = 10,
+	/** Connection identifier */
+	OBEX_HDR_ID_CONNECTION   = 11,
+	/** Application parameters */
+	OBEX_HDR_ID_APPARAM      = 12,
+	/** Authentication challenge */
+	OBEX_HDR_ID_AUTHCHAL     = 13,
+	/** Authentication response */
+	OBEX_HDR_ID_AUTHRESP     = 14,
+	/** indicates the creator of an object */
+	OBEX_HDR_ID_CREATOR      = 15,
+	/** uniquely identifies the network client (OBEX server) */
+	OBEX_HDR_ID_WANUUID      = 16,
+	/** OBEX Object class of object */
+	OBEX_HDR_ID_OBJECTCLASS  = 17,
+	/** Parameters used in session commands/responses */
+	OBEX_HDR_ID_SESSIONPARAM = 18,
+	/** Sequence number used in each OBEX packet for reliability */
+	OBEX_HDR_ID_SESSIONSEQ   = 19,
+	/** Specifies the action for the ACTION command */
+	OBEX_HDR_ID_ACTION_ID    = 20,
+	/** Destination object name */
+	OBEX_HDR_ID_DESTNAME     = 21,
+	/** bit mask for setting permissions */
+	OBEX_HDR_ID_PERMISSIONS  = 22,
+	/** response mode selection */
+	OBEX_HDR_ID_SRM          = 23,
+	/** flags for single response mode */
+	OBEX_HDR_ID_SRM_FLAGS    = 24,
+};
 
 #define OBEX_HDR_EMPTY		0x00	/* Empty header (buggy OBEX servers) */
 #define OBEX_HDR_COUNT		(OBEX_HDR_ID_COUNT        | OBEX_HDR_TYPE_UINT32 )
@@ -265,61 +301,66 @@ enum obex_transport_type {
 #define OBEX_HDR_SRM            (OBEX_HDR_ID_SRM          | OBEX_HDR_TYPE_UINT8  )
 #define OBEX_HDR_SRM_FLAGS      (OBEX_HDR_ID_SRM_FLAGS    | OBEX_HDR_TYPE_UINT8  )
 
-/* Commands */
-#define OBEX_CMD_CONNECT	0x00
-#define OBEX_CMD_DISCONNECT	0x01
-#define OBEX_CMD_PUT		0x02
-#define OBEX_CMD_GET		0x03
-#define OBEX_CMD_SETPATH	0x05
-#define OBEX_CMD_ACTION		0x06
-#define OBEX_CMD_SESSION	0x07 /* used for reliable session support */
-#define OBEX_CMD_ABORT		0x7f
+/** Obex commands */
+enum obex_cmd {
+	OBEX_CMD_CONNECT	= 0x00,
+	OBEX_CMD_DISCONNECT	= 0x01,
+	OBEX_CMD_PUT		= 0x02,
+	OBEX_CMD_GET		= 0x03,
+	OBEX_CMD_SETPATH	= 0x05,
+	OBEX_CMD_ACTION		= 0x06,
+	OBEX_CMD_SESSION	= 0x07, /**< used for reliable session support */
+	OBEX_CMD_ABORT		= 0x7f,
+};
 #define OBEX_FINAL		0x80
 
-/* Responses */
-#define	OBEX_RSP_CONTINUE		0x10
-#define OBEX_RSP_SWITCH_PRO		0x11
-#define OBEX_RSP_SUCCESS		0x20
-#define OBEX_RSP_CREATED		0x21
-#define OBEX_RSP_ACCEPTED		0x22
-#define OBEX_RSP_NON_AUTHORITATIVE	0x23
-#define OBEX_RSP_NO_CONTENT		0x24
-#define OBEX_RSP_RESET_CONTENT		0x25
-#define OBEX_RSP_PARTIAL_CONTENT	0x26
-#define OBEX_RSP_MULTIPLE_CHOICES	0x30
-#define OBEX_RSP_MOVED_PERMANENTLY	0x31
-#define OBEX_RSP_MOVED_TEMPORARILY	0x32
-#define OBEX_RSP_SEE_OTHER		0x33
-#define OBEX_RSP_NOT_MODIFIED		0x34
-#define OBEX_RSP_USE_PROXY		0x35
-#define OBEX_RSP_BAD_REQUEST		0x40
-#define OBEX_RSP_UNAUTHORIZED		0x41
-#define OBEX_RSP_PAYMENT_REQUIRED	0x42
-#define OBEX_RSP_FORBIDDEN		0x43
-#define OBEX_RSP_NOT_FOUND		0x44
-#define OBEX_RSP_METHOD_NOT_ALLOWED	0x45
-#define OBEX_RSP_NOT_ACCEPTABLE		0x46
-#define OBEX_RSP_PROXY_AUTH_REQUIRED	0x47
-#define OBEX_RSP_REQUEST_TIME_OUT	0x48
-#define OBEX_RSP_CONFLICT		0x49
-#define OBEX_RSP_GONE			0x4a
-#define OBEX_RSP_LENGTH_REQUIRED	0x4b
-#define OBEX_RSP_PRECONDITION_FAILED	0x4c
-#define OBEX_RSP_REQ_ENTITY_TOO_LARGE	0x4d
-#define OBEX_RSP_REQ_URL_TOO_LARGE	0x4e
-#define OBEX_RSP_UNSUPPORTED_MEDIA_TYPE	0x4f
-#define OBEX_RSP_INTERNAL_SERVER_ERROR	0x50
-#define OBEX_RSP_NOT_IMPLEMENTED	0x51
-#define OBEX_RSP_BAD_GATEWAY		0x52
-#define OBEX_RSP_SERVICE_UNAVAILABLE	0x53
-#define OBEX_RSP_GATEWAY_TIMEOUT	0x54
-#define OBEX_RSP_VERSION_NOT_SUPPORTED	0x55
-#define OBEX_RSP_DATABASE_FULL		0x60
-#define OBEX_RSP_DATABASE_LOCKED	0x61
+/** Obex responses */
+enum obex_rsp {
+	OBEX_RSP_CONTINUE		= 0x10,
+	OBEX_RSP_SWITCH_PRO		= 0x11,
+	OBEX_RSP_SUCCESS		= 0x20,
+	OBEX_RSP_CREATED		= 0x21,
+	OBEX_RSP_ACCEPTED		= 0x22,
+	OBEX_RSP_NON_AUTHORITATIVE	= 0x23,
+	OBEX_RSP_NO_CONTENT		= 0x24,
+	OBEX_RSP_RESET_CONTENT		= 0x25,
+	OBEX_RSP_PARTIAL_CONTENT	= 0x26,
+	OBEX_RSP_MULTIPLE_CHOICES	= 0x30,
+	OBEX_RSP_MOVED_PERMANENTLY	= 0x31,
+	OBEX_RSP_MOVED_TEMPORARILY	= 0x32,
+	OBEX_RSP_SEE_OTHER		= 0x33,
+	OBEX_RSP_NOT_MODIFIED		= 0x34,
+	OBEX_RSP_USE_PROXY		= 0x35,
+	OBEX_RSP_BAD_REQUEST		= 0x40,
+	OBEX_RSP_UNAUTHORIZED		= 0x41,
+	OBEX_RSP_PAYMENT_REQUIRED	= 0x42,
+	OBEX_RSP_FORBIDDEN		= 0x43,
+	OBEX_RSP_NOT_FOUND		= 0x44,
+	OBEX_RSP_METHOD_NOT_ALLOWED	= 0x45,
+	OBEX_RSP_NOT_ACCEPTABLE		= 0x46,
+	OBEX_RSP_PROXY_AUTH_REQUIRED	= 0x47,
+	OBEX_RSP_REQUEST_TIME_OUT	= 0x48,
+	OBEX_RSP_CONFLICT		= 0x49,
+	OBEX_RSP_GONE			= 0x4a,
+	OBEX_RSP_LENGTH_REQUIRED	= 0x4b,
+	OBEX_RSP_PRECONDITION_FAILED	= 0x4c,
+	OBEX_RSP_REQ_ENTITY_TOO_LARGE	= 0x4d,
+	OBEX_RSP_REQ_URL_TOO_LARGE	= 0x4e,
+	OBEX_RSP_UNSUPPORTED_MEDIA_TYPE	= 0x4f,
+	OBEX_RSP_INTERNAL_SERVER_ERROR	= 0x50,
+	OBEX_RSP_NOT_IMPLEMENTED	= 0x51,
+	OBEX_RSP_BAD_GATEWAY		= 0x52,
+	OBEX_RSP_SERVICE_UNAVAILABLE	= 0x53,
+	OBEX_RSP_GATEWAY_TIMEOUT	= 0x54,
+	OBEX_RSP_VERSION_NOT_SUPPORTED	= 0x55,
+	OBEX_RSP_DATABASE_FULL		= 0x60,
+	OBEX_RSP_DATABASE_LOCKED	= 0x61,
+};
 
+/** Obex response modes */
 enum obex_rsp_mode {
-  OBEX_RSP_MODE_NORMAL = 0, /**< normal response mode */
-  OBEX_RSP_MODE_SINGLE = 1, /**< single response mode (SRM) */
+	OBEX_RSP_MODE_NORMAL = 0, /**< normal response mode */
+	OBEX_RSP_MODE_SINGLE = 1, /**< single response mode (SRM) */
 };
 
 /* Min, Max and default transport MTU */
