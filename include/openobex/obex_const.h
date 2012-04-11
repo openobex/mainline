@@ -209,6 +209,8 @@ enum obex_transport_type {
 
 /** Type part of an obex header value */
 enum obex_hdr_type {
+	/** used as invalid return value */
+	OBEX_HDR_TYPE_INVALID = -1,
 	/** zero terminated unicode string (network byte order) */
 	OBEX_HDR_TYPE_UNICODE = (0 << OBEX_HDR_TYPE_SHIFT),
 	/** byte array */
@@ -221,6 +223,8 @@ enum obex_hdr_type {
 
 /** Identifier part of an obex header value */
 enum obex_hdr_id {
+	/** used as invalid return value */
+	OBEX_HDR_ID_INVALID    = -1,
 	/** Number of objects (used by connect) */
 	OBEX_HDR_ID_COUNT        = 0,
 	/** Name of the object */
