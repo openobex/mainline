@@ -25,7 +25,6 @@ set ( SOURCES
   obex.c
   obex_client.c
   obex_connect.c
-  obex_header.c
   obex_hdr.c
   obex_hdr_membuf.c
   obex_hdr_ptr.c
@@ -45,7 +44,6 @@ include_directories ( ${CMAKE_CURRENT_SOURCE_DIR} )
 set ( HEADERS
   obex_client.h
   obex_connect.h
-  obex_header.h
   obex_hdr.h
   obex_main.h
   obex_object.h

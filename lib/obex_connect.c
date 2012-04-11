@@ -26,13 +26,21 @@
 
 #include "obex_main.h"
 #include "obex_object.h"
-#include "obex_header.h"
 #include "databuffer.h"
 
 #include "obex_connect.h"
 
 #include <stdio.h>
 #include <string.h>
+
+/* Connect header */
+#pragma pack(1)
+struct obex_connect_hdr {
+	uint8_t  version;
+	uint8_t  flags;
+	uint16_t mtu;
+};
+#pragma pack()
 
 /*
  * Function obex_insert_connectframe ()
@@ -42,7 +50,7 @@
  */
 int obex_insert_connectframe(obex_t *self, obex_object_t *object)
 {
-	obex_connect_hdr_t *hdr;
+	struct obex_connect_hdr *hdr;
 
 	DEBUG(4, "\n");
 
@@ -66,7 +74,7 @@ int obex_insert_connectframe(obex_t *self, obex_object_t *object)
 int obex_parse_connect_header(obex_t *self, buf_t *msg)
 {
 	obex_common_hdr_t *common_hdr = buf_get(msg);
-	obex_connect_hdr_t *conn_hdr = (obex_connect_hdr_t *)(common_hdr + 1);
+	struct obex_connect_hdr *conn_hdr =(void *)(common_hdr + 1);
 
 	/* Remember opcode and size for later */
 	uint8_t opcode = common_hdr->opcode;

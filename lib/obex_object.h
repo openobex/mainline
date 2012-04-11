@@ -34,6 +34,14 @@
 struct databuffer;
 struct databuffer_list;
 
+/* Common header used by all frames */
+#pragma pack(1)
+struct obex_common_hdr {
+	uint8_t  opcode;
+	uint16_t len;
+};
+#pragma pack()
+typedef struct obex_common_hdr obex_common_hdr_t;
 
 struct obex_object {
 	struct databuffer *tx_nonhdr_data;	/* Data before of headers (like CONNECT and SETPATH) */
