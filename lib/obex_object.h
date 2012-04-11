@@ -34,22 +34,13 @@
 struct databuffer;
 struct databuffer_list;
 
-struct obex_header_element {
-	struct databuffer *buf;
-	uint8_t hi;
-	unsigned int flags;
-	unsigned int length;
-	int body_touched;
-	int stream;
-};
 
 struct obex_object {
-	struct databuffer_list *tx_headerq;	/* List of headers to transmit*/
-	struct databuffer_list *rx_headerq;	/* List of received headers */
-	struct databuffer_list *rx_headerq_rm;	/* List of recieved header already read by the app */
-	struct databuffer *rx_body;		/* The rx body header need some extra help */
 	struct databuffer *tx_nonhdr_data;	/* Data before of headers (like CONNECT and SETPATH) */
-	struct databuffer *rx_nonhdr_data;	/* -||- */
+	struct databuffer_list *tx_headerq;	/* List of headers to transmit*/
+
+	struct databuffer *rx_nonhdr_data;	/* Data before of headers (like CONNECT and SETPATH) */
+	struct databuffer_list *rx_headerq;	/* List of received headers */
 
 	uint8_t cmd;			/* The command of this object */
 
@@ -62,17 +53,14 @@ struct obex_object {
 	uint16_t headeroffset;		/* Where to start parsing headers */
 
 	uint32_t hinted_body_len;	/* Hinted body-length or 0 */
-	int totallen;			/* Size of all headers */
 	int abort;			/* Request shall be aborted */
 
 	enum obex_rsp_mode rsp_mode;	/* OBEX_RSP_MODE_* */
 
 	int suspend;			/* Temporarily stop transfering object */
 
-	const uint8_t *s_buf;		/* Pointer to streaming data */
-	unsigned int s_len;		/* Length of stream-data */
-	unsigned int s_offset;		/* Current offset in buf */
-	int s_stop;			/* End of stream */
+	struct obex_hdr *body;		/* The body header need some extra help */
+	struct obex_hdr_it *it;
 	int s_srv;			/* Deliver body as stream when server */
 };
 
@@ -86,6 +74,7 @@ int obex_object_getnextheader(struct obex *self, struct obex_object *object, uin
 			      obex_headerdata_t *hv, uint32_t *hv_size);
 int obex_object_reparseheaders(struct obex *self, struct obex_object *object);
 void obex_object_setcmd(struct obex_object *object, uint8_t cmd);
+uint8_t obex_object_getcmd(const obex_t *self, const obex_object_t *object);
 int obex_object_setrsp(struct obex_object *object, uint8_t rsp, uint8_t lastrsp);
 int obex_object_prepare_send(obex_t *self, obex_object_t *object,
 			     int allowfinalcmd, int forcefinalbit);
