@@ -72,9 +72,9 @@ int obex_data_indication(struct obex *self);
 buf_t* obex_data_receive(obex_t *self);
 void obex_data_receive_finished(obex_t *self);
 
-void obex_data_request_prepare(struct obex *self, struct databuffer *msg,
-			       int opcode);
-int obex_data_request(struct obex *self, struct databuffer *msg);
+void obex_data_request_init(struct obex *self);
+void obex_data_request_prepare(struct obex *self, int opcode);
+int obex_data_request(struct obex *self);
 int obex_cancelrequest(struct obex *self, int nice);
 
 char *obex_response_to_string(int rsp);

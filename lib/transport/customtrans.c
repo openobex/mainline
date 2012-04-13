@@ -90,7 +90,7 @@ static int custom_write(obex_t *self, buf_t *msg)
 	obex_ctrans_t *ctrans = &trans->data.custom;
 
 	return ctrans->write(self, ctrans->customdata, buf_get(msg),
-			     buf_size(msg));
+			     buf_get_length(msg));
 }
 
 static int custom_read(obex_t *self, void *buf, int size)

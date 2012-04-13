@@ -161,66 +161,6 @@ int buf_append(struct databuffer *self, const void *data, size_t len) {
 		return -EINVAL;
 }
 
-int buf_empty(const buf_t *p)
-{
-	return (buf_get_length(p) == 0);
-}
-
-buf_t *buf_reuse(buf_t *p)
-{
-	buf_clear(p, buf_get_length(p));
-	return p;
-}
-
-void *buf_reserve_begin(buf_t *p, size_t data_size)
-{
-	void *old;
-	size_t old_offset;
-
-	if (!p)
-		return NULL;
-
-	old = p->ops_data;
-	old_offset = p->ops->get_offset(old);
-	p->ops->set_offset(old, 0);
-
-	p->ops_data = p->ops->new(buf_get_size(p)+data_size);
-	buf_append(p, p->ops->get(old), old_offset);
-	buf_set_offset(p, old_offset);
-	p->ops->set_offset(old, old_offset);
-
-	buf_append(p, NULL, data_size);
-	buf_append(p, p->ops->get(old), p->ops->get_length(old));
-	p->ops->delete(old);
-	return buf_get(p);
-}
-
-void *buf_reserve_end(buf_t *p, size_t data_size)
-{
-	size_t len;
-
-	if (!p)
-		return NULL;
-
-	len = buf_get_length(p);
-	if (p->ops->append(p, NULL, data_size) < 0)
-		return NULL;
-
-	return buf_get(p)+len;
-}
-
-void buf_insert_begin(buf_t *p, const void *data, size_t data_size)
-{
-	uint8_t *dest;
-
-	if (!p)
-		return;
-
-	dest = buf_reserve_begin(p, data_size);
-	assert(dest != NULL);
-	memcpy(dest, data, data_size);
-}
-
 void buf_dump(buf_t *p, const char *label)
 {
 	unsigned int i, n;
@@ -229,11 +169,11 @@ void buf_dump(buf_t *p, const char *label)
 		return;
 
 	n = 0;
-	for (i = 0; i < buf_size(p); ++i) {
+	for (i = 0; i < buf_get_length(p); ++i) {
 		if (n == 0)
 			log_debug("%s%s(%04x):", log_debug_prefix, label, i);
-		log_debug(" %02X", ((uint8_t *)buf_get(p))[i]);
-		if (n >= 0xF || i == buf_size(p) - 1) {
+		log_debug(" %02X", *(uint8_t *)(buf_get(p) + i));
+		if (n >= 0xF || i == buf_get_length(p) - 1) {
 			log_debug("\n");
 			n = 0;
 		} else

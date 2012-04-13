@@ -64,7 +64,7 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
 	int fd = trans->data.fd.writefd;
-	size_t size = buf_size(msg);
+	size_t size = buf_get_length(msg);
 	int status;
 	fd_set fdset;
 	struct timeval time = {trans->timeout, 0};

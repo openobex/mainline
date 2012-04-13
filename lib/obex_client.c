@@ -74,11 +74,10 @@ static int obex_client_abort_transmit(obex_t *self)
 
 static int obex_client_abort_prepare(obex_t *self)
 {
-	buf_t *msg = buf_reuse(self->tx_msg);
-
 	DEBUG(4, "STATE: ABORT/PREPARE_TX\n");
 
-	obex_data_request_prepare(self, msg, OBEX_CMD_ABORT);
+	obex_data_request_init(self);
+	obex_data_request_prepare(self, OBEX_CMD_ABORT);
 	self->substate = SUBSTATE_TRANSMIT_TX;
 	return obex_client_abort_transmit(self);
 }

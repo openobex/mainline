@@ -57,7 +57,6 @@ struct databuffer {
 typedef struct databuffer buf_t;
 
 #include <membuf.h>
-#define buf_new(x)  membuf_create(x)
 
 struct databuffer *buf_create(size_t default_size, struct databuffer_ops *ops);
 void buf_delete(struct databuffer *self);
@@ -71,18 +70,6 @@ void buf_clear(struct databuffer *self, size_t len);
 int buf_append(struct databuffer *self, const void *data, size_t len);
 void buf_dump(buf_t *p, const char *label);
 
-/* Old API */
-int buf_empty(const buf_t *p);
-buf_t *buf_reuse(buf_t *p);
-void *buf_reserve_begin(buf_t *p, size_t data_size);
-void *buf_reserve_end(buf_t *p, size_t data_size);
-void buf_insert_begin(buf_t *p, const void *data, size_t data_size);
-#define buf_size(p) buf_get_length(p)
-#define buf_resize(p,new_size) buf_set_size(p, new_size)
-#define buf_insert_end(p,data,data_size) buf_append(p, data, data_size)
-#define buf_remove_begin(p,data_size) buf_clear(p, data_size)
-#define buf_remove_end(p,data_size) buf_set_size(p, buf_size(p) - (data_size))
-#define buf_free(p) buf_delete(p)
 
 #define slist_is_empty(l) ((l) == NULL)
 int slist_has_more(slist_t *list);

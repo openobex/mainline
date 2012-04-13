@@ -50,15 +50,20 @@ struct obex_connect_hdr {
  */
 int obex_insert_connectframe(obex_t *self, obex_object_t *object)
 {
+	struct databuffer *buf = object->tx_nonhdr_data;
 	struct obex_connect_hdr *hdr;
 
 	DEBUG(4, "\n");
 
-	object->tx_nonhdr_data = buf_new(sizeof(*hdr));
-	if (!object->tx_nonhdr_data)
-		return -1;
+	if (!buf) {
+		buf = object->tx_nonhdr_data = membuf_create(sizeof(*hdr));
+		if (!buf)
+			return -1;
+	} else
+		buf_clear(buf, buf_get_length(buf));
 
-	hdr = buf_reserve_end(object->tx_nonhdr_data, sizeof(*hdr));
+	buf_append(buf, NULL, sizeof(*hdr));
+	hdr = buf_get(buf);
 	hdr->version = OBEX_VERSION;
 	hdr->flags = 0x00;              /* Flags */
 	hdr->mtu = htons(self->mtu_rx); /* Max packet size */
@@ -87,8 +92,8 @@ int obex_parse_connect_header(obex_t *self, buf_t *msg)
 				opcode != (OBEX_CMD_CONNECT | OBEX_FINAL))
 		return 1;
 
-	DEBUG(4, "Len: %lu\n", (unsigned long)buf_size(msg));
-	if (buf_size(msg) >= sizeof(*common_hdr)+sizeof(*conn_hdr)) {
+	DEBUG(4, "Len: %lu\n", (unsigned long)buf_get_length(msg));
+	if (buf_get_length(msg) >= sizeof(*common_hdr)+sizeof(*conn_hdr)) {
 		/* Get what we need */
 		uint16_t mtu = ntohs(conn_hdr->mtu);
 

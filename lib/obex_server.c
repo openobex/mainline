@@ -60,19 +60,22 @@ static __inline int msg_get_final(const buf_t *msg)
 		return 0;
 }
 
+static void obex_response_request_prepare(obex_t *self, uint8_t opcode)
+{
+	obex_data_request_init(self);
+	obex_data_request_prepare(self, opcode | OBEX_FINAL);
+}
+
 static void obex_response_request(obex_t *self, uint8_t opcode)
 {
-	buf_t *msg;
-
 	obex_return_if_fail(self != NULL);
 
-	msg = buf_reuse(self->tx_msg);
-	obex_data_request_prepare(self, msg, opcode | OBEX_FINAL);
+	obex_response_request_prepare(self, opcode);
 	do {
-		int status = obex_data_request(self, msg);
+		int status = obex_data_request(self);
 		if (status < 0)
 			break;
-	} while (!buf_empty(msg));
+	} while (!buf_get_length(self->tx_msg));
 }
 
 static int obex_server_bad_request(obex_t *self)
@@ -107,9 +110,7 @@ static int obex_server_abort_transmit(obex_t *self)
 
 static int obex_server_abort_response(obex_t *self)
 {
-	buf_t *msg = buf_reuse(self->tx_msg);
-
-	obex_data_request_prepare(self, msg, OBEX_RSP_SUCCESS | OBEX_FINAL);
+	obex_response_request_prepare(self, OBEX_RSP_SUCCESS);
 	self->state = STATE_ABORT;
 	self->substate = SUBSTATE_TRANSMIT_TX;
 	return obex_server_abort_transmit(self);
@@ -117,7 +118,6 @@ static int obex_server_abort_response(obex_t *self)
 
 static int obex_server_abort_prepare(obex_t *self)
 {
-	buf_t *msg = buf_reuse(self->tx_msg);
 	int opcode = OBEX_RSP_INTERNAL_SERVER_ERROR;
 
 	DEBUG(4, "STATE: ABORT/PREPARE_TX\n");
@@ -125,7 +125,7 @@ static int obex_server_abort_prepare(obex_t *self)
 	/* Do not send continue */
 	if (self->object->opcode != OBEX_RSP_CONTINUE)
 		opcode = self->object->lastopcode;
-	obex_data_request_prepare(self, msg, opcode | OBEX_FINAL);
+	obex_response_request_prepare(self, opcode);
 	self->substate = SUBSTATE_TRANSMIT_TX;
 	return obex_server_abort_transmit(self);
 }

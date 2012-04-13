@@ -118,11 +118,11 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb,
 	/* Allocate message buffers */
 	/* It's safe to allocate them smaller than OBEX_MAXIMUM_MTU
 	 * because buf_t will realloc data as needed. - Jean II */
-	self->rx_msg = buf_new(self->mtu_rx);
+	self->rx_msg = membuf_create(self->mtu_rx);
 	if (self->rx_msg == NULL)
 		goto out_err;
 
-	self->tx_msg = buf_new(self->mtu_tx_max);
+	self->tx_msg = membuf_create(self->mtu_tx_max);
 	if (self->tx_msg == NULL)
 		goto out_err;
 
@@ -167,10 +167,10 @@ void CALLAPI OBEX_Cleanup(obex_t *self)
 	obex_transport_cleanup(self);
 
 	if (self->tx_msg)
-		buf_free(self->tx_msg);
+		buf_delete(self->tx_msg);
 
 	if (self->rx_msg)
-		buf_free(self->rx_msg);
+		buf_delete(self->rx_msg);
 
 	OBEX_FreeInterfaces(self);
 
@@ -256,10 +256,10 @@ int CALLAPI OBEX_SetTransportMTU(obex_t *self, uint16_t mtu_rx,
 	self->mtu_rx = mtu_rx;
 	self->mtu_tx_max = mtu_tx_max;
 	/* Reallocate transport buffers */
-	buf_resize(self->rx_msg, self->mtu_rx);
+	buf_set_size(self->rx_msg, self->mtu_rx);
 	if (self->rx_msg == NULL)
 		return -ENOMEM;
-	buf_resize(self->tx_msg, self->mtu_tx_max);
+	buf_set_size(self->tx_msg, self->mtu_tx_max);
 	if (self->tx_msg == NULL)
 		return -ENOMEM;
 
@@ -356,12 +356,12 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 	self->mtu_tx_max = server->mtu_tx_max;
 
 	/* Allocate message buffers */
-	self->rx_msg = buf_new(self->mtu_rx);
+	self->rx_msg = membuf_create(self->mtu_rx);
 	if (self->rx_msg == NULL)
 		goto out_err;
 
 	/* Note : mtu_tx not yet negociated, so let's be safe here - Jean II */
-	self->tx_msg = buf_new(self->mtu_tx_max);
+	self->tx_msg = membuf_create(self->mtu_tx_max);
 	if (self->tx_msg == NULL)
 		goto out_err;
 
@@ -374,9 +374,9 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 
 out_err:
 	if (self->tx_msg != NULL)
-		buf_free(self->tx_msg);
+		buf_delete(self->tx_msg);
 	if (self->rx_msg != NULL)
-		buf_free(self->rx_msg);
+		buf_delete(self->rx_msg);
 	free(self);
 	return NULL;
 }
@@ -420,7 +420,7 @@ int CALLAPI OBEX_CustomDataFeed(obex_t *self, uint8_t *inputbuf, int actual)
 	obex_return_val_if_fail(self != NULL, -1);
 
 	if (inputbuf && actual > 0)
-		buf_insert_end(self->rx_msg, inputbuf, (size_t)actual);
+		buf_append(self->rx_msg, inputbuf, (size_t)actual);
 
 	return obex_data_indication(self);
 }
@@ -796,7 +796,7 @@ int CALLAPI OBEX_ObjectGetNonHdrData(obex_object_t *object, uint8_t **buffer)
 		return 0;
 
 	*buffer = buf_get(object->rx_nonhdr_data);
-	return buf_size(object->rx_nonhdr_data);
+	return buf_get_length(object->rx_nonhdr_data);
 }
 
 /**
@@ -823,11 +823,11 @@ int CALLAPI OBEX_ObjectSetNonHdrData(obex_object_t *object,
 	if (object->tx_nonhdr_data)
 		return -1;
 
-	object->tx_nonhdr_data = buf_new(len);
+	object->tx_nonhdr_data = membuf_create(len);
 	if (object->tx_nonhdr_data == NULL)
 		return -1;
 
-	buf_insert_end(object->tx_nonhdr_data, (uint8_t *)buffer, len);
+	buf_append(object->tx_nonhdr_data, buffer, len);
 
 	return 1;
 }

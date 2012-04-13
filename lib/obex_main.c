@@ -174,22 +174,32 @@ void obex_deliver_event(obex_t *self, int event, int cmd, int rsp, int del)
 		obex_object_delete(object);
 }
 
-/*
- * Function obex_data_request_prepare (self, opcode, cmd)
- *
- *    Prepare response or command code along with optional headers/data
- *    to send.
- *
- */
-void obex_data_request_prepare(obex_t *self, buf_t *msg, int opcode)
+void obex_data_request_init(obex_t *self)
 {
-	obex_common_hdr_t *hdr;
+	buf_t *msg = self->tx_msg;
 
-	/* Insert common header */
-	hdr = buf_reserve_begin(msg, sizeof(*hdr));
+	buf_clear(msg, buf_get_length(msg));
+	buf_set_size(msg, self->mtu_tx);
+	buf_append(msg, NULL, sizeof(struct obex_common_hdr));	
+}
 
+/** Prepare response or command code along with optional headers/data to send.
+ *
+ * The caller is supposed to reserve the size of struct obex_common_hdr at the
+ * begin of the message buffer, e.g. using obex_data_request_init()
+ *
+ * @param self the obex instance
+ * @param msg the message buffer
+ * @opcode the message opcode
+ */
+void obex_data_request_prepare(obex_t *self, int opcode)
+{
+	buf_t *msg = self->tx_msg;
+	obex_common_hdr_t *hdr = buf_get(msg);
+
+	/* alignment is assured here */
 	hdr->opcode = opcode;
-	hdr->len = htons((uint16_t)buf_size(msg));
+	hdr->len = htons((uint16_t)buf_get_length(msg));
 
 	DUMPBUFFER(1, "Tx", msg);
 }
@@ -200,18 +210,18 @@ void obex_data_request_prepare(obex_t *self, buf_t *msg, int opcode)
  *    Send message.
  *
  */
-int obex_data_request(obex_t *self, buf_t *msg)
+int obex_data_request(obex_t *self)
 {
+	buf_t *msg = self->tx_msg;
 	int status;
 
 	obex_return_val_if_fail(self != NULL, -1);
-	obex_return_val_if_fail(msg != NULL, -1);
 
-	DEBUG(1, "len = %lu bytes\n", (unsigned long)buf_size(msg));
+	DEBUG(1, "len = %lu bytes\n", (unsigned long)buf_get_length(msg));
 
 	status = obex_transport_write(self, msg);
 	if (status > 0)
-		buf_remove_begin(msg, status);
+		buf_clear(msg, status);
 
 	return status;
 }
@@ -255,8 +265,8 @@ int obex_work(obex_t *self, int timeout)
 int obex_get_buffer_status(buf_t *msg) {
 	obex_common_hdr_t *hdr = buf_get(msg);
 
-	return (buf_size(msg) >= sizeof(*hdr) &&
-		buf_size(msg) >= ntohs(hdr->len));
+	return (buf_get_length(msg) >= sizeof(*hdr) &&
+		buf_get_length(msg) >= ntohs(hdr->len));
 }
 
 /*
@@ -279,8 +289,9 @@ int obex_data_indication(obex_t *self)
 	msg = self->rx_msg;
 
 	/* First we need 3 bytes to be able to know how much data to read */
-	if (buf_size(msg) < sizeof(*hdr))  {
-		actual = obex_transport_read(self, sizeof(*hdr)-buf_size(msg));
+	if (buf_get_length(msg) < sizeof(*hdr))  {
+		size_t readsize = sizeof(*hdr) - buf_get_length(msg);
+		actual = obex_transport_read(self, readsize);
 
 		DEBUG(4, "Got %d bytes\n", actual);
 
@@ -294,15 +305,15 @@ int obex_data_indication(obex_t *self)
 	}
 
 	/* If we have 3 bytes data we can decide how big the packet is */
-	if (buf_size(msg) >= sizeof(*hdr)) {
+	if (buf_get_length(msg) >= sizeof(*hdr)) {
 		hdr = buf_get(msg);
 		size = ntohs(hdr->len);
 
 		actual = 0;
-		if (buf_size(msg) < size) {
+		if (buf_get_length(msg) < size) {
+			size_t readsize = size - buf_get_length(msg);
+			actual = obex_transport_read(self, readsize);
 
-			actual = obex_transport_read(self,
-						     size - buf_size(msg));
 			/* hdr might not be valid anymore if the _read
 			 * did a realloc */
 			hdr = buf_get(msg);
@@ -319,13 +330,13 @@ int obex_data_indication(obex_t *self)
 	} else {
 		/* Wait until we have at least 3 bytes data */
 		DEBUG(3, "Need at least 3 bytes got only %lu!\n",
-		      (unsigned long)buf_size(msg));
+		      (unsigned long)buf_get_length(msg));
 		return 0;
         }
 
 	/* New data has been inserted at the end of message */
 	DEBUG(1, "Got %d bytes msg len=%lu\n", actual,
-	      (unsigned long)buf_size(msg));
+	      (unsigned long)buf_get_length(msg));
 
 	/*
 	 * Make sure that the buffer we have, actually has the specified
@@ -334,9 +345,9 @@ int obex_data_indication(obex_t *self)
 	 */
 
 	/* Make sure we have a whole packet */
-	if (size > buf_size(msg)) {
+	if (size > buf_get_length(msg)) {
 		DEBUG(3, "Need more data, size=%d, len=%lu!\n",
-		      size, (unsigned long)buf_size(msg));
+		      size, (unsigned long)buf_get_length(msg));
 
 		/* I'll be back! */
 		return 0;
@@ -365,9 +376,7 @@ void obex_data_receive_finished(obex_t *self)
 	unsigned int size = ntohs(hdr->len);
 
 	DEBUG(4, "Pulling %u bytes\n", size);
-	buf_remove_begin(msg, size);
-	if (buf_size(msg) == 0)
-		buf_reuse(msg);
+	buf_clear(msg, size);
 }
 
 /*
@@ -386,8 +395,8 @@ int obex_cancelrequest(obex_t *self, int nice)
 	if (!nice) {
 		/* Deliver event will delete the object */
 		obex_deliver_event(self, OBEX_EV_ABORT, 0, 0, TRUE);
-		buf_reuse(self->tx_msg);
-		buf_reuse(self->rx_msg);
+		buf_clear(self->tx_msg, buf_get_length(self->tx_msg));
+		buf_clear(self->rx_msg, buf_get_length(self->rx_msg));
 		/* Since we didn't send ABORT to peer we are out of sync
 		 * and need to disconnect transport immediately, so we
 		 * signal link error to app */

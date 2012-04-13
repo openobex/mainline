@@ -471,7 +471,7 @@ static int usbobex_write(obex_t *self, buf_t *msg)
 	DEBUG(4, "Endpoint %d\n", data->self.data_endpoint_write);
 	status = usb_bulk_write(data->self.dev,
 				data->self.data_endpoint_write,
-				(char *) msg->data, msg->data_size,
+				buf_get(msg), buf_get_length(msg),
 				usbobex_get_timeout(trans->timeout));
 
 	if (status < 0) {

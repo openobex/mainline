@@ -510,15 +510,15 @@ static int usbobex_write(obex_t *self, buf_t *msg)
 	usberror = libusb_bulk_transfer(data->self.dev,
 					data->self.data_endpoint_write,
 					buf_get(msg),
-					buf_size(msg), &actual,
+					buf_get_length(msg), &actual,
 					usbobex_get_timeout(trans->timeout));
 	switch (usberror) {
 	case 0:
-		buf_remove_begin(msg, actual);
+		buf_clear(msg, actual);
 		return actual;
 
 	case LIBUSB_ERROR_TIMEOUT:
-		buf_remove_begin(msg, actual);
+		buf_clear(msg, actual);
 		return 0;
 
 	default:

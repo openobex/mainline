@@ -84,12 +84,12 @@ int obex_object_delete(obex_object_t *object)
 
 	/* Free tx and rx msgs */
 	if (object->tx_nonhdr_data) {
-		buf_free(object->tx_nonhdr_data);
+		buf_delete(object->tx_nonhdr_data);
 		object->tx_nonhdr_data = NULL;
 	}
 
 	if (object->rx_nonhdr_data) {
-		buf_free(object->rx_nonhdr_data);
+		buf_delete(object->rx_nonhdr_data);
 		object->rx_nonhdr_data = NULL;
 	}
 
@@ -323,7 +323,7 @@ static int obex_object_get_real_opcode(obex_object_t *object,
 int obex_object_prepare_send(obex_t *self, obex_object_t *object,
 			     int allowfinalcmd, int forcefinalbit)
 {
-	buf_t *txmsg;
+	buf_t *txmsg = self->tx_msg;
 	int real_opcode;
 	uint16_t tx_left;
 	unsigned int srm_flags = 0;
@@ -340,15 +340,14 @@ int obex_object_prepare_send(obex_t *self, obex_object_t *object,
 		tx_left -= self->mtu_tx % self->trans.mtu;
 #endif /*HAVE_IRDA*/
 
-	/* Reuse transmit buffer */
-	txmsg = buf_reuse(self->tx_msg);
+	obex_data_request_init(self);
 
 	/* Add nonheader-data first if any (SETPATH, CONNECT)*/
 	if (object->tx_nonhdr_data) {
 		DEBUG(4, "Adding %lu bytes of non-headerdata\n",
-		      (unsigned long)buf_size(object->tx_nonhdr_data));
+		      (unsigned long)buf_get_length(object->tx_nonhdr_data));
 		buf_append(txmsg, buf_get(object->tx_nonhdr_data),
-			   buf_size(object->tx_nonhdr_data));
+			   buf_get_length(object->tx_nonhdr_data));
 
 		buf_delete(object->tx_nonhdr_data);
 		object->tx_nonhdr_data = NULL;
@@ -390,7 +389,7 @@ int obex_object_prepare_send(obex_t *self, obex_object_t *object,
 	real_opcode = obex_object_get_real_opcode(self->object, allowfinalcmd,
 						  forcefinalbit);
 	DEBUG(4, "Generating packet with opcode %d\n", real_opcode);
-	obex_data_request_prepare(self, self->tx_msg, real_opcode);
+	obex_data_request_prepare(self, real_opcode);
 
 	self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_REMOTE;
 	self->srm_flags |= srm_flags;
@@ -413,15 +412,15 @@ int obex_object_finished(obex_t *self, obex_object_t *object, int allowfinalcmd)
 
 int obex_object_send_transmit(obex_t *self, obex_object_t *object)
 {
-	if (!buf_empty(self->tx_msg)) {
-		int ret = obex_data_request(self, self->tx_msg);
+	if (!buf_get_length(self->tx_msg)) {
+		int ret = obex_data_request(self);
 		if (ret < 0) {
 			DEBUG(4, "Send error\n");
 			return -1;
 		}
 	}
 
-	return buf_empty(self->tx_msg);
+	return !!buf_get_length(self->tx_msg);
 }
 
 /*
@@ -588,12 +587,12 @@ int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
 		return 0;
 
 	/* Copy any non-header data (like in CONNECT and SETPATH) */
-	object->rx_nonhdr_data = buf_new(object->headeroffset);
+	object->rx_nonhdr_data = membuf_create(object->headeroffset);
 	if (!object->rx_nonhdr_data)
 		return -1;
-	buf_insert_end(object->rx_nonhdr_data, msgdata,	object->headeroffset);
+	buf_append(object->rx_nonhdr_data, msgdata, object->headeroffset);
 	DEBUG(4, "Command has %lu bytes non-headerdata\n",
-	      (unsigned long)buf_size(object->rx_nonhdr_data));
+	      (unsigned long)buf_get_length(object->rx_nonhdr_data));
 
 	return 0;
 }

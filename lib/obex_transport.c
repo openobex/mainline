@@ -342,7 +342,7 @@ int obex_transport_do_send (obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
 	socket_t fd = trans->fd;
-	size_t size = buf_size(msg);
+	size_t size = buf_get_length(msg);
 	int status;
 	fd_set fdset;
 	struct timeval *time_ptr = NULL;
@@ -419,26 +419,20 @@ int obex_transport_do_recv (obex_t *self, void *buf, int buflen)
  */
 int obex_transport_read(obex_t *self, int max)
 {
-	/* The implementation of the current transport is not known.
-	 * It may be that it can only read whole packets. Those are
-	 * by definition limited to the RX MTU. */
-	int actual = 0;
-	void *buf = buf_reserve_end(self->rx_msg, self->mtu_rx);
-
-	if (!buf)
-		return -1;
+	struct databuffer *msg = self->rx_msg;
+	size_t msglen = buf_get_length(msg);
+	void *buf;
 
 	DEBUG(4, "Request to read max %d bytes\n", max);
+	if (!buf_set_size(msg, msglen + self->mtu_rx))
+		return -1;
+
+	buf = buf_get(msg) + msglen;
 
 	if (self->trans.ops.read)
-		actual = self->trans.ops.read(self, buf, max);
-
-	if (actual <= 0)
-		buf_remove_end(self->rx_msg, self->mtu_rx);
-	else if (0 < actual && actual < self->mtu_rx)
-		buf_remove_end(self->rx_msg, self->mtu_rx - actual);
-
-	return actual;
+		return self->trans.ops.read(self, buf, max);
+	else
+		return 0;
 }
 
 void obex_transport_enumerate(struct obex *self)
