@@ -51,62 +51,6 @@
 int obex_debug;
 int obex_dump;
 
-#include "cloexec.h"
-#include "nonblock.h"
-
-/*
- * Function obex_create_socket()
- *
- *    Create socket if needed.
- *
- */
-socket_t obex_create_socket(obex_t *self, int domain)
-{
-	socket_t fd;
-	int type = SOCK_STREAM, proto = 0;
-
-	DEBUG(4, "\n");
-
-#ifdef HAVE_BLUETOOTH
-	if (domain == AF_BLUETOOTH)
-		proto = BTPROTO_RFCOMM;
-#endif /*HAVE_BLUETOOTH*/
-
-	if (self->init_flags & OBEX_FL_CLOEXEC)
-		fd = socket_cloexec(domain, type, proto);
-	else
-		fd = socket(domain, type, proto);
-
-	if (self->init_flags & OBEX_FL_NONBLOCK)
-		socket_set_nonblocking(fd);
-
-	return fd;
-}
-
-/*
- * Function obex_delete_socket()
- *
- *    Close socket if opened.
- *
- */
-int obex_delete_socket(obex_t *self, socket_t fd)
-{
-	int ret;
-
-	DEBUG(4, "\n");
-
-	if (fd == INVALID_SOCKET)
-		return fd;
-
-#ifdef _WIN32
-	ret = closesocket(fd);
-#else /* _WIN32 */
-	ret = close(fd);
-#endif /* _WIN32 */
-	return ret;
-}
-
-
 /*
  * Function obex_response_to_string(rsp)
  *

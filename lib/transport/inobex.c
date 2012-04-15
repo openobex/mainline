@@ -232,7 +232,7 @@ static int inobex_listen(obex_t *self)
 		inobex_prepare_listen(self, (struct sockaddr *) &data->self,
 							sizeof(data->self));
 
-	trans->serverfd = obex_create_socket(self, AF_INET6);
+	trans->serverfd = obex_transport_sock_create(self, AF_INET6, 0);
 	if (trans->serverfd == INVALID_SOCKET) {
 		DEBUG(0, "Cannot create server-socket\n");
 		return -1;
@@ -319,7 +319,7 @@ static int inobex_connect_request(obex_t *self)
 		inobex_prepare_connect(self, (struct sockaddr *) &data->peer,
 							sizeof(data->peer));
 
-	trans->fd = obex_create_socket(self, AF_INET6);
+	trans->fd = obex_transport_sock_create(self, AF_INET6, 0);
 	if (trans->fd == INVALID_SOCKET)
 		return -1;
 #ifdef IPV6_V6ONLY
@@ -342,7 +342,7 @@ static int inobex_connect_request(obex_t *self)
 #ifndef _WIN32
 	if (!inet_ntop(AF_INET6, &data->peer.sin6_addr, addr,sizeof(addr))) {
 		DEBUG(4, "Adress problem\n");
-		obex_delete_socket(self, trans->fd);
+		obex_transport_sock_delete(self, trans->fd);
 		trans->fd = INVALID_SOCKET;
 		return -1;
 	}
@@ -360,7 +360,7 @@ static int inobex_connect_request(obex_t *self)
 #endif
 	if (ret == -1) {
 		DEBUG(4, "Connect failed\n");
-		obex_delete_socket(self, trans->fd);
+		obex_transport_sock_delete(self, trans->fd);
 		trans->fd = INVALID_SOCKET;
 		return ret;
 	}
@@ -383,7 +383,7 @@ static int inobex_disconnect_request(obex_t *self)
 	int ret;
 
 	DEBUG(4, "\n");
-	ret = obex_delete_socket(self, trans->fd);
+	ret = obex_transport_sock_delete(self, trans->fd);
 	if (ret < 0)
 		return ret;
 	trans->fd = INVALID_SOCKET;
@@ -404,7 +404,7 @@ static int inobex_disconnect_server(obex_t *self)
 	int ret;
 
 	DEBUG(4, "\n");
-	ret = obex_delete_socket(self, trans->serverfd);
+	ret = obex_transport_sock_delete(self, trans->serverfd);
 	trans->serverfd = INVALID_SOCKET;
 	return ret;
 }
@@ -413,8 +413,8 @@ void inobex_get_ops(struct obex_transport_ops* ops)
 {
 	ops->init = &inobex_init;
 	ops->cleanup = &inobex_cleanup;
-	ops->write = &obex_transport_do_send;
-	ops->read = &obex_transport_do_recv;
+	ops->write = &obex_transport_sock_send;
+	ops->read = &obex_transport_sock_recv;
 	ops->set_local_addr = &inobex_set_local_addr;
 	ops->set_remote_addr = &inobex_set_remote_addr;
 	ops->server.listen = &inobex_listen;

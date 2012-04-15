@@ -162,7 +162,8 @@ static int btobex_listen(obex_t *self)
 
 	DEBUG(3, "\n");
 
-	trans->serverfd = obex_create_socket(self, AF_BLUETOOTH);
+	trans->serverfd = obex_transport_sock_create(self, AF_BLUETOOTH,
+						     BTPROTO_RFCOMM);
 	if (trans->serverfd == INVALID_SOCKET) {
 		DEBUG(0, "Error creating socket\n");
 		return -1;
@@ -184,7 +185,7 @@ static int btobex_listen(obex_t *self)
 	return 1;
 
 out_freesock:
-	obex_delete_socket(self, trans->serverfd);
+	obex_transport_sock_delete(self, trans->serverfd);
 	trans->serverfd = INVALID_SOCKET;
 	return -1;
 }
@@ -236,7 +237,8 @@ static int btobex_connect_request(obex_t *self)
 	DEBUG(4, "\n");
 
 	if (trans->fd == INVALID_SOCKET) {
-		trans->fd = obex_create_socket(self, AF_BLUETOOTH);
+		trans->fd = obex_transport_sock_create(self, AF_BLUETOOTH,
+						       BTPROTO_RFCOMM);
 		if (trans->fd == INVALID_SOCKET)
 			return -1;
 	}
@@ -271,7 +273,7 @@ static int btobex_connect_request(obex_t *self)
 	return 1;
 
 out_freesock:
-	obex_delete_socket(self, trans->fd);
+	obex_transport_sock_delete(self, trans->fd);
 	trans->fd = INVALID_SOCKET;
 	return ret;
 }
@@ -289,7 +291,7 @@ static int btobex_disconnect_request(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	ret = obex_delete_socket(self, trans->fd);
+	ret = obex_transport_sock_delete(self, trans->fd);
 	if (ret < 0)
 		return ret;
 
@@ -313,7 +315,7 @@ static int btobex_disconnect_server(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	ret = obex_delete_socket(self, trans->serverfd);
+	ret = obex_transport_sock_delete(self, trans->serverfd);
 	trans->serverfd = INVALID_SOCKET;
 
 	return ret;
@@ -323,8 +325,8 @@ void btobex_get_ops(struct obex_transport_ops *ops)
 {
 	ops->init = &btobex_init;
 	ops->cleanup = &btobex_cleanup;
-	ops->write = &obex_transport_do_send;
-	ops->read = &obex_transport_do_recv;
+	ops->write = &obex_transport_sock_send;
+	ops->read = &obex_transport_sock_recv;
 	ops->set_local_addr = &btobex_set_local_addr;
 	ops->set_remote_addr = &btobex_set_remote_addr;
 	ops->server.listen = &btobex_listen;

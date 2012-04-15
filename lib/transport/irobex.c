@@ -201,7 +201,7 @@ static int irobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t le
  */
 void irobex_prepare_connect(obex_t *self, const char *service)
 {
-	int fd = obex_create_socket(self, AF_IRDA);
+	int fd = obex_transport_sock_create(self, AF_IRDA, 0);
 	int i = 0;
 
 	obex_transport_enumerate(self);
@@ -228,7 +228,7 @@ void irobex_prepare_connect(obex_t *self, const char *service)
 	self->interfaces[i].irda.service = NULL;
 
 out_freesock:
-	obex_delete_socket(self, fd);
+	obex_transport_sock_delete(self, fd);
 }
 
 /*
@@ -287,7 +287,7 @@ static int irobex_listen(obex_t *self)
 
 	DEBUG(3, "\n");
 
-	trans->serverfd = obex_create_socket(self, AF_IRDA);
+	trans->serverfd = obex_transport_sock_create(self, AF_IRDA, 0);
 	if (trans->serverfd == INVALID_SOCKET) {
 		DEBUG(0, "Error creating socket\n");
 		return -1;
@@ -310,7 +310,7 @@ static int irobex_listen(obex_t *self)
 	return 1;
 
 out_freesock:
-	obex_delete_socket(self, trans->serverfd);
+	obex_transport_sock_delete(self, trans->serverfd);
 	trans->serverfd = INVALID_SOCKET;
 	return -1;
 }
@@ -388,7 +388,7 @@ static int irobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 	unsigned char buf[sizeof(*list) + ((MAX_DEVICES-1) * sizeof(*dev))];
 	socklen_t len = sizeof(buf);
 	int count = 0;
-	socket_t fd = obex_create_socket(self, AF_IRDA);
+	socket_t fd = obex_transport_sock_create(self, AF_IRDA, 0);
 	int i;
 	uint32_t k = 0;
 
@@ -482,7 +482,7 @@ done:
 		DEBUG(1, "didn't find any OBEX devices!\n");
 
 out:
-	obex_delete_socket(self, fd);
+	obex_transport_sock_delete(self, fd);
 	return count;
 }
 
@@ -515,7 +515,7 @@ static int irobex_connect_request(obex_t *self)
 		return -1;
 
 	if (trans->fd  == INVALID_SOCKET) {
-		trans->fd = obex_create_socket(self, AF_IRDA);
+		trans->fd = obex_transport_sock_create(self, AF_IRDA, 0);
 		if (trans->fd == INVALID_SOCKET)
 			return -1;
 	}
@@ -531,7 +531,7 @@ static int irobex_connect_request(obex_t *self)
 #endif
 	if (ret == -1) {
 		DEBUG(4, "ret=%d\n", ret);
-		obex_delete_socket(self, trans->fd);
+		obex_transport_sock_delete(self, trans->fd);
 		trans->fd = INVALID_SOCKET;
 		return ret;
 	}
@@ -555,7 +555,7 @@ static int irobex_disconnect_request(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	ret = obex_delete_socket(self, trans->fd);
+	ret = obex_transport_sock_delete(self, trans->fd);
 	if (ret < 0)
 		return ret;
 
@@ -579,7 +579,7 @@ static int irobex_disconnect_server(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	ret = obex_delete_socket(self, trans->serverfd);
+	ret = obex_transport_sock_delete(self, trans->serverfd);
 	trans->serverfd = INVALID_SOCKET;
 
 	return ret;
@@ -589,8 +589,8 @@ void irobex_get_ops(struct obex_transport_ops* ops)
 {
 	ops->init = &irobex_init;
 	ops->cleanup = &irobex_cleanup;
-	ops->write = &obex_transport_do_send;
-	ops->read = &obex_transport_do_recv;
+	ops->write = &obex_transport_sock_send;
+	ops->read = &obex_transport_sock_recv;
 	ops->set_local_addr = &irobex_set_local_addr;
 	ops->set_remote_addr = &irobex_set_remote_addr;
 	ops->server.listen = &irobex_listen;

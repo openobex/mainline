@@ -84,8 +84,11 @@ struct obex_transport_ops {
 	} client;
 };
 int obex_transport_standard_handle_input(obex_t *self);
-int obex_transport_do_send(obex_t *self, buf_t *msg);
-int obex_transport_do_recv(obex_t *self, void *buf, int buflen);
+
+socket_t obex_transport_sock_create(struct obex *self, int domain, int proto);
+int obex_transport_sock_delete(struct obex *self, socket_t fd);
+int obex_transport_sock_send(obex_t *self, buf_t *msg);
+int obex_transport_sock_recv(obex_t *self, void *buf, int buflen);
 
 union obex_transport_data {
 #ifdef HAVE_IRDA

@@ -336,50 +336,6 @@ void obex_transport_disconnect_server(obex_t *self)
 }
 
 /*
- * does fragmented write
- */
-int obex_transport_do_send (obex_t *self, buf_t *msg)
-{
-	struct obex_transport *trans = &self->trans;
-	socket_t fd = trans->fd;
-	size_t size = buf_get_length(msg);
-	int status;
-	fd_set fdset;
-	struct timeval *time_ptr = NULL;
-	struct timeval timeout = {trans->timeout, 0};
-
-	if (size == 0)
-		return 0;
-
-	if (size > trans->mtu)
-		size = trans->mtu;
-	DEBUG(1, "sending %lu bytes\n", (unsigned long)size);
-
-	FD_ZERO(&fdset);
-	FD_SET(fd, &fdset);
-	if (trans->timeout >= 0)
-		time_ptr = &timeout;
-	status = select((int)fd+1, NULL, &fdset, NULL, time_ptr);
-	if (status == 0)
-		return 0;
-
-	/* call send() if no error */
-	status = send(fd, buf_get(msg), size, 0);
-
-	/* The following are not really transport errors. */
-#if defined(_WIN32)
-	if (status == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
-		status = 0;
-#else
-	if (status == -1 &&
-	    (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
-		status = 0;
-#endif
-
-	return status;
-}
-
-/*
  * Function obex_transport_write ()
  *
  *    Do the writing
@@ -391,24 +347,6 @@ int obex_transport_write(obex_t *self, buf_t *msg)
 		return self->trans.ops.write(self, msg);
 	else
 		return -1;
-}
-
-int obex_transport_do_recv (obex_t *self, void *buf, int buflen)
-{
-	struct obex_transport *trans = &self->trans;
-	int status = recv(trans->fd, buf, buflen, 0);
-
-	/* The following are not really transport errors. */
-#if defined(_WIN32)
-	if (status == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
-		status = 0;
-#else
-	if (status == -1 &&
-	    (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
-		status = 0;
-#endif
-
-	return status;
 }
 
 /*

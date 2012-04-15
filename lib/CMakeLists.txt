@@ -33,6 +33,7 @@ set ( SOURCES
   obex_object.c
   obex_server.c
   obex_transport.c
+  obex_transport_sock.c
   databuffer.c
   membuf.c
   transport/inobex.c
