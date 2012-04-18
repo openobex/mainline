@@ -105,7 +105,8 @@ char *obex_response_to_string(int rsp)
  *    Deliver an event to app.
  *
  */
-void obex_deliver_event(obex_t *self, int event, int cmd, int rsp, int del)
+void obex_deliver_event(obex_t *self, enum obex_event event, enum obex_cmd cmd,
+			enum obex_rsp rsp, int del)
 {
 	obex_object_t *object = self->object;
 

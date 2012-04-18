@@ -62,7 +62,9 @@ struct obex {
 	void * userdata;		/* For user */
 };
 
-void obex_deliver_event(struct obex *self, int event, int cmd, int rsp, int del);
+void obex_deliver_event(obex_t *self, enum obex_event event, enum obex_cmd cmd,
+			enum obex_rsp rsp, int del);
+
 int obex_work(struct obex *self, int timeout);
 int obex_get_buffer_status(buf_t *msg);
 int obex_data_indication(struct obex *self);
