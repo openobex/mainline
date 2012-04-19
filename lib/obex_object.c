@@ -281,66 +281,41 @@ static unsigned int obex_object_send_srm_flags (uint8_t flag)
 	}
 }
 
-static int obex_object_get_real_opcode(obex_object_t *object,
-				       int allowfinalcmd, int forcefinalbit)
+int obex_object_get_real_opcode(obex_object_t *object, int allowfinal,
+				enum obex_mode mode)
 {
 	int real_opcode = object->opcode;
 
 	/* Decide which command to use, and if to use final-bit */
-	DEBUG(4, "allowfinalcmd: %d forcefinalbit:%d\n", allowfinalcmd,
-	      forcefinalbit);
+	DEBUG(4, "allowfinalcmd: %d mode:%d\n", allowfinal, mode);
 
 	/* Have more headers (or body) to send? */
-	if (!slist_is_empty(object->tx_headerq)) {
-		/* In server, final bit is always set.
-		 * In client, final bit is set only when we finish sending. */
-		if (forcefinalbit)
-			real_opcode |= OBEX_FINAL;
-
-	} else {
+	if (slist_is_empty(object->tx_headerq)) {
 		/* Have no more headers to send */
-		if (allowfinalcmd != FALSE) {
+		if (allowfinal) {
 			/* Allowed to send final command (== end data we are
 			 * sending) */
 			real_opcode = object->lastopcode;
 		}
 
 		real_opcode |= OBEX_FINAL;
+
 	}
+	/* In server, final bit is always set. */
+	if (mode == OBEX_MODE_SERVER)
+		real_opcode |= OBEX_FINAL;
 
 	return real_opcode;
 }
 
-/*
- * Function obex_object_prepare_send()
- *
- *    Prepare to send away all headers attached to an object.
- *    Returns:
- *       1 when a message was created
- *       0 when no message was created
- *      -1 on error
- */
-int obex_object_prepare_send(obex_t *self, obex_object_t *object,
-			     int allowfinalcmd, int forcefinalbit)
+int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left,
+			    unsigned int *srm)
 {
-	buf_t *txmsg = self->tx_msg;
-	int real_opcode;
-	uint16_t tx_left;
 	unsigned int srm_flags = 0;
 
 	/* Don't do anything if object is suspended */
 	if (object->suspend)
 		return 0;
-
-	/* Calc how many bytes of headers we can fit in this package */
-	tx_left = self->mtu_tx - sizeof(struct obex_common_hdr);
-#ifdef HAVE_IRDA
-	if (self->trans.type == OBEX_TRANS_IRDA &&
-			self->trans.mtu > 0 && self->trans.mtu < self->mtu_tx)
-		tx_left -= self->mtu_tx % self->trans.mtu;
-#endif /*HAVE_IRDA*/
-
-	obex_data_request_init(self);
 
 	/* Add nonheader-data first if any (SETPATH, CONNECT)*/
 	if (object->tx_nonhdr_data) {
@@ -386,13 +361,8 @@ int obex_object_prepare_send(obex_t *self, obex_object_t *object,
 		}
 	}
 
-	real_opcode = obex_object_get_real_opcode(self->object, allowfinalcmd,
-						  forcefinalbit);
-	DEBUG(4, "Generating packet with opcode %d\n", real_opcode);
-	obex_data_request_prepare(self, real_opcode);
-
-	self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_REMOTE;
-	self->srm_flags |= srm_flags;
+	if (srm)
+		*srm = srm_flags;
 
 	return 1;
 }

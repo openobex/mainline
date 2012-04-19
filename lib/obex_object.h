@@ -84,8 +84,10 @@ int obex_object_reparseheaders(struct obex *self, struct obex_object *object);
 void obex_object_setcmd(struct obex_object *object, uint8_t cmd);
 uint8_t obex_object_getcmd(const obex_t *self, const obex_object_t *object);
 int obex_object_setrsp(struct obex_object *object, uint8_t rsp, uint8_t lastrsp);
-int obex_object_prepare_send(obex_t *self, obex_object_t *object,
-			     int allowfinalcmd, int forcefinalbit);
+int obex_object_get_real_opcode(obex_object_t *object, int allowfinalcmd,
+				enum obex_mode mode);
+int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left,
+			    unsigned int *srm);
 int obex_object_finished(obex_t *self, obex_object_t *object,
 			 int allowfinalcmd);
 int obex_object_send_transmit(obex_t *self, obex_object_t *object);

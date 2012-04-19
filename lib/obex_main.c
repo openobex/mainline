@@ -149,6 +149,35 @@ void obex_data_request_prepare(obex_t *self, int opcode)
 	DUMPBUFFER(1, "Tx", msg);
 }
 
+int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
+{
+	buf_t *txmsg = self->tx_msg;
+	uint16_t tx_left = self->mtu_tx - sizeof(struct obex_common_hdr);
+	int real_opcode;
+	unsigned int srm_flags = 0;
+
+#ifdef HAVE_IRDA
+	if (self->trans.type == OBEX_TRANS_IRDA &&
+			self->trans.mtu > 0 && self->trans.mtu < self->mtu_tx)
+		tx_left -= self->mtu_tx % self->trans.mtu;
+#endif /*HAVE_IRDA*/
+
+	obex_data_request_init(self);
+
+	if (!obex_object_append_data(object, txmsg, tx_left, &srm_flags))
+		return 0;
+
+	real_opcode = obex_object_get_real_opcode(self->object, allowfinal,
+						  self->mode);
+	DEBUG(4, "Generating packet with opcode %d\n", real_opcode);
+	obex_data_request_prepare(self, real_opcode);
+
+	self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_REMOTE;
+	self->srm_flags |= srm_flags;
+
+	return 1;
+}
+
 /*
  * Function obex_data_request (self, opcode)
  *

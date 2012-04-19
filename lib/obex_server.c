@@ -182,7 +182,7 @@ static int obex_server_send_prepare_tx(obex_t *self)
 	/* As a server, the final bit is always SET, and the "real final" packet
 	 * is distinguished by being SUCCESS instead of CONTINUE.
 	 * So, force the final bit here. */
-	ret = obex_object_prepare_send(self, self->object, TRUE, TRUE);
+	ret = obex_msg_prepare(self, self->object, TRUE);
 	if (ret == 1) {
 		self->substate = SUBSTATE_TRANSMIT_TX;
 		return obex_server_send_transmit_tx(self);
@@ -296,7 +296,7 @@ static int obex_server_recv_prepare_tx(obex_t *self)
 			return obex_server_abort_prepare(self);
 		}
 
-		ret = obex_object_prepare_send(self, self->object, FALSE, TRUE);
+		ret = obex_msg_prepare(self, self->object, FALSE);
 		if (ret == 1) {
 			self->substate = SUBSTATE_TRANSMIT_TX;
 			return obex_server_recv_transmit_tx(self);

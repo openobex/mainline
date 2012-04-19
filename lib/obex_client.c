@@ -144,7 +144,7 @@ static int obex_client_recv_prepare_tx(obex_t *self)
 	{
 		int ret;
 
-		ret = obex_object_prepare_send(self, self->object, TRUE, FALSE);
+		ret = obex_msg_prepare(self, self->object, TRUE);
 		if (ret == 1) {
 			self->substate = SUBSTATE_TRANSMIT_TX;
 			return obex_client_recv_transmit_tx(self);
@@ -276,7 +276,7 @@ static int obex_client_send_prepare_tx(obex_t *self)
 	}
 
 
-	ret = obex_object_prepare_send(self, self->object, TRUE, FALSE);
+	ret = obex_msg_prepare(self, self->object, TRUE);
 	if (ret == 1) {
 		self->substate = SUBSTATE_TRANSMIT_TX;
 		return obex_client_send_transmit_tx(self);
