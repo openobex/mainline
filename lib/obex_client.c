@@ -57,7 +57,7 @@ static int obex_client_abort_transmit(obex_t *self)
 
 	DEBUG(4, "STATE: ABORT/TRANSMIT_TX\n");
 
-	ret = obex_object_send_transmit(self, NULL);
+	ret = obex_msg_transmit(self);
 	if (ret == -1) {
 		int rsp = OBEX_RSP_CONTINUE;
 
@@ -113,7 +113,7 @@ static int obex_client_recv_transmit_tx(obex_t *self)
 
 	DEBUG(4, "STATE: RECV/TRANSMIT_TX\n");
 
-	ret = obex_object_send_transmit(self, self->object);
+	ret = obex_msg_transmit(self);
 	if (ret == -1) {
 		obex_deliver_event(self, OBEX_EV_LINKERR,
 				   self->object->opcode, rsp, TRUE);
@@ -231,7 +231,7 @@ static int obex_client_send_transmit_tx(obex_t *self)
 
 	DEBUG(4, "STATE: SEND/TRANSMIT_TX\n");
 
-	ret = obex_object_send_transmit(self, self->object);
+	ret = obex_msg_transmit(self);
 	if (ret < 0) {
 		/* Error while sending */
 		obex_deliver_event(self, OBEX_EV_LINKERR,

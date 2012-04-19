@@ -200,6 +200,22 @@ int obex_data_request(obex_t *self)
 	return status;
 }
 
+int obex_msg_transmit(obex_t *self)
+{
+	buf_t *msg = self->tx_msg;
+
+	if (!buf_get_length(msg)) {
+		int ret = obex_data_request(self);
+		if (ret < 0) {
+			DEBUG(4, "Send error\n");
+			return -1;
+		}
+	}
+
+	return !!buf_get_length(msg);
+}
+
+
 static int obex_mode(obex_t *self)
 {
 	switch (self->mode) {

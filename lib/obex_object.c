@@ -380,19 +380,6 @@ int obex_object_finished(obex_t *self, obex_object_t *object, int allowfinalcmd)
 	return finished;
 }
 
-int obex_object_send_transmit(obex_t *self, obex_object_t *object)
-{
-	if (!buf_get_length(self->tx_msg)) {
-		int ret = obex_data_request(self);
-		if (ret < 0) {
-			DEBUG(4, "Send error\n");
-			return -1;
-		}
-	}
-
-	return !!buf_get_length(self->tx_msg);
-}
-
 /*
  * Function obex_object_getnextheader()
  *
