@@ -81,16 +81,23 @@ int obex_parse_connect_header(obex_t *self, buf_t *msg)
 	obex_common_hdr_t *common_hdr = buf_get(msg);
 	struct obex_connect_hdr *conn_hdr =(void *)(common_hdr + 1);
 
-	/* Remember opcode and size for later */
-	uint8_t opcode = common_hdr->opcode;
-	/* uint16_t length = ntohs(common_hdr->len); */
-
 	DEBUG(4, "\n");
 
-	/* Parse beyond 3 bytes only if response is success */
-	if (opcode != (OBEX_RSP_SUCCESS | OBEX_FINAL) &&
-				opcode != (OBEX_CMD_CONNECT | OBEX_FINAL))
-		return 1;
+	switch (self->mode) {
+	case OBEX_MODE_SERVER:
+		if (common_hdr->opcode != (OBEX_CMD_CONNECT | OBEX_FINAL))
+			return 1;
+		break;
+
+	case OBEX_MODE_CLIENT:
+		/* Parse beyond 3 bytes only if response is success */
+		if (common_hdr->opcode != (OBEX_RSP_SUCCESS | OBEX_FINAL))
+			return 1;
+		break;
+
+	default:
+		return -1;
+	}
 
 	DEBUG(4, "Len: %lu\n", (unsigned long)buf_get_length(msg));
 	if (buf_get_length(msg) >= sizeof(*common_hdr)+sizeof(*conn_hdr)) {

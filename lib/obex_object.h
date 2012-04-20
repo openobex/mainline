@@ -50,16 +50,11 @@ struct obex_object {
 	struct databuffer *rx_nonhdr_data;	/* Data before of headers (like CONNECT and SETPATH) */
 	struct databuffer_list *rx_headerq;	/* List of received headers */
 
-	uint8_t cmd;			/* The command of this object */
+	enum obex_cmd cmd;		/* command */
+	enum obex_rsp rsp;		/* response */
+	enum obex_rsp lastrsp;		/* response for last packet */
 
-	/* The opcode fields are used as
-	 * command when sending and response
-	 * when receiving
-	 */
-	uint8_t opcode;			/* Opcode for normal packets */
-	uint8_t lastopcode;		/* Opcode for last packet */
 	uint16_t headeroffset;		/* Where to start parsing headers */
-
 	uint32_t hinted_body_len;	/* Hinted body-length or 0 */
 	int abort;			/* Request shall be aborted */
 
@@ -81,9 +76,10 @@ int obex_object_addheader(struct obex *self, struct obex_object *object, uint8_t
 int obex_object_getnextheader(struct obex *self, struct obex_object *object, uint8_t *hi,
 			      obex_headerdata_t *hv, uint32_t *hv_size);
 int obex_object_reparseheaders(struct obex *self, struct obex_object *object);
-void obex_object_setcmd(struct obex_object *object, uint8_t cmd);
-uint8_t obex_object_getcmd(const obex_t *self, const obex_object_t *object);
-int obex_object_setrsp(struct obex_object *object, uint8_t rsp, uint8_t lastrsp);
+void obex_object_setcmd(struct obex_object *object, enum obex_cmd cmd);
+enum obex_cmd obex_object_getcmd(const obex_object_t *object);
+int obex_object_setrsp(struct obex_object *object, enum obex_rsp rsp,
+		       enum obex_rsp lastrsp);
 int obex_object_get_real_opcode(obex_object_t *object, int allowfinalcmd,
 				enum obex_mode mode);
 int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left,

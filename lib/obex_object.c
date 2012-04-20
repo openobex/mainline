@@ -107,12 +107,10 @@ int obex_object_delete(obex_object_t *object)
  *    Set command of object
  *
  */
-void obex_object_setcmd(obex_object_t *object, uint8_t cmd)
+void obex_object_setcmd(obex_object_t *object, enum obex_cmd cmd)
 {
 	DEBUG(4,"%02x\n", cmd);
-	object->cmd = cmd;
-	object->opcode = cmd;
-	object->lastopcode = cmd | OBEX_FINAL;
+	object->cmd = cmd & ~OBEX_FINAL;
 }
 
 /*
@@ -121,11 +119,12 @@ void obex_object_setcmd(obex_object_t *object, uint8_t cmd)
  *    Set the response for an object
  *
  */
-int obex_object_setrsp(obex_object_t *object, uint8_t rsp, uint8_t lastrsp)
+int obex_object_setrsp(obex_object_t *object, enum obex_rsp rsp,
+		       enum obex_rsp lastrsp)
 {
 	DEBUG(4,"\n");
-	object->opcode = rsp;
-	object->lastopcode = lastrsp;
+	object->rsp = rsp;
+	object->lastrsp = lastrsp;
 	return 1;
 }
 
@@ -256,12 +255,9 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	return ret;
 }
 
-uint8_t obex_object_getcmd(const obex_t *self, const obex_object_t *object)
+enum obex_cmd obex_object_getcmd(const obex_object_t *object)
 {
-	if (self->mode == OBEX_MODE_SERVER)
-		return object->cmd;
-	else
-		return (object->opcode & ~OBEX_FINAL);
+	return object->cmd;
 }
 
 static unsigned int obex_object_send_srm_flags (uint8_t flag)
@@ -284,28 +280,32 @@ static unsigned int obex_object_send_srm_flags (uint8_t flag)
 int obex_object_get_real_opcode(obex_object_t *object, int allowfinal,
 				enum obex_mode mode)
 {
-	int real_opcode = object->opcode;
+	int opcode = -1;
 
 	/* Decide which command to use, and if to use final-bit */
 	DEBUG(4, "allowfinalcmd: %d mode:%d\n", allowfinal, mode);
 
-	/* Have more headers (or body) to send? */
-	if (slist_is_empty(object->tx_headerq)) {
-		/* Have no more headers to send */
-		if (allowfinal) {
-			/* Allowed to send final command (== end data we are
-			 * sending) */
-			real_opcode = object->lastopcode;
-		}
+	switch (mode) {
+	case OBEX_MODE_SERVER:
+		if (allowfinal)
+			opcode = object->lastrsp;
+		else
+			opcode = object->rsp;
+		opcode |= OBEX_FINAL;
+		break;
 
-		real_opcode |= OBEX_FINAL;
+	case OBEX_MODE_CLIENT:
+		opcode = object->cmd;
+		/* Have more headers (or body) to send? */
+		if (slist_is_empty(object->tx_headerq) && allowfinal)
+			opcode |= OBEX_FINAL;
+		break;
 
+	default:
+		break;
 	}
-	/* In server, final bit is always set. */
-	if (mode == OBEX_MODE_SERVER)
-		real_opcode |= OBEX_FINAL;
 
-	return real_opcode;
+	return opcode;
 }
 
 int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left,
@@ -465,7 +465,7 @@ int obex_object_reparseheaders(obex_t *self, obex_object_t *object)
 static void obex_object_receive_stream(obex_t *self, struct obex_hdr *hdr)
 {
 	obex_object_t *object = self->object;
-	uint8_t cmd = obex_object_getcmd(self, object);
+	uint8_t cmd = obex_object_getcmd(object);
 	enum obex_hdr_id id = obex_hdr_get_id(hdr);
 	enum obex_hdr_type type = obex_hdr_get_type(hdr);
 	size_t len = obex_hdr_get_data_size(hdr);

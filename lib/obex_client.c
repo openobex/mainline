@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static __inline int msg_get_rsp(const buf_t *msg)
+static __inline enum obex_rsp msg_get_rsp(const buf_t *msg)
 {
 	if (!msg)
 		return OBEX_RSP_BAD_REQUEST;
@@ -62,7 +62,7 @@ static int obex_client_abort_transmit(obex_t *self)
 		int rsp = OBEX_RSP_CONTINUE;
 
 		obex_deliver_event(self, OBEX_EV_LINKERR,
-				   self->object->opcode, rsp, TRUE);
+				   self->object->cmd, rsp, TRUE);
 		self->state = STATE_IDLE;
 
 	} else if (ret == 1) {
@@ -86,7 +86,7 @@ static int obex_client_abort(obex_t *self)
 {
 	int ret = 0;
 	buf_t *msg = obex_data_receive(self);
-	int rsp;
+	enum obex_rsp rsp;
 	int event = OBEX_EV_LINKERR;
 
 	DEBUG(4, "STATE: ABORT/RECEIVE_RX\n");
@@ -97,7 +97,7 @@ static int obex_client_abort(obex_t *self)
 
 	if (rsp == OBEX_RSP_SUCCESS)
 		event = OBEX_EV_ABORT;
-	obex_deliver_event(self, event, self->object->opcode, rsp, TRUE);
+	obex_deliver_event(self, event, self->object->cmd, rsp, TRUE);
 	if (event == OBEX_EV_LINKERR)
 		ret = -1;
 
@@ -109,19 +109,19 @@ static int obex_client_abort(obex_t *self)
 static int obex_client_recv_transmit_tx(obex_t *self)
 {
 	int ret = 0;
-	int rsp = OBEX_RSP_CONTINUE;
+	enum obex_rsp rsp = OBEX_RSP_CONTINUE;
 
 	DEBUG(4, "STATE: RECV/TRANSMIT_TX\n");
 
 	ret = obex_msg_transmit(self);
 	if (ret == -1) {
 		obex_deliver_event(self, OBEX_EV_LINKERR,
-				   self->object->opcode, rsp, TRUE);
+				   self->object->cmd, rsp, TRUE);
 		self->state = STATE_IDLE;
 
 	} else if (ret == 1) {
 		obex_deliver_event(self, OBEX_EV_PROGRESS,
-				   self->object->opcode, rsp, FALSE);
+				   self->object->cmd, rsp, FALSE);
 		self->substate = SUBSTATE_RECEIVE_RX;
 	}
 
@@ -163,7 +163,7 @@ static int obex_client_recv(obex_t *self)
 {
 	int ret;
 	buf_t *msg = obex_data_receive(self);
-	int rsp;
+	enum obex_rsp rsp;
 
 	DEBUG(4, "STATE: RECV/RECEIVE_RX\n");
 
@@ -171,13 +171,13 @@ static int obex_client_recv(obex_t *self)
 		return 0;
 	rsp = msg_get_rsp(msg);
 
-	switch (self->object->opcode) {
+	switch (self->object->cmd) {
 	case OBEX_CMD_CONNECT:
 		/* Response of a CMD_CONNECT needs some special treatment.*/
 		DEBUG(2, "We expect a connect-rsp\n");
 		if (obex_parse_connect_header(self, msg) < 0) {
 			obex_deliver_event(self, OBEX_EV_PARSEERR,
-						self->object->opcode, 0, TRUE);
+					   self->object->cmd, 0, TRUE);
 			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
 			return -1;
@@ -192,6 +192,9 @@ static int obex_client_recv(obex_t *self)
 		self->rsp_mode = OBEX_RSP_MODE_NORMAL;
 		self->srm_flags = 0;
 		break;
+
+	default:
+		break;
 	}
 
 	if (self->object->abort == 0) {
@@ -199,7 +202,7 @@ static int obex_client_recv(obex_t *self)
 		ret = obex_object_receive(self, msg);
 		if (ret < 0) {
 			obex_deliver_event(self, OBEX_EV_PARSEERR,
-						self->object->opcode, 0, TRUE);
+					   self->object->cmd, 0, TRUE);
 			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
 			return -1;
@@ -216,7 +219,7 @@ static int obex_client_recv(obex_t *self)
 	} else {
 		/* Notify app that client-operation is done! */
 		DEBUG(3, "Done! Rsp=%02x!\n", rsp);
-		obex_deliver_event(self, OBEX_EV_REQDONE, self->object->opcode,
+		obex_deliver_event(self, OBEX_EV_REQDONE, self->object->cmd,
 								     rsp, TRUE);
 		self->mode = OBEX_MODE_SERVER;
 		self->state = STATE_IDLE;
@@ -235,12 +238,12 @@ static int obex_client_send_transmit_tx(obex_t *self)
 	if (ret < 0) {
 		/* Error while sending */
 		obex_deliver_event(self, OBEX_EV_LINKERR,
-					self->object->opcode, 0, TRUE);
+				   self->object->cmd, 0, TRUE);
 		self->mode = OBEX_MODE_SERVER;
 		self->state = STATE_IDLE;
 
 	} else if (ret == 1) {
-		obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->opcode,
+		obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->cmd,
 								      0, FALSE);
 		if (obex_object_finished(self, self->object, TRUE)) {
 			self->state = STATE_REC;
@@ -289,7 +292,7 @@ static int obex_client_send(obex_t *self)
 {
 	int ret;
 	buf_t *msg = obex_data_receive(self);
-	int rsp;
+	enum obex_rsp rsp;
 
 	DEBUG(4, "STATE: SEND/RECEIVE_RX\n");
 
@@ -306,7 +309,7 @@ static int obex_client_send(obex_t *self)
 
 	default:
 		DEBUG(0, "STATE_SEND. request not accepted.\n");
-		obex_deliver_event(self, OBEX_EV_REQDONE, self->object->opcode,
+		obex_deliver_event(self, OBEX_EV_REQDONE, self->object->cmd,
 								     rsp, TRUE);
 		/* This is not an Obex error, it is just that the peer
 		 * doesn't accept the request, so return 0 - Jean II */
@@ -321,7 +324,7 @@ static int obex_client_send(obex_t *self)
 			      "peer (%u)\n", msg_get_len(msg));
 			DUMPBUFFER(4, "unexpected data", msg);
 			obex_deliver_event(self, OBEX_EV_UNEXPECTED,
-						self->object->opcode, 0, FALSE);
+					   self->object->cmd, 0, FALSE);
 		}
 
 		/* At this point, we are in the middle of sending our
@@ -340,11 +343,11 @@ static int obex_client_send(obex_t *self)
 		 * packet (or we deny it). */
 		if (!self->object->abort) {
 			ret = -1;
-			if (self->object->opcode != OBEX_CMD_CONNECT)
+			if (self->object->cmd != OBEX_CMD_CONNECT)
 				ret = obex_object_receive(self, msg);
 			if (ret < 0) {
 				obex_deliver_event(self, OBEX_EV_PARSEERR,
-						 self->object->opcode, 0, TRUE);
+						   self->object->cmd, 0, TRUE);
 				self->mode = OBEX_MODE_SERVER;
 				self->state = STATE_IDLE;
 				return -1;

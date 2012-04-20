@@ -61,7 +61,7 @@ void obex_hdr_stream_refresh(struct obex_hdr_stream *hdr)
 	if (!hdr->s_stop) {
 		struct obex *obex = hdr->obex;
 		struct obex_object *object = obex->object;
-		uint8_t cmd = obex_object_getcmd(obex, object);
+		enum obex_cmd cmd = obex_object_getcmd(object);
 
 		/* Ask app for more data if no more */
 		hdr->s_size = 0;

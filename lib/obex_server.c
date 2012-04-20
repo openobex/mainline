@@ -33,11 +33,11 @@
 #include <stdio.h>
 #include <errno.h>
 
-static __inline int msg_get_cmd(const buf_t *msg)
+static __inline enum obex_cmd msg_get_cmd(const buf_t *msg)
 {
 	if (msg) {
 		obex_common_hdr_t *hdr = buf_get(msg);
-		return hdr->opcode & ~OBEX_FINAL;
+		return (enum obex_cmd)(hdr->opcode & ~OBEX_FINAL);
 	} else
 		return 0;
 }
@@ -80,29 +80,29 @@ static void obex_response_request(obex_t *self, uint8_t opcode)
 
 static int obex_server_bad_request(obex_t *self)
 {
-	int opcode = self->object->opcode;
+	enum obex_cmd cmd = obex_object_getcmd(self->object);
 
 	obex_response_request(self, OBEX_RSP_BAD_REQUEST);
 	self->state = STATE_IDLE;
-	obex_deliver_event(self, OBEX_EV_PARSEERR, opcode, 0, TRUE);
+	obex_deliver_event(self, OBEX_EV_PARSEERR, cmd, 0, TRUE);
 	return -1;
 }
 
 static int obex_server_abort_transmit(obex_t *self)
 {
 	int ret = 0;
-	int rsp = OBEX_RSP_CONTINUE;
-	int opcode = OBEX_CMD_ABORT;
+	enum obex_rsp rsp = OBEX_RSP_CONTINUE;
+	enum obex_cmd cmd = OBEX_CMD_ABORT;
 
 	DEBUG(4, "STATE: ABORT/TRANSMIT_TX\n");
 
 	ret = obex_msg_transmit(self);
 	if (self->object)
-		opcode = self->object->opcode;
+		cmd = obex_object_getcmd(self->object);
 	if (ret == -1)
-		obex_deliver_event(self, OBEX_EV_LINKERR, opcode, rsp, TRUE);
+		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, rsp, TRUE);
 	else if (ret == 1)
-		obex_deliver_event(self, OBEX_EV_ABORT, opcode, rsp, FALSE);
+		obex_deliver_event(self, OBEX_EV_ABORT, cmd, rsp, FALSE);
 
 	self->state = STATE_IDLE;
 	return ret;
@@ -123,8 +123,8 @@ static int obex_server_abort_prepare(obex_t *self)
 	DEBUG(4, "STATE: ABORT/PREPARE_TX\n");
 
 	/* Do not send continue */
-	if (self->object->opcode != OBEX_RSP_CONTINUE)
-		opcode = self->object->lastopcode;
+	if (self->object->rsp != OBEX_RSP_CONTINUE)
+		opcode = self->object->lastrsp;
 	obex_response_request_prepare(self, opcode);
 	self->substate = SUBSTATE_TRANSMIT_TX;
 	return obex_server_abort_transmit(self);
@@ -194,7 +194,7 @@ static int obex_server_send_prepare_tx(obex_t *self)
 static int obex_server_send(obex_t *self)
 {
 	buf_t *msg = obex_data_receive(self);
-	int cmd = msg_get_cmd(msg);
+	enum obex_cmd cmd = msg_get_cmd(msg);
 	uint16_t len = msg_get_len(msg);
 
 	DEBUG(4, "STATE: SEND/RECEIVE_RX\n");
@@ -223,8 +223,8 @@ static int obex_server_send(obex_t *self)
 								"(%u)\n", len);
 			DUMPBUFFER(4, "unexpected data", msg);
 			obex_deliver_event(self, OBEX_EV_UNEXPECTED,
-						self->object->opcode,
-						0, FALSE);
+					   obex_object_getcmd(self->object),
+					   0, FALSE);
 		}
 
 		/* At this point, we are in the middle of sending our response
@@ -315,7 +315,7 @@ static int obex_server_recv(obex_t *self, int first)
 	int deny = 0;
 	uint64_t filter;
 	buf_t *msg = obex_data_receive(self);
-	int cmd;
+	enum obex_cmd cmd;
 	int final;
 
 	DEBUG(4, "STATE: RECV/RECEIVE_RX\n");
@@ -362,7 +362,7 @@ static int obex_server_recv(obex_t *self, int first)
 	 * treat the last packet as a final one but don't
 	 * bother about body headers and don't signal
 	 * OBEX_EV_REQ. */
-	switch ((self->object->opcode & ~OBEX_FINAL) & 0xF0) {
+	switch ((self->object->rsp & ~OBEX_FINAL) & 0xF0) {
 	case OBEX_RSP_CONTINUE:
 	case OBEX_RSP_SUCCESS:
 		if (obex_object_receive_headers(self, msg, ~filter) < 0)
@@ -402,7 +402,7 @@ static int obex_server_recv(obex_t *self, int first)
 static int obex_server_idle(obex_t *self)
 {
 	buf_t *msg = obex_data_receive(self);
-	int cmd;
+	enum obex_cmd cmd;
 
 	/* Nothing has been recieved yet, so this is probably a new request */
 	DEBUG(4, "STATE: IDLE\n");
@@ -433,7 +433,7 @@ static int obex_server_idle(obex_t *self)
 		return -1;
 	}
 	/* Remember the initial command of the request.*/
-	self->object->cmd = cmd;
+	obex_object_setcmd(self->object, cmd);
 	self->object->rsp_mode = self->rsp_mode;
 
 	/* Hint app that something is about to come so that
@@ -454,10 +454,13 @@ static int obex_server_idle(obex_t *self)
 	case OBEX_CMD_SETPATH:
 		self->object->headeroffset = 2;
 		break;
+
+	default:
+		break;
 	}
 
 	/* Check the response from the REQHINT event */
-	switch ((self->object->opcode & ~OBEX_FINAL) & 0xF0) {
+	switch ((self->object->rsp & ~OBEX_FINAL) & 0xF0) {
 	case OBEX_RSP_CONTINUE:
 	case OBEX_RSP_SUCCESS:
 		self->state = STATE_REC;
