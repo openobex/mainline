@@ -64,7 +64,7 @@ struct obex_object {
 
 	struct obex_hdr *body;		/* The body header need some extra help */
 	struct obex_hdr_it *it;
-	int s_srv;			/* Deliver body as stream when server */
+	struct obex_body *body_rcv;	/* Deliver body */
 };
 
 struct obex_object *obex_object_new(void);
@@ -91,7 +91,9 @@ int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg);
 int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter);
 int obex_object_receive(struct obex *self, struct databuffer *msg);
 
-int obex_object_readstream(struct obex *self, struct obex_object *object, const uint8_t **buf);
+int obex_object_set_body_receiver(obex_object_t *object, struct obex_body *b);
+const void * obex_object_read_body(obex_object_t *object, size_t *size);
+
 int obex_object_suspend(struct obex_object *object);
 int obex_object_resume(struct obex_object *object);
 

@@ -43,6 +43,7 @@
 
 #include "obex_main.h"
 #include "obex_object.h"
+#include "obex_body.h"
 #include "obex_connect.h"
 #include "databuffer.h"
 
@@ -741,7 +742,7 @@ int CALLAPI OBEX_ObjectReParseHeaders(obex_t *self, obex_object_t *object)
 /**
 	Read data from body stream.
 	\param self OBEX handle
-	\param object OBEX object
+	\param object OBEX object (ignored)
 	\param buf A pointer to a pointer which this function will set
 	to a buffer which shall be read (and ONLY read) after this
 	function returns.
@@ -761,9 +762,28 @@ LIB_SYMBOL
 int CALLAPI OBEX_ObjectReadStream(obex_t *self, obex_object_t *object,
 							const uint8_t **buf)
 {
+	size_t size = 0;
+
 	obex_return_val_if_fail(self != NULL, -1);
+
+	object = self->object;
 	obex_return_val_if_fail(object != NULL, -1);
-	return obex_object_readstream(self, object, buf);
+
+	/* Enable streaming */
+	if (buf == NULL) {
+		struct obex_body *b = obex_body_stream_create(self);
+		int result = obex_object_set_body_receiver(object, b);
+
+		if (!result)
+			return -1;
+		DEBUG(4, "Streaming is enabled!\n");
+		return 0;
+	}
+
+	if (buf)
+		*buf = obex_object_read_body(object, &size);
+
+	return (int)size;
 }
 
 /**

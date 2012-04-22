@@ -29,6 +29,7 @@ set ( SOURCES
   obex_hdr_membuf.c
   obex_hdr_ptr.c
   obex_hdr_stream.c
+  obex_body.c
   obex_main.c
   obex_object.c
   obex_server.c
@@ -46,6 +47,7 @@ set ( HEADERS
   obex_client.h
   obex_connect.h
   obex_hdr.h
+  obex_body.h
   obex_main.h
   obex_object.h
   obex_server.h

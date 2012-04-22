@@ -27,6 +27,7 @@
 #include "obex_main.h"
 #include "obex_object.h"
 #include "obex_hdr.h"
+#include "obex_body.h"
 #include "obex_connect.h"
 #include "databuffer.h"
 
@@ -457,78 +458,6 @@ int obex_object_reparseheaders(obex_t *self, obex_object_t *object)
 }
 
 /*
- * Function obex_object_receive_stream()
- *
- *    Handle receiving of body-stream
- *
- */
-static void obex_object_receive_stream(obex_t *self, struct obex_hdr *hdr)
-{
-	obex_object_t *object = self->object;
-	uint8_t cmd = obex_object_getcmd(object);
-	enum obex_hdr_id id = obex_hdr_get_id(hdr);
-	enum obex_hdr_type type = obex_hdr_get_type(hdr);
-	size_t len = obex_hdr_get_data_size(hdr);
-
-	DEBUG(4, "\n");
-
-	/* Spare the app this empty nonlast body-hdr */
-	if (obex_hdr_get_id(hdr) == OBEX_HDR_ID_BODY &&
-	    obex_hdr_get_data_size(hdr) == 0)
-		return;
-
-	/* Notify app that data has arrived */
-	object->body = hdr;
-	obex_deliver_event(self, OBEX_EV_STREAMAVAIL, cmd, 0, FALSE);
-	object->body = NULL;
-
-	/* If send send EOS to app */
-	if (id == OBEX_HDR_ID_BODY_END && len != 0) {
-		object->body = obex_hdr_ptr_create(id, type, NULL, 0);
-		obex_deliver_event(self, OBEX_EV_STREAMAVAIL, cmd, 0, FALSE);
-		obex_hdr_destroy(object->body);
-		object->body = NULL;
-	}
-}
-
-/*
- * Function obex_object_receive_buffered()
- *
- *    Handle receiving of buffered body
- *
- */
-static int obex_object_receive_buffered(obex_t *self, struct obex_hdr *hdr)
-{
-	obex_object_t *object = self->object;
-	const void *data = obex_hdr_get_data_ptr(hdr);
-	size_t len = obex_hdr_get_data_size(hdr);
-
-	DEBUG(4, "This is a body-header.\n");
-
-	if (!object->body) {
-		int alloclen = obex_hdr_get_data_size(hdr);
-
-		if (object->hinted_body_len)
-			alloclen = object->hinted_body_len;
-
-		DEBUG(4, "Allocating new body-buffer. Len=%d\n", alloclen);
-		object->body = obex_hdr_membuf_create(OBEX_HDR_ID_BODY,
-						      OBEX_HDR_TYPE_BYTES,
-						      data, len);
-		if (!object->body)
-			return -1;
-
-	} else {
-		struct databuffer *buf;
-		buf = obex_hdr_membuf_get_databuffer(object->body);;
-		if (buf_append(buf, data, len) < 0)
-			return -1;
-	}
-
-	return 1;
-}
-
-/*
  * Function obex_object_receive()
  *
  *    Process non-header data from an incoming message.
@@ -561,26 +490,22 @@ static int obex_object_receive_body(obex_t *self, struct obex_hdr *hdr)
 
 	DEBUG(4, "\n");
 
-	if (object->s_srv) {
-		if (id == OBEX_HDR_ID_BODY || id == OBEX_HDR_ID_BODY_END) {
-			/* The body-header need special treatment */
-			obex_object_receive_stream(self, hdr);
-			/* We have already handled this data! */
-			return 1;
-		}
-
-		return 0;
-	}
-
 	if (id == OBEX_HDR_ID_BODY || id == OBEX_HDR_ID_BODY_END) {
-		if (obex_object_receive_buffered(self, hdr) < 0)
+		if (!object->body_rcv)
+			object->body_rcv = obex_body_buffered_create(object);
+		if (!object->body_rcv)
+			return -1;
+
+		if (obex_body_rcv(object->body_rcv, hdr) < 0)
 			return -1;
 
 		if (id == OBEX_HDR_ID_BODY) {
 			DEBUG(4, "Normal body fragment...\n");
 			/* We have already handled this data! */
-			return 1;
 		}
+
+		return 1;
+
 	} else if (obex_hdr_get_id(hdr) == OBEX_HDR_ID_LENGTH
 		   && !object->body)
 	{
@@ -598,22 +523,15 @@ static int obex_object_rcv_one_header(obex_t *self, struct obex_hdr *hdr)
 {
 	obex_object_t *object = self->object;
 	enum obex_hdr_id id = obex_hdr_get_id(hdr);
+	enum obex_hdr_type type = obex_hdr_get_type(hdr);
+	const void *data = obex_hdr_get_data_ptr(hdr);
+	size_t len = obex_hdr_get_data_size(hdr);
 
 	DEBUG(4, "\n");
 
-	if (id == OBEX_HDR_ID_BODY_END) {
-		hdr = object->body;
-		object->body = NULL;
-
-	} else {
-		enum obex_hdr_type type = obex_hdr_get_type(hdr);
-		const void *data = obex_hdr_get_data_ptr(hdr);
-		size_t len = obex_hdr_get_data_size(hdr);
-
-		hdr = obex_hdr_membuf_create(id, type, data, len);
-		if (hdr == NULL)
-			return -1;
-	}
+	hdr = obex_hdr_membuf_create(id, type, data, len);
+	if (hdr == NULL)
+		return -1;
 
 	/* Add element to rx-list */
 	object->rx_headerq = slist_append(object->rx_headerq, hdr);
@@ -743,26 +661,17 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 	return consumed;
 }
 
-/*
- * Function obex_object_readstream()
- *
- *    App wants to read stream fragment.
- *
- */
-int obex_object_readstream(obex_t *self, obex_object_t *object,
-							const uint8_t **buf)
+int obex_object_set_body_receiver(obex_object_t *object, struct obex_body *b)
 {
-	DEBUG(4, "\n");
-	/* Enable streaming */
-	if (buf == NULL) {
-		DEBUG(4, "Streaming is enabled!\n");
-		object->s_srv = TRUE;
-		return 0;
-	}
+	if (!object->body_rcv)
+		object->body_rcv = b;
 
-	*buf = obex_hdr_get_data_ptr(object->body);
+	return (object->body_rcv == b);
+}
 
-	return obex_hdr_get_data_size(object->body);
+const void * obex_object_read_body(obex_object_t *object, size_t *size)
+{
+	return obex_body_read(object->body_rcv, size);
 }
 
 int obex_object_suspend(obex_object_t *object)
