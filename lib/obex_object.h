@@ -84,8 +84,7 @@ int obex_object_get_real_opcode(obex_object_t *object, int allowfinalcmd,
 				enum obex_mode mode);
 int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left,
 			    unsigned int *srm);
-int obex_object_finished(obex_t *self, obex_object_t *object,
-			 int allowfinalcmd);
+int obex_object_finished(obex_object_t *object, int allowfinal);
 
 int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg);
 int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter);

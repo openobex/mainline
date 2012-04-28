@@ -294,7 +294,7 @@ int obex_object_get_real_opcode(obex_object_t *object, int allowfinal,
 	case OBEX_MODE_CLIENT:
 		opcode = object->cmd;
 		/* Have more headers (or body) to send? */
-		if (slist_is_empty(object->tx_headerq) && allowfinal)
+		if (obex_object_finished(object, allowfinal))
 			opcode |= OBEX_FINAL;
 		break;
 
@@ -364,15 +364,15 @@ int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left,
 	return 1;
 }
 
-int obex_object_finished(obex_t *self, obex_object_t *object, int allowfinalcmd)
+int obex_object_finished(obex_object_t *object, int allowfinal)
 {
 	int finished = 0;
 
 	if (object->suspend)
 		return 0;
 
-	if (slist_is_empty(object->tx_headerq))
-		finished = !!allowfinalcmd;
+	if (slist_is_empty(object->tx_headerq) && allowfinal)
+		finished = 1;
 
 	return finished;
 }

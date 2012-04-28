@@ -146,7 +146,7 @@ static int obex_server_send_transmit_tx(obex_t *self)
 	} else if (ret == 1) {
 		/* Made some progress */
 		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
-		if (obex_object_finished(self, self->object, TRUE)) {
+		if (obex_object_finished(self->object, TRUE)) {
 			self->state = STATE_IDLE;
 			/* Response sent and object finished! */
 			if (cmd == OBEX_CMD_DISCONNECT) {

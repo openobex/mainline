@@ -245,7 +245,7 @@ static int obex_client_send_transmit_tx(obex_t *self)
 	} else if (ret == 1) {
 		obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->cmd,
 								      0, FALSE);
-		if (obex_object_finished(self, self->object, TRUE)) {
+		if (obex_object_finished(self->object, TRUE)) {
 			self->state = STATE_REC;
 			self->substate = SUBSTATE_RECEIVE_RX;
 
