@@ -697,7 +697,7 @@ int CALLAPI OBEX_ObjectAddHeader(obex_t *self, obex_object_t *object, uint8_t hi
 
 /**
 	Get next available header from an object.
-	\param self OBEX handle
+	\param self OBEX handle (ignored)
 	\param object OBEX object
 	\param hi Pointer to header identifier
 	\param hv Pointer to hv
@@ -715,9 +715,8 @@ int CALLAPI OBEX_ObjectGetNextHeader(obex_t *self, obex_object_t *object, uint8_
 					obex_headerdata_t *hv,
 					uint32_t *hv_size)
 {
-	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail(object != NULL, -1);
-	return obex_object_getnextheader(self, object, hi, hv, hv_size);
+	return obex_object_getnextheader(object, hi, hv, hv_size);
 }
 
 /**

@@ -383,8 +383,8 @@ int obex_object_finished(obex_t *self, obex_object_t *object, int allowfinalcmd)
  * Return the next header in the rx-queue
  *
  */
-int obex_object_getnextheader(obex_t *self, obex_object_t *object, uint8_t *hi,
-				obex_headerdata_t *hv, uint32_t *hv_size)
+int obex_object_getnextheader(obex_object_t *object, uint8_t *hi,
+			      obex_headerdata_t *hv, uint32_t *hv_size)
 {
 	const uint8_t *bq1;
 	const uint32_t *bq4;
