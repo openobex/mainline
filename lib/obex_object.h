@@ -75,7 +75,7 @@ int obex_object_addheader(struct obex *self, struct obex_object *object, uint8_t
 			  unsigned int flags);
 int obex_object_getnextheader(struct obex_object *object, uint8_t *hi,
 			      obex_headerdata_t *hv, uint32_t *hv_size);
-int obex_object_reparseheaders(struct obex *self, struct obex_object *object);
+int obex_object_reparseheaders(struct obex_object *object);
 void obex_object_setcmd(struct obex_object *object, enum obex_cmd cmd);
 enum obex_cmd obex_object_getcmd(const obex_object_t *object);
 int obex_object_setrsp(struct obex_object *object, enum obex_rsp rsp,

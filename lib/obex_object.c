@@ -438,7 +438,7 @@ int obex_object_getnextheader(obex_object_t *object, uint8_t *hi,
  * Allow the user to re-parse the headers in the rx-queue
  *
  */
-int obex_object_reparseheaders(obex_t *self, obex_object_t *object)
+int obex_object_reparseheaders(obex_object_t *object)
 {
 
 	DEBUG(4, "\n");

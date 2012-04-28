@@ -721,21 +721,18 @@ int CALLAPI OBEX_ObjectGetNextHeader(obex_t *self, obex_object_t *object, uint8_
 
 /**
 	Allow the user to parse again the rx headers.
-	\param self OBEX handle
+	\param self OBEX handle (ignored)
 	\param object OBEX object
 	\return 1 on success, 0 if previous parsing not completed, -1 on error
 
-	The user must have extracted all headers from the object before
-	calling this function (until #OBEX_ObjectGetNextHeader() returns 0).
 	Next call to #OBEX_ObjectGetNextHeader() will return the first received
 	header.
  */
 LIB_SYMBOL
 int CALLAPI OBEX_ObjectReParseHeaders(obex_t *self, obex_object_t *object)
 {
-	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail(object != NULL, -1);
-	return obex_object_reparseheaders(self, object);
+	return obex_object_reparseheaders(object);
 }
 
 /**
