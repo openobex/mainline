@@ -149,6 +149,17 @@ void obex_data_request_prepare(obex_t *self, int opcode)
 	DUMPBUFFER(1, "Tx", msg);
 }
 
+int obex_msg_getspace(obex_t *self, obex_object_t *object, unsigned int flags)
+{
+	size_t objlen = sizeof(struct obex_common_hdr);
+
+	if (flags & OBEX_FL_FIT_ONE_PACKET)
+		objlen += obex_object_get_size(object);
+
+	return self->mtu_tx - objlen;
+}
+
+
 int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
 {
 	buf_t *txmsg = self->tx_msg;

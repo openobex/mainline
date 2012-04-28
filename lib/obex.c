@@ -652,7 +652,7 @@ int CALLAPI OBEX_ObjectGetSpace(obex_t *self, obex_object_t *object,
 {
 	obex_return_val_if_fail(self != NULL, -1);
 	obex_return_val_if_fail(object != NULL, -1);
-	return obex_object_getspace(self, object, flags);
+	return obex_msg_getspace(self, object, flags);
 }
 
 /**

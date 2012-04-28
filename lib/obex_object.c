@@ -129,24 +129,20 @@ int obex_object_setrsp(obex_object_t *object, enum obex_rsp rsp,
 	return 1;
 }
 
-int obex_object_getspace(obex_t *self, obex_object_t *object,
-							unsigned int flags)
+size_t obex_object_get_size(obex_object_t *object)
 {
-	size_t objlen = sizeof(struct obex_common_hdr);
+	size_t objlen = 0;
+	struct obex_hdr_it *it = obex_hdr_it_create(object->tx_headerq);
+	struct obex_hdr *hdr = obex_hdr_it_get_next(it);
 
-	if (flags & OBEX_FL_FIT_ONE_PACKET) {
-		struct obex_hdr_it *it = obex_hdr_it_create(object->tx_headerq);
-		struct obex_hdr *hdr = obex_hdr_it_get_next(it);
-
-		if (object->tx_nonhdr_data)
-			objlen += buf_get_length(object->tx_nonhdr_data);
-		while (hdr != NULL) {
-			objlen += obex_hdr_get_size(hdr);
-			hdr = obex_hdr_it_get_next(it);
-		}
+	if (object->tx_nonhdr_data)
+		objlen += buf_get_length(object->tx_nonhdr_data);
+	while (hdr != NULL) {
+		objlen += obex_hdr_get_size(hdr);
+		hdr = obex_hdr_it_get_next(it);
 	}
 
-	return self->mtu_tx - objlen;
+	return objlen;
 }
 
 /** Add a header to an objext TX queue
@@ -243,7 +239,7 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	/* Check if you can send this header without violating MTU or
 	 * OBEX_FIT_ONE_PACKET */
 	if (!obex_hdr_is_splittable(hdr) && (flags & OBEX_FL_FIT_ONE_PACKET)) {
-		int maxlen = obex_object_getspace(self, object, flags);
+		int maxlen = obex_msg_getspace(self, object, flags);
 		if (maxlen < ret) {
 			DEBUG(0, "Header to big\n");
 			obex_hdr_destroy(hdr);

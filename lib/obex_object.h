@@ -69,7 +69,7 @@ struct obex_object {
 
 struct obex_object *obex_object_new(void);
 int obex_object_delete(struct obex_object *object);
-int obex_object_getspace(struct obex *self, struct obex_object *object, unsigned int flags);
+size_t obex_object_get_size(obex_object_t *object);
 int obex_object_addheader(struct obex *self, struct obex_object *object, uint8_t hi,
 			  obex_headerdata_t hv, uint32_t hv_size,
 			  unsigned int flags);

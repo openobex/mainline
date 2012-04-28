@@ -74,6 +74,7 @@ void obex_data_receive_finished(obex_t *self);
 void obex_data_request_init(struct obex *self);
 void obex_data_request_prepare(struct obex *self, int opcode);
 int obex_data_request(struct obex *self);
+int obex_msg_getspace(obex_t *self, obex_object_t *object, unsigned int flags);
 int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal);
 int obex_msg_transmit(obex_t *self);
 int obex_cancelrequest(struct obex *self, int nice);
