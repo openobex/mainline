@@ -79,9 +79,14 @@ int obex_hdr_is_splittable(struct obex_hdr *hdr);
 int obex_hdr_is_finished(struct obex_hdr *hdr);
 
 struct obex_hdr_it {
-	struct databuffer_list list;
+	struct databuffer_list *list;
+	int is_valid;
 };
 
+void obex_hdr_it_init_from(struct obex_hdr_it *it,
+			   const struct obex_hdr_it *from);
 struct obex_hdr_it * obex_hdr_it_create(struct databuffer_list *list);
 void obex_hdr_it_destroy(struct obex_hdr_it *it);
-struct obex_hdr * obex_hdr_it_get_next(struct obex_hdr_it *it);
+struct obex_hdr * obex_hdr_it_get(const struct obex_hdr_it *it);
+void obex_hdr_it_next(struct obex_hdr_it *it);
+int obex_hdr_it_equals(const struct obex_hdr_it *a, const struct obex_hdr_it *b);

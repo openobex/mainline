@@ -20,7 +20,8 @@
  * along with OpenOBEX. If not, see <http://www.gnu.org/>.
  */
 
-#include <obex_hdr.h>
+#include "obex_hdr.h"
+#include "defines.h"
 
 struct obex_hdr * obex_hdr_create(enum obex_hdr_id id, enum obex_hdr_type type,
 				  const void *value, size_t size,
@@ -111,10 +112,7 @@ size_t obex_hdr_get_size(struct obex_hdr *hdr)
 	size_t hdr_size = obex_hdr_get_hdr_size(hdr);
 	size_t data_size = obex_hdr_get_data_size(hdr);
 
-	if (data_size > 0)
-		return hdr_size + data_size;
-	else
-		return (size_t)0;		
+	return hdr_size + data_size;
 }
 
 const void * obex_hdr_get_data_ptr(struct obex_hdr *hdr)
@@ -207,12 +205,26 @@ int obex_hdr_is_finished(struct obex_hdr *hdr)
 		return (obex_hdr_get_data_size(hdr) == 0);
 }
 
+void obex_hdr_it_init_from(struct obex_hdr_it *it,
+			   const struct obex_hdr_it *from)
+{
+	if (from) {
+		it->list = from->list;
+		it->is_valid = from->is_valid;
+	} else {
+		it->list = NULL;
+		it->is_valid = FALSE;
+	}
+}
+
 struct obex_hdr_it * obex_hdr_it_create(struct databuffer_list *list)
 {
 	struct obex_hdr_it *it = malloc(sizeof(*it));
 
-	it->list.data = NULL;
-	it->list.next = list;
+	if (it) {
+		it->list = list;
+		it->is_valid = TRUE;
+	}
 
 	return it;
 }
@@ -222,18 +234,30 @@ void obex_hdr_it_destroy(struct obex_hdr_it *it)
 	if (it == NULL)
 		return;
 
-	it->list.data = NULL;
-	it->list.next = NULL;
+	it->list = NULL;
 	free(it);
 }
 
-struct obex_hdr * obex_hdr_it_get_next(struct obex_hdr_it *it)
+struct obex_hdr * obex_hdr_it_get(const struct obex_hdr_it *it)
 {
-	if (it == NULL || !slist_has_more(&it->list))
+	if (it->is_valid)
+		return slist_get(it->list);
+	else
 		return NULL;
+}
 
-	it->list.data = slist_get(it->list.next);
-	it->list.next = it->list.next->next;
+void obex_hdr_it_next(struct obex_hdr_it *it)
+{
+	if (it == NULL)
+		return;
 
-	return it->list.data;
+	it->is_valid = slist_has_more(it->list);
+
+	if (it->is_valid)
+		it->list = it->list->next;
+}
+
+int obex_hdr_it_equals(const struct obex_hdr_it *a, const struct obex_hdr_it *b)
+{
+	return a && b && (memcmp(a, b, sizeof(*a)) == 0);
 }
