@@ -80,15 +80,19 @@ int obex_object_delete(obex_object_t *object)
 	obex_return_val_if_fail(object != NULL, -1);
 
 	/* Free the headerqueues */
+	obex_hdr_it_destroy(object->tx_it);
 	free_headerq(object->tx_headerq);
-	free_headerq(object->rx_headerq);
-
-	/* Free tx and rx msgs */
+	/* Free tx non-header data */
 	if (object->tx_nonhdr_data) {
 		buf_delete(object->tx_nonhdr_data);
 		object->tx_nonhdr_data = NULL;
 	}
 
+
+	/* Free the headerqueues */
+	obex_hdr_it_destroy(object->it);
+	free_headerq(object->rx_headerq);
+	/* Free rx non-header data */
 	if (object->rx_nonhdr_data) {
 		buf_delete(object->rx_nonhdr_data);
 		object->rx_nonhdr_data = NULL;
@@ -132,14 +136,23 @@ int obex_object_setrsp(obex_object_t *object, enum obex_rsp rsp,
 size_t obex_object_get_size(obex_object_t *object)
 {
 	size_t objlen = 0;
-	struct obex_hdr_it *it = obex_hdr_it_create(object->tx_headerq);
-	struct obex_hdr *hdr = obex_hdr_it_get_next(it);
 
 	if (object->tx_nonhdr_data)
 		objlen += buf_get_length(object->tx_nonhdr_data);
-	while (hdr != NULL) {
-		objlen += obex_hdr_get_size(hdr);
-		hdr = obex_hdr_it_get_next(it);
+
+	if (object->tx_it) {
+		struct obex_hdr_it it;
+		struct obex_hdr *hdr;
+
+		obex_hdr_it_init_from(&it, object->tx_it);
+		hdr = obex_hdr_it_get(&it);
+
+		while (hdr != NULL) {
+			objlen += obex_hdr_get_size(hdr);
+
+			obex_hdr_it_next(&it);
+			hdr = obex_hdr_it_get(&it);
+		}
 	}
 
 	return objlen;
@@ -188,8 +201,8 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 			return -1;
 		hdr = obex_hdr_stream_create(self);
 		object->body = hdr;
-		object->tx_headerq = slist_append(object->tx_headerq, hdr);
-		return 1;
+		ret = 1;
+		goto out;
 	}
 
 	switch (type) {
@@ -247,7 +260,11 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 		}
 	}
 
+out:
 	object->tx_headerq = slist_append(object->tx_headerq, hdr);
+
+	if (object->tx_it == NULL)
+		object->tx_it = obex_hdr_it_create(object->tx_headerq);
 
 	return ret;
 }
@@ -255,23 +272,6 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 enum obex_cmd obex_object_getcmd(const obex_object_t *object)
 {
 	return object->cmd;
-}
-
-static unsigned int obex_object_send_srm_flags (uint8_t flag)
-{
-	switch (flag) {
-	case 0x00:
-		return OBEX_SRM_FLAG_WAIT_LOCAL;
-
-	case 0x01:
-		return OBEX_SRM_FLAG_WAIT_REMOTE;
-
-	case 0x02:
-		return (OBEX_SRM_FLAG_WAIT_LOCAL | OBEX_SRM_FLAG_WAIT_REMOTE);
-
-	default:
-		return 0;
-	}
 }
 
 int obex_object_get_real_opcode(obex_object_t *object, int allowfinal,
@@ -305,10 +305,9 @@ int obex_object_get_real_opcode(obex_object_t *object, int allowfinal,
 	return opcode;
 }
 
-int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left,
-			    unsigned int *srm)
+int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left)
 {
-	unsigned int srm_flags = 0;
+	struct obex_hdr *h;
 
 	/* Don't do anything if object is suspended */
 	if (object->suspend)
@@ -327,39 +326,28 @@ int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left,
 
 	DEBUG(4, "4\n");
 
+	if (object->tx_it == NULL)
+		return 0;
+
 	/* Take headers from the tx queue and try to stuff as
 	 * many as possible into the tx-msg */
-	while (!slist_is_empty(object->tx_headerq) && !object->suspend
-	       && tx_left > 0)
-	{
-		struct obex_hdr *h = slist_get(object->tx_headerq);
-
+	h = obex_hdr_it_get(object->tx_it);
+	while (h != NULL && !object->suspend && tx_left > 0) {
 		if (obex_hdr_get_id(h) != OBEX_HDR_ID_INVALID) {
 			size_t ret = obex_hdr_append(h, txmsg, tx_left);
 			if (ret == 0)
 				break;
 			tx_left -= ret;
 		}
-
-		if (obex_hdr_get_id(h) == OBEX_HDR_ID_SRM_FLAGS) {
-			const uint8_t *hdrdata = obex_hdr_get_data_ptr(h);
-			srm_flags = obex_object_send_srm_flags(hdrdata[0]);
-		}
-
-
-		/* Remove from TX queue */
+		
 		if (obex_hdr_is_finished(h)) {
-			struct databuffer_list *q = object->tx_headerq;
 			if (h->flags & OBEX_FL_SUSPEND)
 				object->suspend = 1;
 
-			object->tx_headerq = slist_remove(q, h);
-			obex_hdr_destroy(h);
+			obex_hdr_it_next(object->tx_it);
+			h = obex_hdr_it_get(object->tx_it);
 		}
 	}
-
-	if (srm)
-		*srm = srm_flags;
 
 	return 1;
 }
@@ -371,7 +359,7 @@ int obex_object_finished(obex_object_t *object, int allowfinal)
 	if (object->suspend)
 		return 0;
 
-	if (slist_is_empty(object->tx_headerq) && allowfinal)
+	if (obex_hdr_it_get(object->tx_it) == NULL && allowfinal)
 		finished = 1;
 
 	return finished;
@@ -402,9 +390,11 @@ int obex_object_getnextheader(obex_object_t *object, uint8_t *hi,
 	if (!object->it)
 		return -1;
 
-	h = obex_hdr_it_get_next(object->it);
+	h = obex_hdr_it_get(object->it);
 	if (h == NULL)
 	    return 0;
+
+	obex_hdr_it_next(object->it);
 
 	*hi = obex_hdr_get_id(h) | obex_hdr_get_type(h);
 	*hv_size= (uint32_t)obex_hdr_get_data_size(h);

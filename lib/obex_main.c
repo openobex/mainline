@@ -44,6 +44,7 @@
 #include "obex_object.h"
 #include "obex_server.h"
 #include "obex_client.h"
+#include "obex_hdr.h"
 #include "databuffer.h"
 
 #include <openobex/obex_const.h>
@@ -159,13 +160,64 @@ int obex_msg_getspace(obex_t *self, obex_object_t *object, unsigned int flags)
 	return self->mtu_tx - objlen;
 }
 
+static unsigned int obex_srm_tx_flags_decode (uint8_t flag)
+{
+	switch (flag) {
+	case 0x00:
+		return OBEX_SRM_FLAG_WAIT_LOCAL;
+
+	case 0x01:
+		return OBEX_SRM_FLAG_WAIT_REMOTE;
+
+	case 0x02:
+		return (OBEX_SRM_FLAG_WAIT_LOCAL | OBEX_SRM_FLAG_WAIT_REMOTE);
+
+	default:
+		return 0;
+	}
+}
+
+static int obex_msg_post_prepare(obex_t *self, obex_object_t *object,
+				 const struct obex_hdr_it *from,
+				 const struct obex_hdr_it *to)
+{
+	struct obex_hdr_it it;
+	struct obex_hdr *hdr;
+
+	obex_hdr_it_init_from(&it, from);
+	hdr = obex_hdr_it_get(&it);
+
+	/* loop over all headers in that are non-NULL and finished... */
+	while (hdr != NULL && obex_hdr_is_finished(hdr)) {
+		if (self->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+		    obex_hdr_get_id(hdr) == OBEX_HDR_ID_SRM_FLAGS)
+		{
+			const uint8_t *data = obex_hdr_get_data_ptr(hdr);
+
+			self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_REMOTE;
+			self->srm_flags |= obex_srm_tx_flags_decode(data[0]);
+		}
+
+		/* ...but only in the range [from..to]. The last entry
+		 * must be included if it is finished. */
+		if (obex_hdr_it_equals(&it, to))
+			break;
+
+		obex_hdr_it_next(&it);
+		hdr = obex_hdr_it_get(&it);
+	}
+
+	return 1;
+}
 
 int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
 {
 	buf_t *txmsg = self->tx_msg;
 	uint16_t tx_left = self->mtu_tx - sizeof(struct obex_common_hdr);
 	int real_opcode;
-	unsigned int srm_flags = 0;
+	struct obex_hdr_it it;
+
+	obex_hdr_it_init_from(&it, object->tx_it);
 
 #ifdef HAVE_IRDA
 	if (self->trans.type == OBEX_TRANS_IRDA &&
@@ -175,7 +227,7 @@ int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
 
 	obex_data_request_init(self);
 
-	if (!obex_object_append_data(object, txmsg, tx_left, &srm_flags))
+	if (!obex_object_append_data(object, txmsg, tx_left))
 		return 0;
 
 	real_opcode = obex_object_get_real_opcode(self->object, allowfinal,
@@ -183,10 +235,7 @@ int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
 	DEBUG(4, "Generating packet with opcode %d\n", real_opcode);
 	obex_data_request_prepare(self, real_opcode);
 
-	self->srm_flags &= ~OBEX_SRM_FLAG_WAIT_REMOTE;
-	self->srm_flags |= srm_flags;
-
-	return 1;
+	return obex_msg_post_prepare(self, object, &it, object->tx_it);
 }
 
 /*

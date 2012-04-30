@@ -46,9 +46,11 @@ typedef struct obex_common_hdr obex_common_hdr_t;
 struct obex_object {
 	struct databuffer *tx_nonhdr_data;	/* Data before of headers (like CONNECT and SETPATH) */
 	struct databuffer_list *tx_headerq;	/* List of headers to transmit*/
+	struct obex_hdr_it *tx_it;
 
 	struct databuffer *rx_nonhdr_data;	/* Data before of headers (like CONNECT and SETPATH) */
 	struct databuffer_list *rx_headerq;	/* List of received headers */
+	struct obex_hdr_it *it;
 
 	enum obex_cmd cmd;		/* command */
 	enum obex_rsp rsp;		/* response */
@@ -63,7 +65,6 @@ struct obex_object {
 	int suspend;			/* Temporarily stop transfering object */
 
 	struct obex_hdr *body;		/* The body header need some extra help */
-	struct obex_hdr_it *it;
 	struct obex_body *body_rcv;	/* Deliver body */
 };
 
@@ -82,8 +83,7 @@ int obex_object_setrsp(struct obex_object *object, enum obex_rsp rsp,
 		       enum obex_rsp lastrsp);
 int obex_object_get_real_opcode(obex_object_t *object, int allowfinalcmd,
 				enum obex_mode mode);
-int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left,
-			    unsigned int *srm);
+int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left);
 int obex_object_finished(obex_object_t *object, int allowfinal);
 
 int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg);
