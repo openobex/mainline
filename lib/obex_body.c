@@ -137,6 +137,9 @@ static int obex_body_buffered_rcv(void *self, struct obex_hdr *hdr)
 
 		/* Add element to rx-list */
 		object->rx_headerq = slist_append(object->rx_headerq, hdr);
+
+		if (object->rx_it == NULL)
+			object->rx_it = obex_hdr_it_create(object->rx_headerq);
 	}
 
 	return 1;

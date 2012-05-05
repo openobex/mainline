@@ -47,7 +47,7 @@ struct databuffer * obex_hdr_membuf_get_databuffer(struct obex_hdr *hdr);
 struct obex_hdr * obex_hdr_ptr_create(enum obex_hdr_id id,
 				      enum obex_hdr_type type,
 				      const void *data, size_t size);
-struct obex_hdr * obex_hdr_ptr_parse(struct databuffer *buf, size_t offset);
+struct obex_hdr * obex_hdr_ptr_parse(const void *msgdata, size_t size);
 
 
 struct obex_hdr * obex_hdr_stream_create(struct obex *obex);

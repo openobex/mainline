@@ -27,37 +27,31 @@
 #include "obex_object.h"
 #include "obex_connect.h"
 #include "obex_server.h"
+#include "obex_msg.h"
 #include "databuffer.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 
-static __inline enum obex_cmd msg_get_cmd(const buf_t *msg)
+static __inline enum obex_cmd msg_get_cmd(const obex_t *self)
 {
-	if (msg) {
-		obex_common_hdr_t *hdr = buf_get(msg);
-		return (enum obex_cmd)(hdr->opcode & ~OBEX_FINAL);
-	} else
-		return 0;
+	int opcode = obex_msg_get_opcode(self);
+
+	if (opcode < 0)
+		return OBEX_CMD_ABORT;
+	else
+		return (enum obex_cmd)(opcode & ~OBEX_FINAL);
 }
 
-static __inline uint16_t msg_get_len(const buf_t *msg)
+static __inline int msg_get_final(const obex_t *self)
 {
-	if (msg) {
-		obex_common_hdr_t *hdr = buf_get(msg);
-		return ntohs(hdr->len);
-	} else
-		return 0;
-}
+	int opcode = obex_msg_get_opcode(self);
 
-static __inline int msg_get_final(const buf_t *msg)
-{
-	if (msg) {
-		obex_common_hdr_t *hdr = buf_get(msg);
-		return hdr->opcode & OBEX_FINAL;
-	} else
+	if (opcode < 0)
 		return 0;
+	else
+		return opcode & OBEX_FINAL;
 }
 
 static void obex_response_request_prepare(obex_t *self, uint8_t opcode)
@@ -193,9 +187,7 @@ static int obex_server_send_prepare_tx(obex_t *self)
 
 static int obex_server_send(obex_t *self)
 {
-	buf_t *msg = obex_data_receive(self);
-	enum obex_cmd cmd = msg_get_cmd(msg);
-	uint16_t len = msg_get_len(msg);
+	enum obex_cmd cmd = msg_get_cmd(self);
 
 	DEBUG(4, "STATE: SEND/RECEIVE_RX\n");
 
@@ -216,44 +208,10 @@ static int obex_server_send(obex_t *self)
 		return obex_server_abort_response(self);
 	}
 
-	if (len > 3) {
-		/* For Single Response Mode, this is actually not unexpected. */
-		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
-			DEBUG(1, "STATE_SEND Didn't expect data from peer"
-								"(%u)\n", len);
-			DUMPBUFFER(4, "unexpected data", msg);
-			obex_deliver_event(self, OBEX_EV_UNEXPECTED,
-					   obex_object_getcmd(self->object),
-					   0, FALSE);
-		}
-
-		/* At this point, we are in the middle of sending our response
-		 * to the client, and it is still sending us some data!
-		 * This break the whole Request/Response model of HTTP!
-		 * Most often, the client is sending some out of band progress
-		 * information for a GET. This is the way we will handle that:
-		 * Save this header in our Rx header list. We can have
-		 * duplicated header, so no problem. The user has already parsed
-		 * headers, so will most likely ignore those new headers. User
-		 * can check the header in the next EV_PROGRESS, doing so will
-		 * hide the header (until reparse). If not, header can be parsed
-		 * at EV_REQDONE. Don't send any additional event to the app to
-		 * not break compatibility and because app can just check this
-		 * condition itself.
-		 * No headeroffset needed because 'connect' is single packet (or
-		 * we deny it). */
-		if (!self->object->abort) {
-			int ret = -1;
-			if (cmd != OBEX_CMD_CONNECT)
-				ret = obex_object_receive(self, msg);
-			if (ret < 0)
-				return obex_server_bad_request(self);
-
-			/* Note: we may want to get rid of received header,
-			 * however they are mixed with legitimate headers, and
-			 * the user may expect to consult them later. So, leave
-			 * them here (== overhead). */
-		}
+	if (!self->object->abort) {
+		int ret = obex_msg_receive(self, self->object);
+		if (ret < 0)
+			return obex_server_bad_request(self);
 	}
 
 	obex_data_receive_finished(self);
@@ -314,16 +272,15 @@ static int obex_server_recv(obex_t *self, int first)
 {
 	int deny = 0;
 	uint64_t filter;
-	buf_t *msg = obex_data_receive(self);
 	enum obex_cmd cmd;
 	int final;
 
 	DEBUG(4, "STATE: RECV/RECEIVE_RX\n");
 
-	if (msg == NULL)
+	if (!obex_msg_rx_status(self))
 		return 0;
-	cmd = msg_get_cmd(msg);
-	final = msg_get_final(msg);
+	cmd = msg_get_cmd(self);
+	final = msg_get_final(self);
 
 	/* Abort? */
 	if (cmd == OBEX_CMD_ABORT) {
@@ -347,8 +304,22 @@ static int obex_server_recv(obex_t *self, int first)
 	 *   always using stream mode
 	 */
 	filter = (1 << OBEX_HDR_ID_BODY | 1 << OBEX_HDR_ID_BODY_END);
-	if (obex_object_receive_nonhdr_data(self, msg) < 0 ||
-			obex_object_receive_headers(self, msg, filter) < 0)
+	
+	/* Some commands needs special treatment (data outside headers) */
+	switch (cmd) {
+	case OBEX_CMD_CONNECT:
+		self->object->headeroffset = 4;
+		break;
+
+	case OBEX_CMD_SETPATH:
+		self->object->headeroffset = 2;
+		break;
+
+	default:
+		break;
+	}
+
+	if (obex_msg_receive_filtered(self, self->object, filter, TRUE) < 0)
 		return obex_server_bad_request(self);
 
 	/* Let the user decide whether to accept or deny a
@@ -365,7 +336,8 @@ static int obex_server_recv(obex_t *self, int first)
 	switch ((self->object->rsp & ~OBEX_FINAL) & 0xF0) {
 	case OBEX_RSP_CONTINUE:
 	case OBEX_RSP_SUCCESS:
-		if (obex_object_receive_headers(self, msg, ~filter) < 0)
+		if (obex_msg_receive_filtered(self, self->object, ~filter,
+					      FALSE) < 0)
 			return obex_server_bad_request(self);
 		break;
 
@@ -376,6 +348,14 @@ static int obex_server_recv(obex_t *self, int first)
 	}
 
 	obex_data_receive_finished(self);
+
+	/* Connect needs some extra special treatment */
+	if (cmd == OBEX_CMD_CONNECT) {
+		DEBUG(4, "Got CMD_CONNECT\n");
+		if (!final || obex_parse_connectframe(self, self->object) < 0)
+			return obex_server_bad_request(self);
+	}
+
 	if (!final) {
 		self->substate = SUBSTATE_PREPARE_TX;
 		return obex_server_recv_prepare_tx(self);
@@ -401,15 +381,14 @@ static int obex_server_recv(obex_t *self, int first)
 
 static int obex_server_idle(obex_t *self)
 {
-	buf_t *msg = obex_data_receive(self);
 	enum obex_cmd cmd;
 
 	/* Nothing has been recieved yet, so this is probably a new request */
 	DEBUG(4, "STATE: IDLE\n");
-
-	if (msg == NULL)
+	
+	if (!obex_msg_rx_status(self))
 		return 0;
-	cmd = msg_get_cmd(msg);
+	cmd = msg_get_cmd(self);
 
 	if (self->object) {
 		/* What shall we do here? I don't know!*/
@@ -440,24 +419,6 @@ static int obex_server_idle(obex_t *self)
 	 * the app can deny a PUT-like request early, or
 	 * set the header-offset */
 	obex_deliver_event(self, OBEX_EV_REQHINT, cmd, 0, FALSE);
-
-	/* Some commands needs special treatment (data outside headers) */
-	switch (cmd) {
-	case OBEX_CMD_CONNECT:
-		DEBUG(4, "Got CMD_CONNECT\n");
-		/* Connect needs some extra special treatment */
-		if (obex_parse_connect_header(self, msg) < 0)
-			return obex_server_bad_request(self);
-		self->object->headeroffset = 4;
-		break;
-
-	case OBEX_CMD_SETPATH:
-		self->object->headeroffset = 2;
-		break;
-
-	default:
-		break;
-	}
 
 	/* Check the response from the REQHINT event */
 	switch ((self->object->rsp & ~OBEX_FINAL) & 0xF0) {

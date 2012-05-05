@@ -31,6 +31,7 @@ set ( SOURCES
   obex_hdr_stream.c
   obex_body.c
   obex_main.c
+  obex_msg.c
   obex_object.c
   obex_server.c
   obex_transport.c
@@ -49,6 +50,7 @@ set ( HEADERS
   obex_hdr.h
   obex_body.h
   obex_main.h
+  obex_msg.h
   obex_object.h
   obex_server.h
   obex_transport.h

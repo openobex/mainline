@@ -27,6 +27,7 @@
 #include "obex_main.h"
 #include "databuffer.h"
 #include "obex_transport.h"
+#include "obex_msg.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -226,7 +227,7 @@ int obex_transport_handle_input(obex_t *self, int timeout)
 {
 	DEBUG(4, "\n");
 	self->trans.timeout = timeout;
-	if (obex_get_buffer_status(self->rx_msg)) {
+	if (obex_msg_rx_status(self)) {
 		DEBUG(4, "full message already in buffer\n");
 		return 1;
 	}
@@ -360,16 +361,19 @@ int obex_transport_read(obex_t *self, int max)
 	struct databuffer *msg = self->rx_msg;
 	size_t msglen = buf_get_length(msg);
 	void *buf;
+	int err = buf_set_size(msg, msglen + self->mtu_rx);
 
-	DEBUG(4, "Request to read max %d bytes\n", max);
-	if (!buf_set_size(msg, msglen + self->mtu_rx))
+	if (err)
 		return -1;
 
 	buf = buf_get(msg) + msglen;
 
-	if (self->trans.ops.read)
-		return self->trans.ops.read(self, buf, max);
-	else
+	if (self->trans.ops.read) {
+		int ret = self->trans.ops.read(self, buf, max);
+		if (ret > 0)
+			buf_append(msg, NULL, ret);
+		return ret;
+	} else
 		return 0;
 }
 

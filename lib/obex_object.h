@@ -34,15 +34,6 @@
 struct databuffer;
 struct databuffer_list;
 
-/* Common header used by all frames */
-#pragma pack(1)
-struct obex_common_hdr {
-	uint8_t  opcode;
-	uint16_t len;
-};
-#pragma pack()
-typedef struct obex_common_hdr obex_common_hdr_t;
-
 struct obex_object {
 	struct databuffer *tx_nonhdr_data;	/* Data before of headers (like CONNECT and SETPATH) */
 	struct databuffer_list *tx_headerq;	/* List of headers to transmit*/
@@ -50,6 +41,7 @@ struct obex_object {
 
 	struct databuffer *rx_nonhdr_data;	/* Data before of headers (like CONNECT and SETPATH) */
 	struct databuffer_list *rx_headerq;	/* List of received headers */
+	struct obex_hdr_it *rx_it;
 	struct obex_hdr_it *it;
 
 	enum obex_cmd cmd;		/* command */
@@ -81,14 +73,16 @@ void obex_object_setcmd(struct obex_object *object, enum obex_cmd cmd);
 enum obex_cmd obex_object_getcmd(const obex_object_t *object);
 int obex_object_setrsp(struct obex_object *object, enum obex_rsp rsp,
 		       enum obex_rsp lastrsp);
-int obex_object_get_real_opcode(obex_object_t *object, int allowfinalcmd,
+int obex_object_get_opcode(obex_object_t *object, int allowfinalcmd,
 				enum obex_mode mode);
-int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left);
+int obex_object_append_data(obex_object_t *object, struct databuffer *txmsg,
+			    size_t tx_left);
 int obex_object_finished(obex_object_t *object, int allowfinal);
 
-int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg);
-int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter);
-int obex_object_receive(struct obex *self, struct databuffer *msg);
+int obex_object_receive_nonhdr_data(obex_object_t *object, const void *msgdata,
+				    size_t rx_left);
+int obex_object_receive_headers(struct obex_object *object, const void *msgdata,
+				size_t tx_left, uint64_t filter);
 
 int obex_object_set_body_receiver(obex_object_t *object, struct obex_body *b);
 const void * obex_object_read_body(obex_object_t *object, size_t *size);

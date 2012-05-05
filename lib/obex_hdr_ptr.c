@@ -20,7 +20,8 @@
  * along with OpenOBEX. If not, see <http://www.gnu.org/>.
  */
 
-#include <obex_hdr.h>
+#include "obex_hdr.h"
+#include "debug.h"
 
 struct obex_hdr_ptr {
 	enum obex_hdr_id id;
@@ -91,41 +92,55 @@ struct obex_hdr * obex_hdr_ptr_create(enum obex_hdr_id id,
 	return obex_hdr_new(&obex_hdr_ptr_ops, ptr);
 }
 
-struct obex_hdr * obex_hdr_ptr_parse(struct databuffer *buf, size_t offset)
+struct obex_hdr * obex_hdr_ptr_parse(const void *msgdata, size_t size)
 {
-	const uint8_t *msgdata = buf_get(buf) + offset;
-	struct obex_hdr_ptr *ptr = malloc(sizeof(*ptr));
+	struct obex_hdr_ptr *ptr;
 	uint16_t hsize;
 
+	if (size < 1)
+		return NULL;
+
+	ptr = malloc(sizeof(*ptr));
 	if (!ptr)
 		return NULL;
 
-	ptr->id = msgdata[0] & OBEX_HDR_ID_MASK;
-	ptr->type = msgdata[0] & OBEX_HDR_TYPE_MASK;
+	ptr->id = ((uint8_t *)msgdata)[0] & OBEX_HDR_ID_MASK;
+	ptr->type = ((uint8_t *)msgdata)[0] & OBEX_HDR_TYPE_MASK;
 
 	switch (ptr->type) {
 	case OBEX_HDR_TYPE_UNICODE:
 	case OBEX_HDR_TYPE_BYTES:
-		memcpy(&hsize, &msgdata[1], 2);
+		if (size < 3)
+			goto err;
+		memcpy(&hsize, msgdata + 1, 2);
 		ptr->size = ntohs(hsize) - 3;
-		ptr->value = &msgdata[3];
+		if (size < (3 + ptr->size))
+			goto err;
+		ptr->value = msgdata + 3;
 		break;
 
 	case OBEX_HDR_TYPE_UINT8:
+		if (size < 2)
+			goto err;
 		ptr->size = 1;
-		ptr->value = &msgdata[1];
+		ptr->value = msgdata + 1;
 		break;
 
 	case OBEX_HDR_TYPE_UINT32:
+		if (size < 5)
+			goto err;
 		ptr->size = 4;
-		ptr->value = &msgdata[1];
+		ptr->value = msgdata + 1;
 		break;
 
 	default:
-		free(ptr);
-		ptr = NULL;
-		break;
+		goto err;
 	}
 
 	return obex_hdr_new(&obex_hdr_ptr_ops, ptr);
+
+err:
+	DEBUG(1, "Header too big.\n");
+	free(ptr);
+	return NULL;
 }

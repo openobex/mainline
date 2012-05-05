@@ -28,6 +28,7 @@
 #include "obex_object.h"
 #include "obex_hdr.h"
 #include "obex_body.h"
+#include "obex_msg.h"
 #include "obex_connect.h"
 #include "databuffer.h"
 
@@ -91,6 +92,7 @@ int obex_object_delete(obex_object_t *object)
 
 	/* Free the headerqueues */
 	obex_hdr_it_destroy(object->it);
+	obex_hdr_it_destroy(object->rx_it);
 	free_headerq(object->rx_headerq);
 	/* Free rx non-header data */
 	if (object->rx_nonhdr_data) {
@@ -274,8 +276,8 @@ enum obex_cmd obex_object_getcmd(const obex_object_t *object)
 	return object->cmd;
 }
 
-int obex_object_get_real_opcode(obex_object_t *object, int allowfinal,
-				enum obex_mode mode)
+int obex_object_get_opcode(obex_object_t *object, int allowfinal,
+			   enum obex_mode mode)
 {
 	int opcode = -1;
 
@@ -307,8 +309,6 @@ int obex_object_get_real_opcode(obex_object_t *object, int allowfinal,
 
 int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left)
 {
-	struct obex_hdr *h;
-
 	/* Don't do anything if object is suspended */
 	if (object->suspend)
 		return 0;
@@ -326,26 +326,25 @@ int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left)
 
 	DEBUG(4, "4\n");
 
-	if (object->tx_it == NULL)
-		return 0;
-
 	/* Take headers from the tx queue and try to stuff as
 	 * many as possible into the tx-msg */
-	h = obex_hdr_it_get(object->tx_it);
-	while (h != NULL && !object->suspend && tx_left > 0) {
-		if (obex_hdr_get_id(h) != OBEX_HDR_ID_INVALID) {
-			size_t ret = obex_hdr_append(h, txmsg, tx_left);
-			if (ret == 0)
-				break;
-			tx_left -= ret;
-		}
+	if (object->tx_it) {
+		struct obex_hdr *h = obex_hdr_it_get(object->tx_it);
+		while (h != NULL && !object->suspend && tx_left > 0) {
+			if (obex_hdr_get_id(h) != OBEX_HDR_ID_INVALID) {
+				size_t ret = obex_hdr_append(h, txmsg, tx_left);
+				if (ret == 0)
+					break;
+				tx_left -= ret;
+			}
 		
-		if (obex_hdr_is_finished(h)) {
-			if (h->flags & OBEX_FL_SUSPEND)
-				object->suspend = 1;
+			if (obex_hdr_is_finished(h)) {
+				if (h->flags & OBEX_FL_SUSPEND)
+					object->suspend = 1;
 
-			obex_hdr_it_next(object->tx_it);
-			h = obex_hdr_it_get(object->tx_it);
+				obex_hdr_it_next(object->tx_it);
+				h = obex_hdr_it_get(object->tx_it);
+			}
 		}
 	}
 
@@ -354,15 +353,9 @@ int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left)
 
 int obex_object_finished(obex_object_t *object, int allowfinal)
 {
-	int finished = 0;
-
-	if (object->suspend)
-		return 0;
-
-	if (obex_hdr_it_get(object->tx_it) == NULL && allowfinal)
-		finished = 1;
-
-	return finished;
+	return (!object->suspend &&
+		(!object->tx_it || !obex_hdr_it_get(object->tx_it)) &&
+		allowfinal);
 }
 
 /*
@@ -448,15 +441,16 @@ int obex_object_reparseheaders(obex_object_t *object)
  *
  *    Process non-header data from an incoming message.
  */
-int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
+int obex_object_receive_nonhdr_data(obex_object_t *object, const void *msgdata,
+				    size_t rx_left)
 {
-	obex_object_t *object = self->object;
-	uint8_t *msgdata = buf_get(msg) + sizeof(struct obex_common_hdr);
-
 	DEBUG(4, "\n");
 
 	if (object->headeroffset == 0)
 		return 0;
+
+	if (object->headeroffset > rx_left)
+		return -1;
 
 	/* Copy any non-header data (like in CONNECT and SETPATH) */
 	object->rx_nonhdr_data = membuf_create(object->headeroffset);
@@ -469,9 +463,9 @@ int obex_object_receive_nonhdr_data(obex_t *self, buf_t *msg)
 	return 0;
 }
 
-static int obex_object_receive_body(obex_t *self, struct obex_hdr *hdr)
+static
+int obex_object_receive_body(obex_object_t *object, struct obex_hdr *hdr)
 {
-	obex_object_t *object = self->object;
 	enum obex_hdr_id id = obex_hdr_get_id(hdr);
 
 	DEBUG(4, "\n");
@@ -505,9 +499,9 @@ static int obex_object_receive_body(obex_t *self, struct obex_hdr *hdr)
 	return 0;
 }
 
-static int obex_object_rcv_one_header(obex_t *self, struct obex_hdr *hdr)
+static
+int obex_object_rcv_one_header(obex_object_t *object, struct obex_hdr *hdr)
 {
-	obex_object_t *object = self->object;
 	enum obex_hdr_id id = obex_hdr_get_id(hdr);
 	enum obex_hdr_type type = obex_hdr_get_type(hdr);
 	const void *data = obex_hdr_get_data_ptr(hdr);
@@ -522,46 +516,10 @@ static int obex_object_rcv_one_header(obex_t *self, struct obex_hdr *hdr)
 	/* Add element to rx-list */
 	object->rx_headerq = slist_append(object->rx_headerq, hdr);
 
-	return 0;
-}
-
-/*
- * Function obex_object_receive()
- *
- *    Process all data from an incoming message, including non-header data
- *    and headers, and remove them from the message buffer.
- */
-int obex_object_receive(obex_t *self, buf_t *msg)
-{
-	int hlen;
-
-	DEBUG(4, "\n");
-
-	if (obex_object_receive_nonhdr_data(self, msg) < 0)
-		return -1;
-
-	hlen = obex_object_receive_headers(self, msg, 0);
-	if (hlen < 0)
-		return hlen;
+	if (object->rx_it == NULL)
+		object->rx_it = obex_hdr_it_create(object->rx_headerq);
 
 	return 0;
-}
-
-static unsigned int obex_object_rcv_srm_flags(uint8_t flag)
-{
-	switch (flag) {
-	case 0x00:
-		return OBEX_SRM_FLAG_WAIT_REMOTE;
-
-	case 0x01:
-		return OBEX_SRM_FLAG_WAIT_LOCAL;
-
-	case 0x02:
-		return (OBEX_SRM_FLAG_WAIT_LOCAL | OBEX_SRM_FLAG_WAIT_REMOTE);
-
-	default:
-		return 0;
-	}
 }
 
 /*
@@ -571,34 +529,30 @@ static unsigned int obex_object_rcv_srm_flags(uint8_t flag)
  *    the message buffer.
  *    Returns the total number of bytes of the added headers or -1;
  */
-int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
+int obex_object_receive_headers(struct obex_object *object, const void *msgdata,
+				size_t tx_left, uint64_t filter)
 {
-	struct obex_common_hdr *hdr = buf_get(msg);
-	uint16_t offset = sizeof(*hdr) + self->object->headeroffset;
+	size_t offset = 0;
 	int consumed = 0;
 	const uint64_t body_filter = (1 << OBEX_HDR_ID_BODY |
 						1 << OBEX_HDR_ID_BODY_END);
-	uint16_t msglen = ntohs(hdr->len);
 
 	DEBUG(4, "\n");
 
-	while (offset < msglen) {
-		struct obex_hdr *hdr = obex_hdr_ptr_parse(msg, offset);
-		size_t hlen = obex_hdr_get_size(hdr);
+	while (offset < tx_left) {
+		struct obex_hdr *hdr = obex_hdr_ptr_parse(msgdata + offset,
+							  tx_left - offset);
+		size_t hlen;
 		int err = 0;
 		uint64_t header_bit;
 
+		if (hdr == NULL)
+			break;
+
+		hlen = obex_hdr_get_size(hdr);
 		DEBUG(4, "Header: type=%02x, id=%02x, size=%ld\n",
 		      obex_hdr_get_type(hdr), obex_hdr_get_id(hdr),
 		      (unsigned long)hlen);
-
-		/* Make sure that the msg is big enough for header */
-		if (hlen > (unsigned int)(msglen - offset)) {
-			DEBUG(1, "Header too big.\n");
-			obex_hdr_destroy(hdr);
-			hdr = NULL;
-			err = -1;
-		}
 
 		/* Push the body header data either to the application
 		 * or to an internal receive buffer.
@@ -608,7 +562,7 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 		 * part of first message).
 		 */
 		if (hdr && (filter & body_filter) == 0) {
-			int used = obex_object_receive_body(self, hdr);
+			int used = obex_object_receive_body(object, hdr);
 			if (used != 0) {
 				obex_hdr_destroy(hdr);
 				hdr = NULL;
@@ -626,14 +580,10 @@ int obex_object_receive_headers(obex_t *self, buf_t *msg, uint64_t filter)
 		 */
 		if (hdr) {
 			enum obex_hdr_id id = obex_hdr_get_id(hdr);
-			const uint8_t *data = obex_hdr_get_data_ptr(hdr);
+
 			header_bit = (uint64_t) 1 << id;
 			if (!(filter & header_bit)) {
-				if (id == OBEX_HDR_ID_SRM_FLAGS)
-					self->srm_flags |=
-					     obex_object_rcv_srm_flags(data[0]);
-
-				err = obex_object_rcv_one_header(self, hdr);
+				err = obex_object_rcv_one_header(object, hdr);
 				consumed += hlen;
 			}
 		}

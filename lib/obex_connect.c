@@ -42,12 +42,7 @@ struct obex_connect_hdr {
 };
 #pragma pack()
 
-/*
- * Function obex_insert_connectframe ()
- *
- *    Add the data needed to send/reply to a connect
- *
- */
+/** Add the data needed to send/reply to a CONNECT request */
 int obex_insert_connectframe(obex_t *self, obex_object_t *object)
 {
 	struct databuffer *buf = object->tx_nonhdr_data;
@@ -70,52 +65,21 @@ int obex_insert_connectframe(obex_t *self, obex_object_t *object)
 	return 0;
 }
 
-/*
- * Function obex_parse_connect_header ()
- *
- *    Parse a Connect
- *
- */
-int obex_parse_connect_header(obex_t *self, buf_t *msg)
+/** Parse the non-header data of a CONNECT request/response */
+int obex_parse_connectframe(obex_t *self, obex_object_t *object)
 {
-	obex_common_hdr_t *common_hdr = buf_get(msg);
-	struct obex_connect_hdr *conn_hdr =(void *)(common_hdr + 1);
+	struct databuffer *buf = object->rx_nonhdr_data;
+	struct obex_connect_hdr *conn_hdr = buf_get(buf);
+	uint16_t mtu = ntohs(conn_hdr->mtu);
 
-	DEBUG(4, "\n");
+	DEBUG(1, "version=%02x\n", conn_hdr->version);
 
-	switch (self->mode) {
-	case OBEX_MODE_SERVER:
-		if (common_hdr->opcode != (OBEX_CMD_CONNECT | OBEX_FINAL))
-			return 1;
-		break;
+	/* Limit to some reasonable value (usually OBEX_DEFAULT_MTU) */
+	if (mtu < self->mtu_tx_max)
+		self->mtu_tx = mtu;
+	else
+		self->mtu_tx = self->mtu_tx_max;
 
-	case OBEX_MODE_CLIENT:
-		/* Parse beyond 3 bytes only if response is success */
-		if (common_hdr->opcode != (OBEX_RSP_SUCCESS | OBEX_FINAL))
-			return 1;
-		break;
-
-	default:
-		return -1;
-	}
-
-	DEBUG(4, "Len: %lu\n", (unsigned long)buf_get_length(msg));
-	if (buf_get_length(msg) >= sizeof(*common_hdr)+sizeof(*conn_hdr)) {
-		/* Get what we need */
-		uint16_t mtu = ntohs(conn_hdr->mtu);
-
-		DEBUG(1, "version=%02x\n", conn_hdr->version);
-
-		/* Limit to some reasonable value (usually OBEX_DEFAULT_MTU) */
-		if (mtu < self->mtu_tx_max)
-			self->mtu_tx = mtu;
-		else
-			self->mtu_tx = self->mtu_tx_max;
-
-		DEBUG(1, "requested MTU=%u, used MTU=%u\n", mtu, self->mtu_tx);
-		return 1;
-	}
-
-	DEBUG(1, "Malformed connect-header received\n");
-	return -1;
+	DEBUG(1, "requested MTU=%u, used MTU=%u\n", mtu, self->mtu_tx);
+	return 1;
 }

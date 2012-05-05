@@ -24,10 +24,9 @@
 
 struct obex;
 struct obex_object;
-struct databuffer;
 
 int obex_insert_connectframe(struct obex *self, struct obex_object *object);
-int obex_parse_connect_header(struct obex *self, struct databuffer *msg);
+int obex_parse_connectframe(struct obex *self, struct obex_object *object);
 
 #endif
 

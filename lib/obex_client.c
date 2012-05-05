@@ -27,19 +27,20 @@
 #include "obex_object.h"
 #include "obex_connect.h"
 #include "obex_client.h"
+#include "obex_msg.h"
 #include "databuffer.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 
-static __inline enum obex_rsp msg_get_rsp(const buf_t *msg)
+static __inline enum obex_rsp msg_get_rsp(obex_t *self)
 {
-	if (!msg)
+	int opcode = obex_msg_get_opcode(self);
+
+	if (opcode < 0)
 		return OBEX_RSP_BAD_REQUEST;
-	else {
-		obex_common_hdr_t *hdr = buf_get(msg);
-		return hdr->opcode & ~OBEX_FINAL;
-	}
+	else
+		return opcode & ~OBEX_FINAL;
 }
 
 static __inline uint16_t msg_get_len(const buf_t *msg)
@@ -85,15 +86,14 @@ static int obex_client_abort_prepare(obex_t *self)
 static int obex_client_abort(obex_t *self)
 {
 	int ret = 0;
-	buf_t *msg = obex_data_receive(self);
 	enum obex_rsp rsp;
 	int event = OBEX_EV_LINKERR;
 
 	DEBUG(4, "STATE: ABORT/RECEIVE_RX\n");
 
-	if (msg == NULL)
+	if (!obex_msg_rx_status(self))
 		return 0;
-	rsp = msg_get_rsp(msg);
+	rsp = msg_get_rsp(self);
 
 	if (rsp == OBEX_RSP_SUCCESS)
 		event = OBEX_EV_ABORT;
@@ -162,31 +162,22 @@ static int obex_client_recv_prepare_tx(obex_t *self)
 static int obex_client_recv(obex_t *self)
 {
 	int ret;
-	buf_t *msg = obex_data_receive(self);
 	enum obex_rsp rsp;
 
 	DEBUG(4, "STATE: RECV/RECEIVE_RX\n");
 
-	if (msg == NULL)
+	if (!obex_msg_rx_status(self))
 		return 0;
-	rsp = msg_get_rsp(msg);
+	rsp = msg_get_rsp(self);
 
 	switch (self->object->cmd) {
 	case OBEX_CMD_CONNECT:
-		/* Response of a CMD_CONNECT needs some special treatment.*/
 		DEBUG(2, "We expect a connect-rsp\n");
-		if (obex_parse_connect_header(self, msg) < 0) {
-			obex_deliver_event(self, OBEX_EV_PARSEERR,
-					   self->object->cmd, 0, TRUE);
-			self->mode = OBEX_MODE_SERVER;
-			self->state = STATE_IDLE;
-			return -1;
-		}
 		self->object->headeroffset=4;
 		break;
 
 	case OBEX_CMD_DISCONNECT:
-		/* So does CMD_DISCONNECT */
+		/* Response of a CMD_DISCONNECT needs some special treatment.*/
 		DEBUG(2, "CMD_DISCONNECT done. Resetting MTU!\n");
 		self->mtu_tx = OBEX_MINIMUM_MTU;
 		self->rsp_mode = OBEX_RSP_MODE_NORMAL;
@@ -199,7 +190,7 @@ static int obex_client_recv(obex_t *self)
 
 	if (self->object->abort == 0) {
 		/* Receive any headers */
-		ret = obex_object_receive(self, msg);
+		ret = obex_msg_receive(self, self->object);
 		if (ret < 0) {
 			obex_deliver_event(self, OBEX_EV_PARSEERR,
 					   self->object->cmd, 0, TRUE);
@@ -209,6 +200,20 @@ static int obex_client_recv(obex_t *self)
 		}
 	}
 	obex_data_receive_finished(self);
+
+	/* Response of a CMD_CONNECT needs some special treatment.*/
+	if (self->object->cmd == OBEX_CMD_CONNECT) {
+		DEBUG(2, "We expect a connect-rsp\n");
+		if (rsp != OBEX_RSP_SUCCESS ||
+		    obex_parse_connectframe(self, self->object) < 0)
+		{
+			obex_deliver_event(self, OBEX_EV_PARSEERR,
+					   self->object->cmd, 0, TRUE);
+			self->mode = OBEX_MODE_SERVER;
+			self->state = STATE_IDLE;
+			return -1;
+		}
+	}
 
 	/* Are we done yet? */
 	if (rsp == OBEX_RSP_CONTINUE) {
@@ -290,15 +295,13 @@ static int obex_client_send_prepare_tx(obex_t *self)
 
 static int obex_client_send(obex_t *self)
 {
-	int ret;
-	buf_t *msg = obex_data_receive(self);
 	enum obex_rsp rsp;
 
 	DEBUG(4, "STATE: SEND/RECEIVE_RX\n");
 
-	if (msg == NULL)
+	if (!obex_msg_rx_status(self))
 		return 0;
-	rsp = msg_get_rsp(msg);
+	rsp = msg_get_rsp(self);
 
 	/* Any errors from peer? Win2k will send RSP_SUCCESS after
 	 * every fragment sent so we have to accept that too.*/
@@ -312,50 +315,18 @@ static int obex_client_send(obex_t *self)
 		obex_deliver_event(self, OBEX_EV_REQDONE, self->object->cmd,
 								     rsp, TRUE);
 		/* This is not an Obex error, it is just that the peer
-		 * doesn't accept the request, so return 0 - Jean II */
+		 * doesn't accept the request */
 		return 0;
 	}
 
-	if (msg_get_len(msg) > 3) {
-		/* For Single Response Mode, this is actually not
-		 * unexpected. */
-		if (self->object->rsp_mode == OBEX_RSP_MODE_NORMAL) {
-			DEBUG(1, "STATE_SEND. Didn't excpect data from "
-			      "peer (%u)\n", msg_get_len(msg));
-			DUMPBUFFER(4, "unexpected data", msg);
-			obex_deliver_event(self, OBEX_EV_UNEXPECTED,
-					   self->object->cmd, 0, FALSE);
-		}
-
-		/* At this point, we are in the middle of sending our
-		 * request to the server, and it is already sending us
-		 * some data! This breaks the whole Request/Response
-		 * model! Most often, the server is sending some out of
-		 * band progress information for a PUT.
-		 * This is the way we will handle that:
-		 * Save this header in our Rx header list. We can have
-		 * duplicated headers, so no problem. User can check the
-		 * header in the next EV_PROGRESS, doing so will hide
-		 * the header (until reparse). If not, header will be
-		 * parsed at 'final', or just ignored (common case for
-		 * PUT).
-		 * No headeroffset needed because 'connect' is single
-		 * packet (or we deny it). */
-		if (!self->object->abort) {
-			ret = -1;
-			if (self->object->cmd != OBEX_CMD_CONNECT)
-				ret = obex_object_receive(self, msg);
-			if (ret < 0) {
-				obex_deliver_event(self, OBEX_EV_PARSEERR,
-						   self->object->cmd, 0, TRUE);
-				self->mode = OBEX_MODE_SERVER;
-				self->state = STATE_IDLE;
-				return -1;
-			}
-			/* Note : we may want to get rid of received header,
-			 * however they are mixed with legitimate headers,
-			 * and the user may expect to consult them later.
-			 * So, leave them here (== overhead). */
+	if (!self->object->abort) {
+		int ret = obex_msg_receive(self, self->object);
+		if (ret < 0) {
+			obex_deliver_event(self, OBEX_EV_PARSEERR,
+					   self->object->cmd, 0, TRUE);
+			self->mode = OBEX_MODE_SERVER;
+			self->state = STATE_IDLE;
+			return -1;
 		}
 	}
 

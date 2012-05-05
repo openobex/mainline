@@ -62,20 +62,26 @@ struct obex {
 	void * userdata;		/* For user */
 };
 
+/* Common header used by all frames */
+#pragma pack(1)
+struct obex_common_hdr {
+	uint8_t  opcode;
+	uint16_t len;
+};
+#pragma pack()
+typedef struct obex_common_hdr obex_common_hdr_t;
+
 void obex_deliver_event(obex_t *self, enum obex_event event, enum obex_cmd cmd,
 			enum obex_rsp rsp, int del);
 
 int obex_work(struct obex *self, int timeout);
 int obex_get_buffer_status(buf_t *msg);
 int obex_data_indication(struct obex *self);
-buf_t* obex_data_receive(obex_t *self);
 void obex_data_receive_finished(obex_t *self);
 
 void obex_data_request_init(struct obex *self);
 void obex_data_request_prepare(struct obex *self, int opcode);
 int obex_data_request(struct obex *self);
-int obex_msg_getspace(obex_t *self, obex_object_t *object, unsigned int flags);
-int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal);
 int obex_msg_transmit(obex_t *self);
 int obex_cancelrequest(struct obex *self, int nice);
 
