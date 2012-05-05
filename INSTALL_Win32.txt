@@ -10,7 +10,7 @@ The requirements to compile OpenObex on Windows are fairly low:
 1. a compiler
 2. the Platform SDK (now also called Windows SDK)
 3. LibUSB-Win32[1]
-4. CMake(>= 2.6)[2] or autoconf+automake
+4. CMake(>= 2.8.5)[2]
 
 The supported compilers are:
  * Microsoft Visual Studio 2010 (10)
@@ -28,63 +28,6 @@ Visual Studio 2008 and 2010 already include the SDK.
 
 2 Compilation
 =============
-
-There are two ways to compile OpenObex. Step 2a describes building with
-autoconf+automake, step 2b describes building with CMake. The latter is
-recommended as it is a lot easier to setup and supports more environments.
-
-
-2a Compilation using autoconf+automake
-======================================
-
-Compiling with autoconf+automake is restricted to a very specific environment,
-an Unix-like one. Under Windows, this can only be provided by MSYS or Cygwin.
-
-MSYS
-----
-
-You need to install the following extra packages from http://www.mingw.org:
-  * MSYS (1.0.10 works)
-  * msysDTK (1.0.1 works)
-
-Libtool from msysDTK in incomplete, it needs an additional 'file' utility. You
-can get this from http://gnuwin32.sf.net. Do NOT install it in the MSYS
-directory but somewhere else that is already mounted and in $PATH (e.g. into
-the mingw directory).
-
-Additionally, download the following packages from e.g.
-http://www.gtk.org/download-windows.html:
-  * pkg-config
-Unpack them all into the same directory!
-
-You need to prepare the build environment by editing /etc/fstab and mount the
-libusb-win32 installation dir to /libusb. MinGW should already be present under
-/mingw.
-Additionally, you create /pdsk/include and copy the following header files from
-the Platform SDK to there:
-  ws2bth.h
-  bthdef.h
-  bthsdpdef.h
-  af_irda.h
-
-If you check out from VCS and configure does not exist, you can create it with:
-  $ autoreconf -v -f -i
-
-Now you need some environment variables for configure:
-  $ export CFLAGS="-I/libusb/include -I/psdk/include"
-  $ export LDFLAGS="-L/libusb/lib/gcc"
-
-Now you can finally run configure:
-  $ ./configure --prefix=/mingw --disable-shared
-
-This will build a static library. Due to a bug in libtool, you cannot build the
-static and the shared version at the same time.
-To build the shared version, run:
-  $ ./configure --prefix=/mingw --disable-static
-
-
-2b Compilation using CMake
-==========================
 
 Visual Studio
 -------------
