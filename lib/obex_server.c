@@ -96,7 +96,7 @@ static int obex_server_abort_transmit(obex_t *self)
 	if (ret == -1)
 		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, rsp, TRUE);
 	else if (ret == 1)
-		obex_deliver_event(self, OBEX_EV_ABORT, cmd, rsp, FALSE);
+		obex_deliver_event(self, OBEX_EV_ABORT, cmd, rsp, TRUE);
 
 	self->state = STATE_IDLE;
 	return ret;
@@ -222,7 +222,7 @@ static int obex_server_send(obex_t *self)
 static int obex_server_recv_transmit_tx(obex_t *self)
 {
 	int ret = 0;
-	int cmd = self->object->cmd;
+	enum obex_cmd cmd = self->object->cmd;
 
 	DEBUG(4, "STATE: RECV/TRANSMIT_TX\n");
 
@@ -232,8 +232,17 @@ static int obex_server_recv_transmit_tx(obex_t *self)
 		self->state = STATE_IDLE;
 
 	} else if (ret == 1) {
-		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
-		self->substate = SUBSTATE_RECEIVE_RX;
+		enum obex_rsp rsp = self->object->rsp;
+		if (rsp == OBEX_RSP_CONTINUE) {
+			obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, rsp,
+					   FALSE);
+			self->substate = SUBSTATE_RECEIVE_RX;
+
+		} else {
+			obex_deliver_event(self, OBEX_EV_REQDONE, cmd, rsp,
+					   TRUE);
+			self->state = STATE_IDLE;
+		}
 	}
 
 	return ret;
@@ -285,6 +294,7 @@ static int obex_server_recv(obex_t *self, int first)
 	/* Abort? */
 	if (cmd == OBEX_CMD_ABORT) {
 		DEBUG(1, "Got OBEX_ABORT request!\n");
+		obex_data_receive_finished(self);
 		return obex_server_abort_response(self);
 	}
 
