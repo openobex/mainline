@@ -100,8 +100,10 @@ int obex_object_delete(obex_object_t *object)
 		object->rx_nonhdr_data = NULL;
 	}
 
-	/* This one is already destroyed as part of the header queue */
-	object->body = NULL;
+	if (object->body != NULL) {
+		obex_hdr_destroy(object->body);
+		object->body = NULL;
+	}
 
 	free(object);
 
@@ -586,6 +588,7 @@ int obex_object_receive_headers(struct obex_object *object, const void *msgdata,
 				err = obex_object_rcv_one_header(object, hdr);
 				consumed += hlen;
 			}
+			obex_hdr_destroy(hdr);
 		}
 
 		if (err)
