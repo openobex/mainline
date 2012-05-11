@@ -187,36 +187,53 @@ static int obex_server_send_prepare_tx(obex_t *self)
 
 static int obex_server_send(obex_t *self)
 {
-	enum obex_cmd cmd = msg_get_cmd(self);
+	enum obex_cmd cmd;
 
 	DEBUG(4, "STATE: SEND/RECEIVE_RX\n");
+
+	if (!obex_msg_rx_status(self)) {
+		if (self->object &&
+		    self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+		    !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL))
+		{
+			self->substate = SUBSTATE_PREPARE_TX;
+			return obex_server_send_prepare_tx(self);
+		}
+
+		return 0;
+	}
 
 	/* Single response mode makes it possible for the client to send
 	 * the next request (e.g. PUT) while still receiving the last
 	 * multi-packet response. So we must not consume any request
-	 * except ABORT. */
-	if (self->object &&
-	    self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
-	    !(cmd == OBEX_CMD_ABORT || cmd == self->object->cmd)) {
-		self->substate = SUBSTATE_PREPARE_TX;
-		return obex_server_send_prepare_tx(self);
-	}
-
-	/* Abort? */
+	 * except ABORT. For Normal response mode, this other request is an
+	 * error. */
+	cmd = msg_get_cmd(self);
 	if (cmd == OBEX_CMD_ABORT) {
 		DEBUG(1, "Got OBEX_ABORT request!\n");
+		obex_data_receive_finished(self);
 		return obex_server_abort_response(self);
-	}
 
-	if (!self->object->abort) {
+	} else if (cmd == obex_object_getcmd(self->object)) {
 		int ret = obex_msg_receive(self, self->object);
+		obex_data_receive_finished(self);
 		if (ret < 0)
 			return obex_server_bad_request(self);
-	}
 
-	obex_data_receive_finished(self);
-	self->substate = SUBSTATE_PREPARE_TX;
-	return obex_server_send_prepare_tx(self);
+		self->substate = SUBSTATE_PREPARE_TX;
+		return obex_server_send_prepare_tx(self);
+
+	} else {
+		if (self->object &&
+		    self->object->rsp_mode == OBEX_RSP_MODE_SINGLE)
+		{
+			self->substate = SUBSTATE_PREPARE_TX;
+			return obex_server_send_prepare_tx(self);
+		}
+
+		obex_data_receive_finished(self);
+		return obex_server_bad_request(self);
+	}
 }
 
 static int obex_server_recv_transmit_tx(obex_t *self)
@@ -296,13 +313,13 @@ static int obex_server_recv(obex_t *self, int first)
 		DEBUG(1, "Got OBEX_ABORT request!\n");
 		obex_data_receive_finished(self);
 		return obex_server_abort_response(self);
-	}
 
-	/* Sanity check */
-	if (cmd != self->object->cmd)
+	} else if (cmd != obex_object_getcmd(self->object)) {
 		/* The cmd-field of this packet is not the
 		 * same as int the first fragment. Bail out! */
+		obex_data_receive_finished(self);
 		return obex_server_bad_request(self);
+	}
 
 	/* Get the non-header data and look at all non-body headers.
 	 * Leaving the body headers out here has advantages:
@@ -329,8 +346,10 @@ static int obex_server_recv(obex_t *self, int first)
 		break;
 	}
 
-	if (obex_msg_receive_filtered(self, self->object, filter, TRUE) < 0)
+	if (obex_msg_receive_filtered(self, self->object, filter, TRUE) < 0) {
+		obex_data_receive_finished(self);
 		return obex_server_bad_request(self);
+	}
 
 	/* Let the user decide whether to accept or deny a
 	 * multi-packet request by examining all headers in
@@ -348,7 +367,10 @@ static int obex_server_recv(obex_t *self, int first)
 	case OBEX_RSP_SUCCESS:
 		if (obex_msg_receive_filtered(self, self->object, ~filter,
 					      FALSE) < 0)
+		{
+			obex_data_receive_finished(self);
 			return obex_server_bad_request(self);
+		}
 		break;
 
 	default:

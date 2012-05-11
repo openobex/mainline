@@ -196,6 +196,7 @@ static int obex_client_recv(obex_t *self)
 					   self->object->cmd, 0, TRUE);
 			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
+			obex_data_receive_finished(self);
 			return -1;
 		}
 	}
@@ -316,6 +317,7 @@ static int obex_client_send(obex_t *self)
 								     rsp, TRUE);
 		/* This is not an Obex error, it is just that the peer
 		 * doesn't accept the request */
+		obex_data_receive_finished(self);
 		return 0;
 	}
 
@@ -326,6 +328,7 @@ static int obex_client_send(obex_t *self)
 					   self->object->cmd, 0, TRUE);
 			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
+			obex_data_receive_finished(self);
 			return -1;
 		}
 	}
