@@ -106,12 +106,12 @@ static int obex_client_abort(obex_t *self)
 	return ret;
 }
 
-static int obex_client_recv_transmit_tx(obex_t *self)
+static int obex_client_response_transmit_tx(obex_t *self)
 {
 	int ret;
 	enum obex_rsp rsp = OBEX_RSP_CONTINUE;
 
-	DEBUG(4, "STATE: RECV/TRANSMIT_TX\n");
+	DEBUG(4, "STATE: RESPONSE/TRANSMIT_TX\n");
 
 	ret = obex_msg_transmit(self);
 	if (ret == -1) {
@@ -128,9 +128,9 @@ static int obex_client_recv_transmit_tx(obex_t *self)
 	return ret;
 }
 
-static int obex_client_recv_prepare_tx(obex_t *self)
+static int obex_client_response_prepare_tx(obex_t *self)
 {
-	DEBUG(4, "STATE: RECV/PREPARE_TX\n");
+	DEBUG(4, "STATE: RESPONSE/PREPARE_TX\n");
 
 	/* Sending ABORT is allowed even during SRM */
 	if (self->object->abort == 1) {
@@ -147,7 +147,7 @@ static int obex_client_recv_prepare_tx(obex_t *self)
 			return -1;
 
 		self->substate = SUBSTATE_TRANSMIT_TX;
-		return obex_client_recv_transmit_tx(self);
+		return obex_client_response_transmit_tx(self);
 
 	} else {
 		self->substate = SUBSTATE_RECEIVE_RX;
@@ -155,12 +155,12 @@ static int obex_client_recv_prepare_tx(obex_t *self)
 	}
 }
 
-static int obex_client_recv(obex_t *self)
+static int obex_client_response_rx(obex_t *self)
 {
 	int ret;
 	enum obex_rsp rsp;
 
-	DEBUG(4, "STATE: RECV/RECEIVE_RX\n");
+	DEBUG(4, "STATE: RESPONSE/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self))
 		return 1;
@@ -216,7 +216,7 @@ static int obex_client_recv(obex_t *self)
 	if (rsp == OBEX_RSP_CONTINUE) {
 		DEBUG(3, "Continue...\n");
 		self->substate = SUBSTATE_PREPARE_TX;
-		return obex_client_recv_prepare_tx(self);
+		return obex_client_response_prepare_tx(self);
 
 	} else {
 		/* Notify app that client-operation is done! */
@@ -229,11 +229,11 @@ static int obex_client_recv(obex_t *self)
 	}
 }
 
-static int obex_client_send_transmit_tx(obex_t *self)
+static int obex_client_request_transmit_tx(obex_t *self)
 {
 	int ret;
 
-	DEBUG(4, "STATE: SEND/TRANSMIT_TX\n");
+	DEBUG(4, "STATE: REQUEST/TRANSMIT_TX\n");
 
 	ret = obex_msg_transmit(self);
 	if (ret < 0) {
@@ -247,7 +247,7 @@ static int obex_client_send_transmit_tx(obex_t *self)
 		obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->cmd,
 								      0, FALSE);
 		if (obex_object_finished(self->object, TRUE)) {
-			self->state = STATE_REC;
+			self->state = STATE_RESPONSE;
 			self->substate = SUBSTATE_RECEIVE_RX;
 
 		} else if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
@@ -268,11 +268,11 @@ static int obex_client_send_transmit_tx(obex_t *self)
 	return ret;
 }
 
-static int obex_client_send_prepare_tx(obex_t *self)
+static int obex_client_request_prepare_tx(obex_t *self)
 {
 	int err;
 
-	DEBUG(4, "STATE: SEND/PREPARE_TX\n");
+	DEBUG(4, "STATE: REQUEST/PREPARE_TX\n");
 
 	if (self->object->abort == 1) {
 		self->state = STATE_ABORT;
@@ -285,14 +285,14 @@ static int obex_client_send_prepare_tx(obex_t *self)
 		return -1;
 
 	self->substate = SUBSTATE_TRANSMIT_TX;
-	return obex_client_send_transmit_tx(self);
+	return obex_client_request_transmit_tx(self);
 }
 
-static int obex_client_send(obex_t *self)
+static int obex_client_request_rx(obex_t *self)
 {
 	enum obex_rsp rsp;
 
-	DEBUG(4, "STATE: SEND/RECEIVE_RX\n");
+	DEBUG(4, "STATE: REQUEST/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self))
 		return 0;
@@ -329,7 +329,7 @@ static int obex_client_send(obex_t *self)
 
 	obex_data_receive_finished(self);
 	self->substate = SUBSTATE_PREPARE_TX;
-	return obex_client_send_prepare_tx(self);
+	return obex_client_request_prepare_tx(self);
 }
 
 
@@ -344,29 +344,29 @@ int obex_client(obex_t *self)
 	DEBUG(4, "\n");
 
 	switch (self->state) {
-	case STATE_SEND:
+	case STATE_REQUEST:
 		switch (self->substate) {
 		case SUBSTATE_RECEIVE_RX:
-			return obex_client_send(self);
+			return obex_client_request_rx(self);
 
 		case SUBSTATE_PREPARE_TX:
-			return obex_client_send_prepare_tx(self);
+			return obex_client_request_prepare_tx(self);
 
 		case SUBSTATE_TRANSMIT_TX:
-			return obex_client_send_transmit_tx(self);
+			return obex_client_request_transmit_tx(self);
 		}
 		break;
 
-	case STATE_REC:
+	case STATE_RESPONSE:
 		switch (self->substate) {
 		case SUBSTATE_RECEIVE_RX:
-			return obex_client_recv(self);
+			return obex_client_response_rx(self);
 
 		case SUBSTATE_PREPARE_TX:
-			return obex_client_recv_prepare_tx(self);
+			return obex_client_response_prepare_tx(self);
 
 		case SUBSTATE_TRANSMIT_TX:
-			return obex_client_recv_transmit_tx(self);
+			return obex_client_response_transmit_tx(self);
 		}
 		break;
 

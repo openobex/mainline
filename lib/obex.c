@@ -518,7 +518,7 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 	object->rsp_mode = self->rsp_mode;
 	self->object = object;
 	self->mode = OBEX_MODE_CLIENT;
-        self->state = STATE_SEND;
+        self->state = STATE_REQUEST;
 	self->substate = SUBSTATE_PREPARE_TX;
 
 	return 0;
