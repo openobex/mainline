@@ -126,7 +126,7 @@ static int obex_body_buffered_rcv(void *self, struct obex_hdr *hdr)
 
 	} else {
 		struct databuffer *buf;
-		buf = obex_hdr_membuf_get_databuffer(object->body);;
+		buf = obex_hdr_membuf_get_databuffer(object->body);
 		if (buf_append(buf, data, len) < 0)
 			return -1;
 	}

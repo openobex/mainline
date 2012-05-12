@@ -111,5 +111,6 @@ struct obex_hdr * obex_hdr_membuf_create(enum obex_hdr_id id,
 
 struct databuffer * obex_hdr_membuf_get_databuffer(struct obex_hdr *hdr)
 {
-	return hdr->data;
+	struct obex_hdr_membuf *memhdr = hdr->data;
+	return memhdr->buf;
 }
