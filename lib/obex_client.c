@@ -54,7 +54,7 @@ static __inline uint16_t msg_get_len(const buf_t *msg)
 
 static int obex_client_abort_transmit(obex_t *self)
 {
-	int ret = 0;
+	int ret;
 
 	DEBUG(4, "STATE: ABORT/TRANSMIT_TX\n");
 
@@ -85,14 +85,14 @@ static int obex_client_abort_prepare(obex_t *self)
 
 static int obex_client_abort(obex_t *self)
 {
-	int ret = 0;
+	int ret = 1;
 	enum obex_rsp rsp;
 	int event = OBEX_EV_LINKERR;
 
 	DEBUG(4, "STATE: ABORT/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self))
-		return 0;
+		return 1;
 	rsp = msg_get_rsp(self);
 
 	if (rsp == OBEX_RSP_SUCCESS)
@@ -108,7 +108,7 @@ static int obex_client_abort(obex_t *self)
 
 static int obex_client_recv_transmit_tx(obex_t *self)
 {
-	int ret = 0;
+	int ret;
 	enum obex_rsp rsp = OBEX_RSP_CONTINUE;
 
 	DEBUG(4, "STATE: RECV/TRANSMIT_TX\n");
@@ -142,21 +142,17 @@ static int obex_client_recv_prepare_tx(obex_t *self)
 	    (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
 	     self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
 	{
-		int ret;
+		int err = obex_msg_prepare(self, self->object, TRUE);
+		if (err)
+			return -1;
 
-		ret = obex_msg_prepare(self, self->object, TRUE);
-		if (ret == 1) {
-			self->substate = SUBSTATE_TRANSMIT_TX;
-			return obex_client_recv_transmit_tx(self);
-
-		} else
-			return ret;
+		self->substate = SUBSTATE_TRANSMIT_TX;
+		return obex_client_recv_transmit_tx(self);
 
 	} else {
 		self->substate = SUBSTATE_RECEIVE_RX;
+		return 1;
 	}
-
-	return 0;
 }
 
 static int obex_client_recv(obex_t *self)
@@ -167,7 +163,7 @@ static int obex_client_recv(obex_t *self)
 	DEBUG(4, "STATE: RECV/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self))
-		return 0;
+		return 1;
 	rsp = msg_get_rsp(self);
 
 	switch (self->object->cmd) {
@@ -229,9 +225,8 @@ static int obex_client_recv(obex_t *self)
 								     rsp, TRUE);
 		self->mode = OBEX_MODE_SERVER;
 		self->state = STATE_IDLE;
-		return 0;
+		return 1;
 	}
-
 }
 
 static int obex_client_send_transmit_tx(obex_t *self)
@@ -275,7 +270,7 @@ static int obex_client_send_transmit_tx(obex_t *self)
 
 static int obex_client_send_prepare_tx(obex_t *self)
 {
-	int ret;
+	int err;
 
 	DEBUG(4, "STATE: SEND/PREPARE_TX\n");
 
@@ -285,13 +280,12 @@ static int obex_client_send_prepare_tx(obex_t *self)
 	}
 
 
-	ret = obex_msg_prepare(self, self->object, TRUE);
-	if (ret == 1) {
-		self->substate = SUBSTATE_TRANSMIT_TX;
-		return obex_client_send_transmit_tx(self);
+	err = obex_msg_prepare(self, self->object, TRUE);
+	if (err)
+		return -1;
 
-	} else
-		return ret;
+	self->substate = SUBSTATE_TRANSMIT_TX;
+	return obex_client_send_transmit_tx(self);
 }
 
 static int obex_client_send(obex_t *self)
@@ -318,7 +312,7 @@ static int obex_client_send(obex_t *self)
 		/* This is not an Obex error, it is just that the peer
 		 * doesn't accept the request */
 		obex_data_receive_finished(self);
-		return 0;
+		return 1;
 	}
 
 	if (!self->object->abort) {

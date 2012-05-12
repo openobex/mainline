@@ -93,7 +93,7 @@ static int obex_msg_post_prepare(obex_t *self, obex_object_t *object,
 		hdr = obex_hdr_it_get(&it);
 	}
 
-	return 1;
+	return 0;
 }
 
 int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
@@ -102,6 +102,7 @@ int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
 	uint16_t tx_left = self->mtu_tx - sizeof(struct obex_common_hdr);
 	int real_opcode;
 	struct obex_hdr_it it;
+	int err;
 
 	obex_hdr_it_init_from(&it, object->tx_it);
 
@@ -111,7 +112,9 @@ int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
 		tx_left -= self->mtu_tx % self->trans.mtu;
 #endif /*HAVE_IRDA*/
 
-	obex_data_request_init(self);
+	err = obex_data_request_init(self);
+	if (err)
+		return err;
 
 	if (!obex_object_append_data(object, txmsg, tx_left))
 		return 0;

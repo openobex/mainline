@@ -84,7 +84,7 @@ static int obex_server_bad_request(obex_t *self)
 
 static int obex_server_abort_transmit(obex_t *self)
 {
-	int ret = 0;
+	int ret;
 	enum obex_rsp rsp = OBEX_RSP_CONTINUE;
 	enum obex_cmd cmd = OBEX_CMD_ABORT;
 
@@ -164,7 +164,7 @@ static int obex_server_send_transmit_tx(obex_t *self)
 
 static int obex_server_send_prepare_tx(obex_t *self)
 {
-	int ret;
+	int err;
 
 	DEBUG(4, "STATE: SEND/PREPARE_TX\n");
 
@@ -176,13 +176,12 @@ static int obex_server_send_prepare_tx(obex_t *self)
 	/* As a server, the final bit is always SET, and the "real final" packet
 	 * is distinguished by being SUCCESS instead of CONTINUE.
 	 * So, force the final bit here. */
-	ret = obex_msg_prepare(self, self->object, TRUE);
-	if (ret == 1) {
-		self->substate = SUBSTATE_TRANSMIT_TX;
-		return obex_server_send_transmit_tx(self);
+	err = obex_msg_prepare(self, self->object, TRUE);
+	if (err)
+		return -1;
 
-	} else
-		return ret;
+	self->substate = SUBSTATE_TRANSMIT_TX;
+	return obex_server_send_transmit_tx(self);
 }
 
 static int obex_server_send(obex_t *self)
@@ -200,7 +199,7 @@ static int obex_server_send(obex_t *self)
 			return obex_server_send_prepare_tx(self);
 		}
 
-		return 0;
+		return 1;
 	}
 
 	/* Single response mode makes it possible for the client to send
@@ -273,24 +272,23 @@ static int obex_server_recv_prepare_tx(obex_t *self)
 	    (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
 	     self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
 	{
-		int ret;
+		int err;
 
 		if (self->object->abort == 1) {
 			self->state = STATE_ABORT;
 			return obex_server_abort_prepare(self);
 		}
 
-		ret = obex_msg_prepare(self, self->object, FALSE);
-		if (ret == 1) {
-			self->substate = SUBSTATE_TRANSMIT_TX;
-			return obex_server_recv_transmit_tx(self);
+		err = obex_msg_prepare(self, self->object, FALSE);
+		if (err)
+			return -1;
 
-		} else
-			return ret;
+		self->substate = SUBSTATE_TRANSMIT_TX;
+		return obex_server_recv_transmit_tx(self);
 
 	} else {
 		self->substate = SUBSTATE_RECEIVE_RX;
-		return 0;
+		return 1;
 	}
 }
 
@@ -304,7 +302,7 @@ static int obex_server_recv(obex_t *self, int first)
 	DEBUG(4, "STATE: RECV/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self))
-		return 0;
+		return 1;
 	cmd = msg_get_cmd(self);
 	final = msg_get_final(self);
 

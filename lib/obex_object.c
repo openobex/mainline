@@ -189,12 +189,17 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 
 	if (id == OBEX_HDR_ID_BODY && (flags & OBEX_FL_STREAM_DATAEND)) {
 		/* End of stream marker */
+		if (object->body == NULL)
+			return -1;
 		obex_hdr_stream_set_data(object->body, hv.bs, hv_size);
 		obex_hdr_stream_finish(object->body);
+		object->body = NULL;
 		return 1;
 
 	} else if (id == OBEX_HDR_ID_BODY && (flags & OBEX_FL_STREAM_DATA)) {
 		/* Stream data */
+		if (object->body == NULL)
+			return -1;
 		obex_hdr_stream_set_data(object->body, hv.bs, hv_size);
 		return 1;
 

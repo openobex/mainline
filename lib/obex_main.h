@@ -79,7 +79,7 @@ int obex_get_buffer_status(buf_t *msg);
 int obex_data_indication(struct obex *self);
 void obex_data_receive_finished(obex_t *self);
 
-void obex_data_request_init(struct obex *self);
+int obex_data_request_init(struct obex *self);
 void obex_data_request_prepare(struct obex *self, int opcode);
 int obex_data_request(struct obex *self);
 int obex_msg_transmit(obex_t *self);

@@ -121,13 +121,17 @@ void obex_deliver_event(obex_t *self, enum obex_event event, enum obex_cmd cmd,
 		obex_object_delete(object);
 }
 
-void obex_data_request_init(obex_t *self)
+int obex_data_request_init(obex_t *self)
 {
 	buf_t *msg = self->tx_msg;
+	int err;
 
 	buf_clear(msg, buf_get_length(msg));
-	buf_set_size(msg, self->mtu_tx);
-	buf_append(msg, NULL, sizeof(struct obex_common_hdr));	
+	err = buf_set_size(msg, self->mtu_tx);
+	if (err)
+		return err;
+	buf_append(msg, NULL, sizeof(struct obex_common_hdr));
+	return 0;
 }
 
 /** Prepare response or command code along with optional headers/data to send.
@@ -246,6 +250,8 @@ int obex_data_indication(obex_t *self)
 			obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
 			return -1;
 		}
+		if (actual == 0)
+			return 0;
 	}
 
 	/* If we have 3 bytes data we can decide how big the packet is */
@@ -270,12 +276,14 @@ int obex_data_indication(obex_t *self)
 								0, 0, TRUE);
 				return -1;
 			}
+			if (actual == 0)
+				return 0;
 		}
 	} else {
 		/* Wait until we have at least 3 bytes data */
 		DEBUG(3, "Need at least 3 bytes got only %lu!\n",
 		      (unsigned long)buf_get_length(msg));
-		return 0;
+		return 1;
         }
 
 	/* New data has been inserted at the end of message */
@@ -294,7 +302,7 @@ int obex_data_indication(obex_t *self)
 		      size, (unsigned long)buf_get_length(msg));
 
 		/* I'll be back! */
-		return 0;
+		return 1;
 	}
 
 	DUMPBUFFER(2, "Rx", msg);
