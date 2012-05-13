@@ -30,20 +30,43 @@
 #include <io.h>
 #endif
 
+struct fdobex_data {
+	socket_t writefd; /* write descriptor */
+};
+
 static int fdobex_init(obex_t *self)
 {
-	self->trans.data.fd.writefd = INVALID_SOCKET;
+	struct fdobex_data *data = self->trans.data;
+
+	data->writefd = INVALID_SOCKET;
 
 	return 0;
+}
+
+void fdobex_set_fd(obex_t *self, socket_t in, socket_t out)
+{
+	struct obex_transport *trans = &self->trans;
+	struct fdobex_data *data = self->trans.data;
+
+	trans->fd = in;
+	data->writefd = out;  
+}
+
+static void fdobex_cleanup (obex_t *self)
+{
+	struct fdobex_data *data = self->trans.data;
+
+	free(data);
 }
 
 static int fdobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct fdobex_data *data = self->trans.data;
 
 	/* no real connect on the file */
 	if (trans->fd != INVALID_SOCKET &&
-				trans->data.fd.writefd != INVALID_SOCKET)
+	    data->writefd != INVALID_SOCKET)
 		return 0;
 	else {
 		errno = EINVAL;
@@ -54,16 +77,18 @@ static int fdobex_connect_request(obex_t *self)
 static int fdobex_disconnect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
+	struct fdobex_data *data = self->trans.data;
 
 	/* no real disconnect on a file */
-	trans->fd = trans->data.fd.writefd = INVALID_SOCKET;
+	trans->fd = data->writefd = INVALID_SOCKET;
 	return 0;
 }
 
 static int fdobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
-	int fd = trans->data.fd.writefd;
+	struct fdobex_data *data = self->trans.data;
+	int fd = data->writefd;
 	size_t size = buf_get_length(msg);
 	int status;
 	fd_set fdset;
@@ -130,11 +155,39 @@ static int fdobex_read(obex_t *self, void *buf, int buflen)
 	return status;
 }
 
-void fdobex_get_ops(struct obex_transport_ops* ops)
-{
-	ops->init = &fdobex_init;
-	ops->write = &fdobex_write;
-	ops->read = &fdobex_read;
-	ops->client.connect = &fdobex_connect_request;
-	ops->client.disconnect = &fdobex_disconnect_request;
+static struct obex_transport_ops fdobex_transport_ops = {
+	&fdobex_init,
+	NULL,
+	&fdobex_cleanup,
+	NULL,
+	&fdobex_write,
+	&fdobex_read,
+	NULL,
+	NULL,
+	{
+		NULL,
+		NULL,
+		NULL,
+	},
+	{
+		&fdobex_connect_request,
+		&fdobex_disconnect_request,
+		NULL,
+		NULL,
+		NULL,
+	},
+};
+
+struct obex_transport * fdobex_transport_create(void) {
+	struct fdobex_data *data = calloc(1, sizeof(*data));
+	struct obex_transport *trans;
+
+	if (!data)
+		return NULL;
+
+	trans = obex_transport_create(&fdobex_transport_ops, data);
+	if (!trans)
+		free(data);
+
+	return trans;
 }

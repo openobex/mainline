@@ -24,13 +24,8 @@
 
 #define MAX_DEVICES 10     /* Max devices to discover */
 
-void irobex_get_ops(struct obex_transport_ops* ops);
+struct obex_transport * irobex_transport_create(void);
 void irobex_prepare_connect(obex_t *self, const char *service);
 void irobex_prepare_listen(obex_t *self, const char *service);
 
-#include "irda_wrap.h"
-struct irobex_data {
-	struct sockaddr_irda self;
-	struct sockaddr_irda peer;
-};
 #endif

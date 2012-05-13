@@ -24,8 +24,6 @@
 #include <config.h>
 #endif
 
-#ifdef HAVE_IRDA
-
 #ifdef _WIN32
 #include <winsock2.h>
 
@@ -61,6 +59,11 @@
 #include "cloexec.h"
 #include "nonblock.h"
 
+struct irobex_data {
+	struct sockaddr_irda self;
+	struct sockaddr_irda peer;
+};
+
 static int irobex_init (obex_t *self)
 {
 #ifdef _WIN32
@@ -83,6 +86,9 @@ static int irobex_init (obex_t *self)
 
 static void irobex_cleanup (obex_t *self)
 {
+	struct irobex_data *data = self->trans.data;
+
+	free(data);
 #ifdef _WIN32
 	WSACleanup();
 #endif
@@ -146,7 +152,7 @@ static int irobex_query_ias (obex_t *self, uint32_t addr, const char* class_name
 
 static int irobex_select_interface(obex_t *self, obex_interface_t *intf)
 {
-	struct irobex_data *data = &self->trans.data.irda;
+	struct irobex_data *data = self->trans.data;
 
 	data->peer.sir_family = AF_IRDA;
 	strncpy(data->peer.sir_name, intf->irda.service,
@@ -169,7 +175,7 @@ static int irobex_select_interface(obex_t *self, obex_interface_t *intf)
 
 static int irobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
-	struct irobex_data *data = &self->trans.data.irda;
+	struct irobex_data *data = self->trans.data;
 	const struct sockaddr_irda *local = (struct sockaddr_irda *)addr;
 
 	if (len == sizeof(*local) && local->sir_family == AF_IRDA) {
@@ -182,7 +188,7 @@ static int irobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len
 
 static int irobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
-	struct irobex_data *data = &self->trans.data.irda;
+	struct irobex_data *data = self->trans.data;
 	const struct sockaddr_irda *remote = (struct sockaddr_irda *)addr;
 
 	if (len == sizeof(*remote) && remote->sir_family == AF_IRDA) {
@@ -239,7 +245,7 @@ out_freesock:
  */
 void irobex_prepare_listen(obex_t *self, const char *service)
 {
-	struct irobex_data *data = &self->trans.data.irda;
+	struct irobex_data *data = self->trans.data;
 
 	/* Bind local service */
 	data->self.sir_family = AF_IRDA;
@@ -283,7 +289,7 @@ static void irobex_set_hint_bit(obex_t *self)
 static int irobex_listen(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct irobex_data *data = &trans->data.irda;
+	struct irobex_data *data = trans->data;
 
 	DEBUG(3, "\n");
 
@@ -349,7 +355,7 @@ static unsigned int irobex_get_mtu(obex_t *self)
 static int irobex_accept(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct irobex_data *data = &self->trans.data.irda;
+	struct irobex_data *data = self->trans.data;
 	struct sockaddr *addr = (struct sockaddr *)&data->peer;
 	socklen_t addrlen = sizeof(data->peer);
 
@@ -505,7 +511,7 @@ static void irobex_free_interface(obex_interface_t *intf)
 static int irobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct irobex_data *data = &trans->data.irda;
+	struct irobex_data *data = trans->data;
 	int ret = -1;
 
 	DEBUG(4, "\n");
@@ -585,22 +591,39 @@ static int irobex_disconnect_server(obex_t *self)
 	return ret;
 }
 
-void irobex_get_ops(struct obex_transport_ops* ops)
-{
-	ops->init = &irobex_init;
-	ops->cleanup = &irobex_cleanup;
-	ops->write = &obex_transport_sock_send;
-	ops->read = &obex_transport_sock_recv;
-	ops->set_local_addr = &irobex_set_local_addr;
-	ops->set_remote_addr = &irobex_set_remote_addr;
-	ops->server.listen = &irobex_listen;
-	ops->server.accept = &irobex_accept;
-	ops->server.disconnect = &irobex_disconnect_server;
-	ops->client.connect = &irobex_connect_request;
-	ops->client.disconnect = &irobex_disconnect_request;
-	ops->client.find_interfaces = &irobex_find_interfaces;
-	ops->client.free_interface = &irobex_free_interface;
-	ops->client.select_interface = &irobex_select_interface;
-}
+static struct obex_transport_ops irobex_transport_ops = {
+	&irobex_init,
+	NULL,
+	&irobex_cleanup,
+	NULL,
+	&obex_transport_sock_send,
+	&obex_transport_sock_recv,
+	&irobex_set_local_addr,
+	&irobex_set_remote_addr,
+	{
+		&irobex_listen,
+		&irobex_accept,
+		&irobex_disconnect_server,
+	},
+	{
+		&irobex_connect_request,
+		&irobex_disconnect_request,
+		&irobex_find_interfaces,
+		&irobex_free_interface,
+		&irobex_select_interface,
+	},
+};
 
-#endif /* HAVE_IRDA */
+struct obex_transport * irobex_transport_create(void) {
+	struct irobex_data *data = calloc(1, sizeof(*data));
+	struct obex_transport *trans;
+
+	if (!data)
+		return NULL;
+
+	trans = obex_transport_create(&irobex_transport_ops, data);
+	if (!trans)
+		free(data);
+
+	return trans;
+}

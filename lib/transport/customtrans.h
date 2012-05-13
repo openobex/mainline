@@ -23,7 +23,7 @@
 #ifndef CUSTOMTRANS_H
 #define CUSTOMTRANS_H
 
-void custom_get_ops(struct obex_transport_ops* ops);
+struct obex_transport * custom_transport_create(void);
 int custom_register(obex_t *self, const obex_ctrans_t *in);
 void custom_set_data(obex_t *self, void *data);
 void* custom_get_data(obex_t *self);

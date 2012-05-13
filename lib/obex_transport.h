@@ -85,30 +85,18 @@ struct obex_transport_ops {
 };
 int obex_transport_standard_handle_input(obex_t *self);
 
+struct obex_transport * obex_transport_create(struct obex_transport_ops *ops,
+					      void *data);
+
 socket_t obex_transport_sock_create(struct obex *self, int domain, int proto);
 int obex_transport_sock_delete(struct obex *self, socket_t fd);
 int obex_transport_sock_send(obex_t *self, buf_t *msg);
 int obex_transport_sock_recv(obex_t *self, void *buf, int buflen);
 
-union obex_transport_data {
-#ifdef HAVE_IRDA
-	struct irobex_data irda;
-#endif /*HAVE_IRDA*/
-	struct inobex_data inet;
-#ifdef HAVE_BLUETOOTH
-	union btobex_data bt;
-#endif /*HAVE_BLUETOOTH*/
-	obex_ctrans_t custom;
-#ifdef HAVE_USB
-	struct usbobex_data usb;
-#endif /*HAVE_USB*/
-	struct fdobex_data fd;
-};
-
 typedef struct obex_transport {
 	int type;
-	struct obex_transport_ops ops;
-	union obex_transport_data data;	/* Private data for the transport */
+	struct obex_transport_ops *ops;
+	void *data;		/* Private data for the transport */
 
 	socket_t fd;		/* Socket descriptor */
 	socket_t serverfd;

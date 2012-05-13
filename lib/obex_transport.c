@@ -38,46 +38,57 @@
 #include <io.h>
 #endif
 
+struct obex_transport * obex_transport_create(struct obex_transport_ops *ops,
+					      void *data)
+{
+	struct obex_transport *trans = calloc(1, sizeof(*trans));
+
+	if (!trans)
+		return NULL;
+
+	trans->ops = ops;
+	trans->data = data;
+
+	trans->fd = INVALID_SOCKET;
+	trans->serverfd = INVALID_SOCKET;
+	trans->timeout = -1; /* no time-out */
+	trans->connected = FALSE;
+
+	return trans;
+}
+
 int obex_transport_init(obex_t *self, int transport)
 {
 	struct obex_transport *trans = &self->trans;
 
-	trans->fd = INVALID_SOCKET;
-	trans->serverfd = INVALID_SOCKET;
-
-	trans->timeout = -1; /* no time-out */
-	trans->connected = FALSE;
-
-	trans->type = transport;
-	memset(&trans->ops, 0, sizeof(trans->ops));
 	switch (transport) {
 #ifdef HAVE_IRDA
 	case OBEX_TRANS_IRDA:
-		irobex_get_ops(&trans->ops);
+		irobex_transport_create();
 		break;
 #endif /*HAVE_IRDA*/
 
 	case OBEX_TRANS_INET:
-		inobex_get_ops(&trans->ops);
+		inobex_transport_create();
 		break;
 
 	case OBEX_TRANS_CUSTOM:
-		custom_get_ops(&trans->ops);
+		custom_transport_create();
 		break;
 
 #ifdef HAVE_BLUETOOTH
 	case OBEX_TRANS_BLUETOOTH:
-		btobex_get_ops(&trans->ops);
+		btobex_transport_create();
 		break;
 #endif /*HAVE_BLUETOOTH*/
 
 	case OBEX_TRANS_FD:
-		fdobex_get_ops(&trans->ops);
+		fdobex_transport_create();
 		break;
 
 #ifdef HAVE_USB
 	case OBEX_TRANS_USB:
-		usbobex_get_ops(&trans->ops);
+		usbobex_transport_create();
 		/* Set MTU to the maximum, if using USB transport - Alex Kanavin */
 		self->mtu_rx = OBEX_MAXIMUM_MTU;
 		self->mtu_tx = OBEX_MINIMUM_MTU;
@@ -89,9 +100,9 @@ int obex_transport_init(obex_t *self, int transport)
 		return -1;
 	}
 
-	memset(&trans->data, 0, sizeof(trans->data));
-	if (trans->ops.init)
-		return trans->ops.init(self);
+	trans->type = transport;
+	if (trans->ops->init)
+		return trans->ops->init(self);
 	else
 		return 0;
 }
@@ -100,8 +111,8 @@ void obex_transport_cleanup(obex_t *self)
 {
 	obex_transport_disconnect_request(self);
 	obex_transport_disconnect_server(self);
-	if (self->trans.ops.cleanup)
-		self->trans.ops.cleanup(self);
+	if (self->trans.ops->cleanup)
+		self->trans.ops->cleanup(self);
 }
 
 void obex_transport_clone(obex_t *self, obex_t *old)
@@ -115,10 +126,10 @@ void obex_transport_clone(obex_t *self, obex_t *old)
 	 */
 	*trans = old->trans;
 	memset(&trans->data, 0, sizeof(trans->data));
-	if (trans->ops.clone)
-		trans->ops.clone(self, old);
-	else if (trans->ops.init)
-		trans->ops.init(self);
+	if (trans->ops->clone)
+		trans->ops->clone(self, old);
+	else if (trans->ops->init)
+		trans->ops->init(self);
 }
 
 void obex_transport_split(obex_t *self, obex_t *server)
@@ -141,8 +152,8 @@ static int obex_transport_accept(obex_t *self)
 {
 	DEBUG(4, "\n");
 
-	if (self->trans.ops.server.accept) {
-		if (self->trans.ops.server.accept(self) < 0)
+	if (self->trans.ops->server.accept) {
+		if (self->trans.ops->server.accept(self) < 0)
 			return -1;
 		else
 			return 1;
@@ -232,8 +243,8 @@ int obex_transport_handle_input(obex_t *self, int timeout)
 		return 1;
 	}
 
-	if (self->trans.ops.handle_input)
-		return self->trans.ops.handle_input(self);
+	if (self->trans.ops->handle_input)
+		return self->trans.ops->handle_input(self);
 	else
 		return obex_transport_standard_handle_input(self);
 }
@@ -246,8 +257,8 @@ int obex_transport_handle_input(obex_t *self, int timeout)
  */
 int obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
-	if (self->trans.ops.set_local_addr)
-		return self->trans.ops.set_local_addr(self, addr, len);
+	if (self->trans.ops->set_local_addr)
+		return self->trans.ops->set_local_addr(self, addr, len);
 	else
 		return -1;
 }
@@ -260,8 +271,8 @@ int obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t le
  */
 int obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
-	if (self->trans.ops.set_remote_addr)
-		return self->trans.ops.set_remote_addr(self, addr, len);
+	if (self->trans.ops->set_remote_addr)
+		return self->trans.ops->set_remote_addr(self, addr, len);
 	else
 		return -1;
 }
@@ -279,8 +290,8 @@ int obex_transport_connect_request(obex_t *self)
 	if (self->trans.connected)
 		return 1;
 
-	if (self->trans.ops.client.connect) {
-		ret = self->trans.ops.client.connect(self);
+	if (self->trans.ops->client.connect) {
+		ret = self->trans.ops->client.connect(self);
 		if (ret >= 0)
 			self->trans.connected = TRUE;
 	} else
@@ -297,8 +308,8 @@ int obex_transport_connect_request(obex_t *self)
  */
 void obex_transport_disconnect_request(obex_t *self)
 {
-	if (self->trans.ops.client.disconnect)
-		self->trans.ops.client.disconnect(self);
+	if (self->trans.ops->client.disconnect)
+		self->trans.ops->client.disconnect(self);
 	else
 		errno = EINVAL;
 
@@ -313,8 +324,8 @@ void obex_transport_disconnect_request(obex_t *self)
  */
 int obex_transport_listen(obex_t *self)
 {
-	if (self->trans.ops.server.listen)
-		return self->trans.ops.server.listen(self);
+	if (self->trans.ops->server.listen)
+		return self->trans.ops->server.listen(self);
 	else {
 		errno = EINVAL;
 		return -1;
@@ -332,8 +343,8 @@ int obex_transport_listen(obex_t *self)
  */
 void obex_transport_disconnect_server(obex_t *self)
 {
-	if (self->trans.ops.server.disconnect)
-		self->trans.ops.server.disconnect(self);
+	if (self->trans.ops->server.disconnect)
+		self->trans.ops->server.disconnect(self);
 }
 
 /*
@@ -344,8 +355,8 @@ void obex_transport_disconnect_server(obex_t *self)
  */
 int obex_transport_write(obex_t *self, buf_t *msg)
 {
-	if (self->trans.ops.write)
-		return self->trans.ops.write(self, msg);
+	if (self->trans.ops->write)
+		return self->trans.ops->write(self, msg);
 	else
 		return -1;
 }
@@ -368,8 +379,8 @@ int obex_transport_read(obex_t *self, int max)
 
 	buf = buf_get(msg) + msglen;
 
-	if (self->trans.ops.read) {
-		int ret = self->trans.ops.read(self, buf, max);
+	if (self->trans.ops->read) {
+		int ret = self->trans.ops->read(self, buf, max);
 		if (ret > 0)
 			buf_append(msg, NULL, ret);
 		return ret;
@@ -379,7 +390,7 @@ int obex_transport_read(obex_t *self, int max)
 
 void obex_transport_enumerate(struct obex *self)
 {
-	struct obex_transport_ops *ops = &self->trans.ops;
+	struct obex_transport_ops *ops = self->trans.ops;
 	int i;
 
 	if (self->interfaces)

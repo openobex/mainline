@@ -1131,8 +1131,7 @@ int CALLAPI FdOBEX_TransportSetup(obex_t *self, int rfd, int wfd, int mtu)
 		DEBUG(1, "We are busy.\n");
 		return -EBUSY;
 	}
-	self->trans.fd = rfd;
-	self->trans.data.fd.writefd = wfd;
+	fdobex_set_fd(self, rfd, wfd);
 	self->trans.mtu = mtu ? mtu : self->mtu_tx_max;
 	return obex_transport_connect_request(self);
 }
@@ -1159,8 +1158,8 @@ int CALLAPI OBEX_InterfaceConnect(obex_t *self, obex_interface_t *intf)
 	}
 
 	obex_return_val_if_fail(intf != NULL, -1);
-	if (self->trans.ops.client.select_interface) {
-		if (self->trans.ops.client.select_interface(self, intf) == -1)
+	if (self->trans.ops->client.select_interface) {
+		if (self->trans.ops->client.select_interface(self, intf) == -1)
 			return -1;
 		return obex_transport_connect_request(self);
 	} else
@@ -1225,11 +1224,11 @@ void CALLAPI OBEX_FreeInterfaces(obex_t *self)
 	if (self->interfaces == NULL)
 		return;
 
-	if (self->trans.ops.client.free_interface == NULL)
+	if (self->trans.ops->client.free_interface == NULL)
 		goto done;
 
 	for (i = 0; i < interfaces_number; i++)
-		self->trans.ops.client.free_interface(&self->interfaces[i]);
+		self->trans.ops->client.free_interface(&self->interfaces[i]);
 
 done:
 	free(self->interfaces);

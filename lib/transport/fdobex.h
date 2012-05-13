@@ -23,9 +23,7 @@
 #ifndef FDOBEX_H
 #define FDOBEX_H
 
-void fdobex_get_ops(struct obex_transport_ops* ops);
+struct obex_transport * fdobex_transport_create(void);
+void fdobex_set_fd(obex_t *self, socket_t in, socket_t out);
 
-struct fdobex_data {
-	socket_t writefd; /* write descriptor */
-};
 #endif

@@ -48,6 +48,11 @@ bdaddr_t bluez_compat_bdaddr_any = { BTH_ADDR_NULL };
 #include "cloexec.h"
 #include "nonblock.h"
 
+struct btobex_rfcomm_data {
+	struct sockaddr_rc self;
+	struct sockaddr_rc peer;
+};
+
 static int btobex_init(obex_t *self)
 {
 #ifdef _WIN32
@@ -70,6 +75,9 @@ static int btobex_init(obex_t *self)
 
 static void btobex_cleanup (obex_t *self)
 {
+	struct btobex_rfcomm_data *data = self->trans.data;
+
+	free(data);
 #ifdef _WIN32
 	WSACleanup();
 #endif
@@ -78,7 +86,7 @@ static void btobex_cleanup (obex_t *self)
 static int btobex_set_local_addr(obex_t *self, struct sockaddr *addr,
 								size_t len)
 {
-	struct btobex_rfcomm_data *data = &self->trans.data.bt.rfcomm;
+	struct btobex_rfcomm_data *data = self->trans.data;
 	const struct sockaddr_rc *local = (struct sockaddr_rc *) addr;
 
 	if (len == sizeof(*local) && local->rc_family == AF_BLUETOOTH) {
@@ -91,7 +99,7 @@ static int btobex_set_local_addr(obex_t *self, struct sockaddr *addr,
 
 static int btobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
-	struct btobex_rfcomm_data *data = &self->trans.data.bt.rfcomm;
+	struct btobex_rfcomm_data *data = self->trans.data;
 	const struct sockaddr_rc *remote = (struct sockaddr_rc *)addr;
 
 	if (len == sizeof(*remote) && remote->rc_family == AF_BLUETOOTH) {
@@ -158,7 +166,7 @@ void btobex_prepare_listen(obex_t *self, const bdaddr_t *src, uint8_t channel)
 static int btobex_listen(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct btobex_rfcomm_data *data = &self->trans.data.bt.rfcomm;
+	struct btobex_rfcomm_data *data = self->trans.data;
 
 	DEBUG(3, "\n");
 
@@ -201,7 +209,7 @@ out_freesock:
 static int btobex_accept(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct btobex_rfcomm_data *data = &self->trans.data.bt.rfcomm;
+	struct btobex_rfcomm_data *data = self->trans.data;
 	struct sockaddr *addr = (struct sockaddr *) &data->peer;
 	socklen_t addrlen = sizeof(data->peer);
 
@@ -230,7 +238,7 @@ static int btobex_accept(obex_t *self)
 static int btobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct btobex_rfcomm_data *data = &self->trans.data.bt.rfcomm;
+	struct btobex_rfcomm_data *data = self->trans.data;
 	int ret;
 	int mtu = 0;
 
@@ -321,19 +329,41 @@ static int btobex_disconnect_server(obex_t *self)
 	return ret;
 }
 
-void btobex_get_ops(struct obex_transport_ops *ops)
-{
-	ops->init = &btobex_init;
-	ops->cleanup = &btobex_cleanup;
-	ops->write = &obex_transport_sock_send;
-	ops->read = &obex_transport_sock_recv;
-	ops->set_local_addr = &btobex_set_local_addr;
-	ops->set_remote_addr = &btobex_set_remote_addr;
-	ops->server.listen = &btobex_listen;
-	ops->server.accept = &btobex_accept;
-	ops->server.disconnect = &btobex_disconnect_server;
-	ops->client.connect = &btobex_connect_request;
-	ops->client.disconnect = &btobex_disconnect_request;
+static struct obex_transport_ops btobex_transport_ops = {
+	&btobex_init,
+	NULL,
+	&btobex_cleanup,
+	NULL,
+	&obex_transport_sock_send,
+	&obex_transport_sock_recv,
+	&btobex_set_local_addr,
+	&btobex_set_remote_addr,
+	{
+		&btobex_listen,
+		&btobex_accept,
+		&btobex_disconnect_server,
+	},
+	{
+		&btobex_connect_request,
+		&btobex_disconnect_request,
+		NULL,
+		NULL,
+		NULL,
+	},
+};
+
+struct obex_transport * btobex_transport_create(void) {
+	struct btobex_rfcomm_data *data = calloc(1, sizeof(*data));
+	struct obex_transport *trans;
+
+	if (!data)
+		return NULL;
+
+	trans = obex_transport_create(&btobex_transport_ops, data);
+	if (!trans)
+		free(data);
+
+	return trans;
 }
 
 #endif /* HAVE_BLUETOOTH */

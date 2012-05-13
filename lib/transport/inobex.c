@@ -48,6 +48,11 @@
 
 #define OBEX_PORT 650
 
+struct inobex_data {
+	struct sockaddr_in6 self;
+	struct sockaddr_in6 peer;
+};
+
 static void map_ip4to6(struct sockaddr_in *in, struct sockaddr_in6 *out)
 {
 	out->sin6_family = AF_INET6;
@@ -102,6 +107,9 @@ static int inobex_init (obex_t *self)
 
 static void inobex_cleanup (obex_t *self)
 {
+	struct inobex_data *data = self->trans.data;
+
+	free(data);
 #ifdef _WIN32
 	WSACleanup();
 #endif
@@ -153,7 +161,7 @@ static int inobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len
  */
 void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen)
 {
-	struct inobex_data *data = &self->trans.data.inet;
+	struct inobex_data *data = self->trans.data;
 	struct sockaddr_in6 addr;
 
 	addr.sin6_family   = AF_INET6;
@@ -186,7 +194,7 @@ void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen)
  */
 void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
 {
-	struct inobex_data *data = &self->trans.data.inet;
+	struct inobex_data *data = self->trans.data;
 	struct sockaddr_in6 addr;
 
 	addr.sin6_family   = AF_INET6;
@@ -221,7 +229,7 @@ void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
 static int inobex_listen(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct inobex_data *data = &self->trans.data.inet;
+	struct inobex_data *data = self->trans.data;
 
 	DEBUG(4, "\n");
 
@@ -280,7 +288,7 @@ static int inobex_listen(obex_t *self)
 static int inobex_accept(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct inobex_data *data = &self->trans.data.inet;
+	struct inobex_data *data = self->trans.data;
 	struct sockaddr *addr = (struct sockaddr *)&data->peer;
 	socklen_t addrlen = sizeof(data->peer);
 
@@ -306,7 +314,7 @@ static int inobex_accept(obex_t *self)
 static int inobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct inobex_data *data = &self->trans.data.inet;
+	struct inobex_data *data = self->trans.data;
 	int ret;
 #ifndef _WIN32
 	char addr[INET6_ADDRSTRLEN];
@@ -409,17 +417,39 @@ static int inobex_disconnect_server(obex_t *self)
 	return ret;
 }
 
-void inobex_get_ops(struct obex_transport_ops* ops)
-{
-	ops->init = &inobex_init;
-	ops->cleanup = &inobex_cleanup;
-	ops->write = &obex_transport_sock_send;
-	ops->read = &obex_transport_sock_recv;
-	ops->set_local_addr = &inobex_set_local_addr;
-	ops->set_remote_addr = &inobex_set_remote_addr;
-	ops->server.listen = &inobex_listen;
-	ops->server.accept = &inobex_accept;
-	ops->server.disconnect = &inobex_disconnect_server;
-	ops->client.connect = &inobex_connect_request;
-	ops->client.disconnect = &inobex_disconnect_request;
+static struct obex_transport_ops inobex_transport_ops = {
+	&inobex_init,
+	NULL,
+	&inobex_cleanup,
+	NULL,
+	&obex_transport_sock_send,
+	&obex_transport_sock_recv,
+	&inobex_set_local_addr,
+	&inobex_set_remote_addr,
+	{
+		&inobex_listen,
+		&inobex_accept,
+		&inobex_disconnect_server,
+	},
+	{
+		&inobex_connect_request,
+		&inobex_disconnect_request,
+		NULL,
+		NULL,
+		NULL,
+	},
+};
+
+struct obex_transport * inobex_transport_create(void) {
+	struct inobex_data *data = calloc(1, sizeof(*data));
+	struct obex_transport *trans;
+
+	if (!data)
+		return NULL;
+
+	trans = obex_transport_create(&inobex_transport_ops, data);
+	if (!trans)
+		free(data);
+
+	return trans;
 }

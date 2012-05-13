@@ -58,7 +58,7 @@ static void usbobex_clear_fd(int fd, void *user_data)
 
 static int usbobex_init (obex_t *self)
 {
-	struct usbobex_data *data = &self->trans.data.usb;
+	struct usbobex_data *data = self->trans.data;
 
 	if (data->ctx == NULL) {
 		int err = libusb_init(&data->ctx);
@@ -74,12 +74,13 @@ static int usbobex_init (obex_t *self)
 
 static void usbobex_cleanup (obex_t *self)
 {
-	struct usbobex_data *data = &self->trans.data.usb;
+	struct usbobex_data *data = self->trans.data;
 
 	if (data->ctx) {
 		libusb_exit(data->ctx);
 		data->ctx = NULL;
 	}
+	free(data);
 }
 
 /*
@@ -90,7 +91,7 @@ static void usbobex_cleanup (obex_t *self)
  */
 static int usbobex_select_interface(obex_t *self, obex_interface_t *intf)
 {
-	struct usbobex_data *data = &self->trans.data.usb;
+	struct usbobex_data *data = self->trans.data;
 
 	obex_return_val_if_fail(intf->usb.intf != NULL, -1);
 	data->self = *intf->usb.intf;
@@ -276,7 +277,7 @@ static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
  */
 static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 {
-	struct usbobex_data *data = &self->trans.data.usb;
+	struct usbobex_data *data = self->trans.data;
 	struct libusb_context *libusb_ctx = data->ctx;
 	struct obex_usb_intf_transport_t *current = NULL, *tmp = NULL;
 	int i, a, num;
@@ -388,7 +389,7 @@ static void usbobex_free_interface(obex_interface_t *intf)
 static int usbobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct usbobex_data *data = &self->trans.data.usb;
+	struct usbobex_data *data = self->trans.data;
 	int ret;
 
 	DEBUG(4, "\n");
@@ -448,7 +449,7 @@ err1:
 static int usbobex_disconnect_request(obex_t *self)
 {
 	struct obex_transport *trans = &self->trans;
-	struct usbobex_data *data = &self->trans.data.usb;
+	struct usbobex_data *data = self->trans.data;
 	int ret;
 
 	if (trans->connected == FALSE)
@@ -498,7 +499,7 @@ static unsigned int usbobex_get_timeout(int timeout)
 static int usbobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = &self->trans;
-	struct usbobex_data *data = &self->trans.data.usb;
+	struct usbobex_data *data = self->trans.data;
 	int actual = 0;
 	int usberror;
 
@@ -529,7 +530,7 @@ static int usbobex_write(obex_t *self, buf_t *msg)
 static int usbobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct obex_transport *trans = &self->trans;
-	struct usbobex_data *data = &self->trans.data.usb;
+	struct usbobex_data *data = self->trans.data;
 	int usberror;
 	int actual = 0;
 
@@ -569,18 +570,40 @@ static int usbobex_handle_input(obex_t *self)
 		return err;
 }
 
-void usbobex_get_ops(struct obex_transport_ops* ops)
-{
-	ops->init = &usbobex_init;
-	ops->cleanup = &usbobex_cleanup;
-	ops->handle_input = &usbobex_handle_input;
-	ops->write = &usbobex_write;
-	ops->read = &usbobex_read;
-	ops->client.connect = &usbobex_connect_request;
-	ops->client.disconnect = &usbobex_disconnect_request;
-	ops->client.find_interfaces = &usbobex_find_interfaces;
-	ops->client.free_interface = &usbobex_free_interface;
-	ops->client.select_interface = &usbobex_select_interface;
-}
+static struct obex_transport_ops usbobex_transport_ops = {
+	&usbobex_init,
+	NULL,
+	&usbobex_cleanup,
+	usbobex_handle_input,
+	&usbobex_write,
+	&usbobex_read,
+	NULL,
+	NULL,
+	{
+		NULL,
+		NULL,
+		NULL,
+	},
+	{
+		&usbobex_connect_request,
+		&usbobex_disconnect_request,
+		&usbobex_find_interfaces,
+		&usbobex_free_interface,
+		&usbobex_select_interface,
+	},
+};
 
+struct obex_transport * usbobex_transport_create(void) {
+	struct usbobex_data *data = calloc(1, sizeof(*data));
+	struct obex_transport *trans;
+
+	if (!data)
+		return NULL;
+
+	trans = obex_transport_create(&usbobex_transport_ops, data);
+	if (!trans)
+		free(data);
+
+	return trans;
+}
 #endif /* HAVE_USB1 */
