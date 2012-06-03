@@ -24,12 +24,13 @@
 #define OBEX_OBJECT_H
 
 #include "obex_incl.h"
+#include "defines.h"
 
 #if ! defined(_WIN32)
 #  include <sys/time.h>
 #endif
 #include <time.h>
-#include <inttypes.h>
+
 
 struct databuffer;
 struct databuffer_list;

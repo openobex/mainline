@@ -24,7 +24,7 @@
 #define OBEX_BODY_H
 
 #include <stdlib.h>
-#include <inttypes.h>
+#include "defines.h"
 
 struct obex;
 struct obex_hdr;

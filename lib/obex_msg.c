@@ -27,8 +27,6 @@
 #include "obex_hdr.h"
 #include "defines.h"
 
-#include <inttypes.h>
-
 static unsigned int obex_srm_tx_flags_decode (uint8_t flag)
 {
 	switch (flag) {

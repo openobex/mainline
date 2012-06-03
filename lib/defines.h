@@ -1,15 +1,25 @@
 #ifndef OPENOBEX_DEFINES_H
 #define OPENOBEX_DEFINES_H
 
+#include <inttypes.h>
+#include <stdbool.h>
+
 #ifdef TRUE
 #undef TRUE
 #endif
-#define	TRUE		1
+#define TRUE true
 
 #ifdef FALSE
 #undef FALSE
 #endif
-#define FALSE		0
+#define FALSE false
+
+enum result_type {
+	RESULT_ERROR = -1,
+	RESULT_TIMEOUT = 0,
+	RESULT_SUCCESS = 1,
+};
+typedef enum result_type result_t;
 
 #define obex_return_if_fail(test) \
         do { if (!(test)) return; } while(0)

@@ -25,7 +25,6 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <inttypes.h>
 
 #include "obex_main.h"
 

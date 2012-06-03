@@ -24,9 +24,9 @@
 #define OBEX_MAIN_H
 
 #include "obex_incl.h"
+#include "defines.h"
 
 #include <time.h>
-#include <inttypes.h>
 
 struct databuffer;
 struct obex_object;
