@@ -47,10 +47,11 @@
 #include "obex_main.h"
 #include "usbobex.h"
 #include "usbutils.h"
+#include "databuffer.h"
 
 static void usbobex_cleanup (obex_t *self)
 {
-	struct usbobex_data *data = self->trans.data;
+	struct usbobex_data *data = self->trans->data;
 
 	free(data);
 }
@@ -63,7 +64,7 @@ static void usbobex_cleanup (obex_t *self)
  */
 static int usbobex_select_interface(obex_t *self, obex_interface_t *intf)
 {
-	struct usbobex_data *data = self->trans.data;
+	struct usbobex_data *data = self->trans->data;
 
 	obex_return_val_if_fail(intf->usb.intf != NULL, -1);
 	data->self = *intf->usb.intf;
@@ -365,8 +366,8 @@ static void usbobex_free_interface(obex_interface_t *intf)
  */
 static int usbobex_connect_request(obex_t *self)
 {
-	struct obex_transport *trans = &self->trans;
-	struct usbobex_data *data = self->trans.data;
+	struct obex_transport *trans = self->trans;
+	struct usbobex_data *data = self->trans->data;
 	int ret;
 
 	DEBUG(4, "\n");
@@ -416,15 +417,15 @@ err1:
 }
 
 /*
- * Function usbobex_disconnect_request (self)
+ * Function usbobex_disconnect (self)
  *
  *    Shutdown the USB link
  *
  */
-static int usbobex_disconnect_request(obex_t *self)
+static int usbobex_disconnect(obex_t *self)
 {
-	struct obex_transport *trans = &self->trans;
-	struct usbobex_data *data = self->trans.data;
+	struct obex_transport *trans = self->trans;
+	struct usbobex_data *data = self->trans->data;
 	int ret;
 
 	if (trans->connected == FALSE)
@@ -466,10 +467,10 @@ static int usbobex_get_timeout(int timeout)
 	return timeout*1000;
 }
 
-static int usbobex_write(obex_t *self, buf_t *msg)
+static int usbobex_write(obex_t *self, struct databuffer *msg)
 {
-	struct obex_transport *trans = &self->trans;
-	struct usbobex_data *data = self->trans.data;
+	struct obex_transport *trans = self->trans;
+	struct usbobex_data *data = self->trans->data;
 	int status;
 
 	if (trans->connected != TRUE)
@@ -493,8 +494,8 @@ static int usbobex_write(obex_t *self, buf_t *msg)
 
 static int usbobex_read(obex_t *self, void *buf, int buflen)
 {
-	struct obex_transport *trans = &self->trans;
-	struct usbobex_data *data = self->trans.data;
+	struct obex_transport *trans = self->trans;
+	struct usbobex_data *data = self->trans->data;
 	int status;
 
 	if (trans->connected != TRUE)
@@ -530,19 +531,23 @@ static struct obex_transport_ops usbobex_transport_ops = {
 	NULL,
 	NULL,
 	&usbobex_cleanup,
+
 	usbobex_handle_input,
 	&usbobex_write,
 	&usbobex_read,
+	&usbobex_disconnect,
+
 	NULL,
 	NULL,
+	NULL,
+
 	{
-		NULL,
 		NULL,
 		NULL,
 	},
+
 	{
 		&usbobex_connect_request,
-		&usbobex_disconnect_request,
 		&usbobex_find_interfaces,
 		&usbobex_free_interface,
 		&usbobex_select_interface,

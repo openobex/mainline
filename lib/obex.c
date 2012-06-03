@@ -48,6 +48,19 @@
 #include "obex_connect.h"
 #include "databuffer.h"
 
+#ifdef HAVE_IRDA
+#include "transport/irobex.h"
+#endif /*HAVE_IRDA*/
+#ifdef HAVE_BLUETOOTH
+#include "transport/btobex.h"
+#endif /*HAVE_BLUETOOTH*/
+#ifdef HAVE_USB
+#include "transport/usbobex.h"
+#endif /*HAVE_USB*/
+#include "transport/inobex.h"
+#include "transport/customtrans.h"
+#include "transport/fdobex.h"
+
 #include "obex_incl.h"
 
 /**
@@ -323,12 +336,6 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 
 	obex_return_val_if_fail(server != NULL, NULL);
 
-	/* We can accept only if both the server and the connection socket
-	 * are active */
-	if ((server->trans.fd == INVALID_SOCKET) ||
-			(server->trans.serverfd == INVALID_SOCKET))
-		return NULL;
-
 	/* If we have started receiving something, it's too late... */
 	if (server->object != NULL)
 		return NULL;
@@ -339,19 +346,16 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 		return NULL;
 
 	/* Set callback and callback data as needed */
-	if (eventcb != NULL)
-		self->eventcb = eventcb;
-	else
-		self->eventcb = server->eventcb;
+	if (eventcb == NULL)
+		eventcb = server->eventcb;
+	if (data == NULL)
+		data = server->userdata;
 
-	if (data != NULL)
-		self->userdata = data;
-	else
-		self->userdata = server->userdata;
-
+	self->eventcb = eventcb;
+	self->userdata = data;
 	self->init_flags = server->init_flags;
 
-	obex_transport_clone(self, server);
+	obex_transport_accept(self, server);
 
 	self->mtu_rx = server->mtu_rx;
 	self->mtu_tx = server->mtu_tx;
@@ -367,7 +371,6 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 	if (self->tx_msg == NULL)
 		goto out_err;
 
-	obex_transport_split(self, server);
 	self->mode = OBEX_MODE_SERVER;
         self->state = STATE_IDLE;
 	self->rsp_mode = server->rsp_mode;
@@ -460,10 +463,7 @@ int CALLAPI OBEX_TransportDisconnect(obex_t *self)
 	DEBUG(4, "\n");
 	obex_return_val_if_fail(self != NULL, -1);
 
-	if (self->trans.fd != INVALID_SOCKET)
-		obex_transport_disconnect_request(self);
-	else if (self->trans.serverfd != INVALID_SOCKET)
-		obex_transport_disconnect_server(self);
+	obex_transport_disconnect(self);
 
 	return 0;
 }
@@ -490,9 +490,8 @@ LIB_SYMBOL
 int CALLAPI OBEX_GetFD(obex_t *self)
 {
 	obex_return_val_if_fail(self != NULL, -1);
-	if (self->trans.fd == INVALID_SOCKET)
-		return self->trans.serverfd;
-	return self->trans.fd;
+
+	return obex_transport_get_fd(self);
 }
 
 /**
@@ -924,7 +923,7 @@ LIB_SYMBOL
 int CALLAPI OBEX_SetCustomData(obex_t *self, void *data)
 {
 	obex_return_val_if_fail(self == NULL, -1);
-	obex_return_val_if_fail(self->trans.type != OBEX_TRANS_CUSTOM, -1);
+	obex_return_val_if_fail(self->trans->type != OBEX_TRANS_CUSTOM, -1);
 
 	custom_set_data(self, data);
 	return 0;
@@ -939,7 +938,7 @@ LIB_SYMBOL
 void * CALLAPI OBEX_GetCustomData(obex_t *self)
 {
 	obex_return_val_if_fail(self == NULL, NULL);
-	obex_return_val_if_fail(self->trans.type != OBEX_TRANS_CUSTOM, NULL);
+	obex_return_val_if_fail(self->trans->type != OBEX_TRANS_CUSTOM, NULL);
 
 	return custom_get_data(self);
 }
@@ -1132,7 +1131,7 @@ int CALLAPI FdOBEX_TransportSetup(obex_t *self, int rfd, int wfd, int mtu)
 		return -EBUSY;
 	}
 	fdobex_set_fd(self, rfd, wfd);
-	self->trans.mtu = mtu ? mtu : self->mtu_tx_max;
+	self->trans->mtu = mtu ? mtu : self->mtu_tx_max;
 	return obex_transport_connect_request(self);
 }
 
@@ -1158,8 +1157,8 @@ int CALLAPI OBEX_InterfaceConnect(obex_t *self, obex_interface_t *intf)
 	}
 
 	obex_return_val_if_fail(intf != NULL, -1);
-	if (self->trans.ops->client.select_interface) {
-		if (self->trans.ops->client.select_interface(self, intf) == -1)
+	if (self->trans->ops->client.select_interface) {
+		if (self->trans->ops->client.select_interface(self, intf) == -1)
 			return -1;
 		return obex_transport_connect_request(self);
 	} else
@@ -1224,11 +1223,11 @@ void CALLAPI OBEX_FreeInterfaces(obex_t *self)
 	if (self->interfaces == NULL)
 		return;
 
-	if (self->trans.ops->client.free_interface == NULL)
+	if (self->trans->ops->client.free_interface == NULL)
 		goto done;
 
 	for (i = 0; i < interfaces_number; i++)
-		self->trans.ops->client.free_interface(&self->interfaces[i]);
+		self->trans->ops->client.free_interface(&self->interfaces[i]);
 
 done:
 	free(self->interfaces);

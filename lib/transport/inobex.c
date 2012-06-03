@@ -26,8 +26,6 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#define WSA_VER_MAJOR 2
-#define WSA_VER_MINOR 2
 #else
 
 #include <sys/types.h>
@@ -43,23 +41,50 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
+#include "obex_transport_sock.h"
 #include "cloexec.h"
 #include "nonblock.h"
 
-#define OBEX_PORT 650
-
 struct inobex_data {
-	struct sockaddr_in6 self;
-	struct sockaddr_in6 peer;
+	struct obex_sock *sock;
 };
+
+#if 0
+static void print_sock_addr(const char *prefix, const struct sockaddr *addr)
+{
+#ifndef _WIN32
+	char atxt[INET6_ADDRSTRLEN];
+	const struct sockaddr_in6 *addr6 = (const struct sockaddr_in6 *)addr;
+
+	if (!inet_ntop(AF_INET6, &addr6->sin6_addr, atxt, sizeof(atxt)))
+		return;
+
+	DEBUG(2, "%s [%s]:%u\n", prefix, atxt, ntohs(addr6->sin6_port));
+#endif
+}
+#endif
+
+static bool set_sock_opts(socket_t fd)
+{
+#ifdef IPV6_V6ONLY
+	/* Needed for some system that set this IPv6 socket option to
+	 * 1 by default (Windows Vista, maybe some BSDs).
+	 * Do not check the return code as it may not matter.
+	 * You will certainly notice later if it failed.
+	 */
+	int v6only = 0;
+	setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY,
+		   (void *) &v6only, sizeof(v6only));
+#endif
+	return true;
+}
 
 static void map_ip4to6(struct sockaddr_in *in, struct sockaddr_in6 *out)
 {
 	out->sin6_family = AF_INET6;
-	if (in->sin_port == 0)
-		out->sin6_port = htons(OBEX_PORT);
-	else
-		out->sin6_port = in->sin_port;
+	out->sin6_port = in->sin_port;
 	out->sin6_flowinfo = 0;
 	out->sin6_scope_id = 0;
 
@@ -87,32 +112,26 @@ static void map_ip4to6(struct sockaddr_in *in, struct sockaddr_in6 *out)
 
 static int inobex_init (obex_t *self)
 {
-#ifdef _WIN32
-	WORD ver = MAKEWORD(WSA_VER_MAJOR,WSA_VER_MINOR);
-	WSADATA WSAData;
-	if (WSAStartup (ver, &WSAData) != 0) {
-		DEBUG(4, "WSAStartup failed (%d)\n",WSAGetLastError());
-		return -1;
-	}
-	if (LOBYTE(WSAData.wVersion) != WSA_VER_MAJOR ||
-				HIBYTE(WSAData.wVersion) != WSA_VER_MINOR) {
-		DEBUG(4, "WSA version mismatch\n");
-		WSACleanup();
-		return -1;
-	}
-#endif
+	struct inobex_data *data = self->trans->data;
+	socklen_t len = sizeof(struct sockaddr_in6);
+
+	data->sock = obex_transport_sock_create(AF_INET6, 0,
+						len, self->init_flags);
+	if (data->sock == NULL)
+		free(data);
+
+	data->sock->set_sock_opts = &set_sock_opts;
 
 	return 0;
 }
 
 static void inobex_cleanup (obex_t *self)
 {
-	struct inobex_data *data = self->trans.data;
+	struct inobex_data *data = self->trans->data;
 
-	free(data);
-#ifdef _WIN32
-	WSACleanup();
-#endif
+	if (data->sock)
+		obex_transport_sock_destroy(data->sock);
+	free(data);	
 }
 
 static int inobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
@@ -153,6 +172,13 @@ static int inobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len
 	return 0;
 }
 
+#define OBEX_DEFAULT_PORT 650
+static void check_default_port(struct sockaddr_in6 *saddr)
+{
+	if (saddr->sin6_port == 0)
+		saddr->sin6_port = htons(OBEX_DEFAULT_PORT);
+}
+
 /*
  * Function inobex_prepare_connect (self, service)
  *
@@ -161,11 +187,11 @@ static int inobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len
  */
 void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen)
 {
-	struct inobex_data *data = self->trans.data;
+	struct inobex_data *data = self->trans->data;
 	struct sockaddr_in6 addr;
 
 	addr.sin6_family   = AF_INET6;
-	addr.sin6_port     = htons(OBEX_PORT);
+	addr.sin6_port     = 0;
 	addr.sin6_flowinfo = 0;
 	memcpy(&addr.sin6_addr, &in6addr_loopback, sizeof(addr.sin6_addr));
 	addr.sin6_scope_id = 0;
@@ -182,8 +208,10 @@ void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen)
 		default:
 			saddr = (struct sockaddr*)(&addr);
 			break;
-	}
-	data->peer = *(struct sockaddr_in6 *)saddr;
+		}
+
+	check_default_port((struct sockaddr_in6 *)saddr);
+	obex_transport_sock_set_remote(data->sock, saddr, sizeof(addr));
 }
 
 /*
@@ -194,11 +222,11 @@ void inobex_prepare_connect(obex_t *self, struct sockaddr *saddr, int addrlen)
  */
 void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
 {
-	struct inobex_data *data = self->trans.data;
+	struct inobex_data *data = self->trans->data;
 	struct sockaddr_in6 addr;
 
 	addr.sin6_family   = AF_INET6;
-	addr.sin6_port     = htons(OBEX_PORT);
+	addr.sin6_port     = 0;
 	addr.sin6_flowinfo = 0;
 	memcpy(&addr.sin6_addr, &in6addr_any, sizeof(addr.sin6_addr));
 	addr.sin6_scope_id = 0;
@@ -217,7 +245,9 @@ void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
 			saddr = (struct sockaddr *) &addr;
 			break;
 		}
-	data->self = *(struct sockaddr_in6 *)saddr;
+
+	check_default_port((struct sockaddr_in6 *)saddr);
+	obex_transport_sock_set_local(data->sock, saddr, sizeof(addr));
 }
 
 /*
@@ -228,53 +258,14 @@ void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
  */
 static int inobex_listen(obex_t *self)
 {
-	struct obex_transport *trans = &self->trans;
-	struct inobex_data *data = self->trans.data;
+	struct inobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	/* needed as compat for apps that call OBEX_TransportConnect
-	 * instead of InOBEX_TransportConnect (e.g. obexftp)
-	 */
-	if (data->self.sin6_family == AF_INET)
-		inobex_prepare_listen(self, (struct sockaddr *) &data->self,
-							sizeof(data->self));
-
-	trans->serverfd = obex_transport_sock_create(self, AF_INET6, 0);
-	if (trans->serverfd == INVALID_SOCKET) {
-		DEBUG(0, "Cannot create server-socket\n");
+	if (obex_transport_sock_listen(data->sock) < 0)
 		return -1;
-	}
-#ifdef IPV6_V6ONLY
-	else {
-		/* Needed for some system that set this IPv6 socket option to
-		 * 1 by default (Windows Vista, maybe some BSDs).
-		 * Do not check the return code as it may not matter.
-		 * You will certainly notice later if it failed.
-		 */
-		int v6only = 0;
-		setsockopt(trans->serverfd, IPPROTO_IPV6, IPV6_V6ONLY,
-					(void *) &v6only, sizeof(v6only));
-	}
-#endif
-
-	//printf("TCP/IP listen %d %X\n", trans->self.inet.sin_port,
-	//       trans->self.inet.sin_addr.s_addr);
-	if (bind(trans->serverfd, (struct sockaddr *) &data->self,
-							sizeof(data->self))) {
-		DEBUG(0, "bind() Failed\n");
-		return -1;
-	}
-
-	if (listen(trans->serverfd, 2)) {
-		DEBUG(0, "listen() Failed\n");
-		return -1;
-	}
-
-	DEBUG(4, "Now listening for incomming connections. serverfd = %d\n",
-							trans->serverfd);
-
-	return 1;
+	else
+		return 1;
 }
 
 /*
@@ -285,27 +276,20 @@ static int inobex_listen(obex_t *self)
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-static int inobex_accept(obex_t *self)
+static int inobex_accept(obex_t *self, obex_t *server)
 {
-	struct obex_transport *trans = &self->trans;
-	struct inobex_data *data = self->trans.data;
-	struct sockaddr *addr = (struct sockaddr *)&data->peer;
-	socklen_t addrlen = sizeof(data->peer);
+	struct inobex_data *server_data = server->trans->data;
+	struct inobex_data *data = self->trans->data;
 
-	if (self->init_flags & OBEX_FL_CLOEXEC)
-		trans->fd = accept_cloexec(trans->serverfd, addr, &addrlen);
-	else
-		trans->fd = accept(trans->serverfd, addr, &addrlen);
-
-	if (trans->fd == INVALID_SOCKET)
+	data->sock = obex_transport_sock_accept(server_data->sock,
+						server->init_flags);
+	
+	if (data->sock == NULL)
 		return -1;
 
-	/* Just use the default MTU for now */
-	trans->mtu = OBEX_DEFAULT_MTU;
-	if (self->init_flags & OBEX_FL_NONBLOCK)
-		socket_set_nonblocking(trans->fd);	
+	self->trans->mtu = OBEX_DEFAULT_MTU;
 
-	return 1;
+	return 0;
 }
 
 /*
@@ -313,127 +297,92 @@ static int inobex_accept(obex_t *self)
  */
 static int inobex_connect_request(obex_t *self)
 {
-	struct obex_transport *trans = &self->trans;
-	struct inobex_data *data = self->trans.data;
-	int ret;
-#ifndef _WIN32
-	char addr[INET6_ADDRSTRLEN];
-#endif
+	struct inobex_data *data = self->trans->data;
 
-	/* needed as compat for apps that call OBEX_TransportConnect
-	 * instead of InOBEX_TransportConnect (e.g. obexftp)
-	 */
-	if (data->peer.sin6_family == AF_INET)
-		inobex_prepare_connect(self, (struct sockaddr *) &data->peer,
-							sizeof(data->peer));
+	DEBUG(4, "\n");
 
-	trans->fd = obex_transport_sock_create(self, AF_INET6, 0);
-	if (trans->fd == INVALID_SOCKET)
+	if (obex_transport_sock_connect(data->sock) == -1)
 		return -1;
-#ifdef IPV6_V6ONLY
-	else {
-		/* Needed for some system that set this IPv6 socket option to
-		 * 1 by default (Windows Vista, maybe some BSDs).
-		 * Do not check the return code as it may not matter.
-		 * You will certainly notice later if it failed.
-		 */
-		int v6only = 0;
-		setsockopt(trans->fd, IPPROTO_IPV6, IPV6_V6ONLY,
-					(void *) &v6only, sizeof(v6only));
-	}
-#endif
 
-	/* Set these just in case */
-	if (data->peer.sin6_port == 0)
-		data->peer.sin6_port = htons(OBEX_PORT);
+	self->trans->mtu = OBEX_DEFAULT_MTU;
 
-#ifndef _WIN32
-	if (!inet_ntop(AF_INET6, &data->peer.sin6_addr, addr,sizeof(addr))) {
-		DEBUG(4, "Adress problem\n");
-		obex_transport_sock_delete(self, trans->fd);
-		trans->fd = INVALID_SOCKET;
-		return -1;
-	}
-	DEBUG(2, "peer addr = [%s]:%u\n", addr, ntohs(data->peer.sin6_port));
-#endif
-
-	ret = connect(trans->fd, (struct sockaddr *) &data->peer,
-							sizeof(data->peer));
-#if defined(_WIN32)
-	if (ret == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
-		ret = 0;
-#else
-	if (ret == -1 && errno == EINPROGRESS)
-		ret = 0;
-#endif
-	if (ret == -1) {
-		DEBUG(4, "Connect failed\n");
-		obex_transport_sock_delete(self, trans->fd);
-		trans->fd = INVALID_SOCKET;
-		return ret;
-	}
-
-	trans->mtu = OBEX_DEFAULT_MTU;
-	DEBUG(3, "transport mtu=%d\n", trans->mtu);
-
-	return ret;
+	return 1;
 }
 
 /*
- * Function inobex_transport_disconnect_request (self)
+ * Function inobex_transport_disconnect (self)
  *
  *    Shutdown the TCP/IP link
  *
  */
-static int inobex_disconnect_request(obex_t *self)
+static int inobex_disconnect(obex_t *self)
 {
-	struct obex_transport *trans = &self->trans;
-	int ret;
+	struct inobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
-	ret = obex_transport_sock_delete(self, trans->fd);
-	if (ret < 0)
-		return ret;
-	trans->fd = INVALID_SOCKET;
-	return ret;
+
+	obex_transport_sock_destroy(data->sock);
+	data->sock = NULL;
+	return 1;
 }
 
-/*
- * Function inobex_transport_disconnect_server (self)
- *
- *    Close the server socket
- *
- * Used when we start handling a incomming request, or when the
- * client just want to quit...
- */
-static int inobex_disconnect_server(obex_t *self)
+static int inobex_handle_input(obex_t *self)
 {
-	struct obex_transport *trans = &self->trans;
-	int ret;
+	struct inobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
-	ret = obex_transport_sock_delete(self, trans->serverfd);
-	trans->serverfd = INVALID_SOCKET;
-	return ret;
+
+	return (int)obex_transport_sock_handle_input(data->sock, self);
+}
+
+static int inobex_write(obex_t *self, struct databuffer *msg)
+{
+	struct obex_transport *trans = self->trans;
+	struct inobex_data *data = self->trans->data;
+
+	DEBUG(4, "\n");
+
+	return (int)obex_transport_sock_send(data->sock, msg,
+					     trans->timeout);
+}
+
+static int inobex_read(obex_t *self, void *buf, int buflen)
+{
+	struct inobex_data *data = self->trans->data;
+
+	DEBUG(4, "\n");
+
+	return (int)obex_transport_sock_recv(data->sock, buf, buflen);
+}
+
+static int inobex_get_fd(obex_t *self)
+{
+	struct inobex_data *data = self->trans->data;
+
+	return (int)obex_transport_sock_get_fd(data->sock);
 }
 
 static struct obex_transport_ops inobex_transport_ops = {
 	&inobex_init,
 	NULL,
 	&inobex_cleanup,
-	NULL,
-	&obex_transport_sock_send,
-	&obex_transport_sock_recv,
+
+	&inobex_handle_input,
+	&inobex_write,
+	&inobex_read,
+	&inobex_disconnect,
+
+	&inobex_get_fd,
 	&inobex_set_local_addr,
 	&inobex_set_remote_addr,
+
 	{
 		&inobex_listen,
 		&inobex_accept,
-		&inobex_disconnect_server,
 	},
+
 	{
 		&inobex_connect_request,
-		&inobex_disconnect_request,
 		NULL,
 		NULL,
 		NULL,

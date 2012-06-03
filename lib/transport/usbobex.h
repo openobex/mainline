@@ -104,6 +104,7 @@ struct obex_transport * usbobex_transport_create(void);
 struct usbobex_data {
 #ifdef HAVE_USB1
 	struct libusb_context *ctx;
+	int fd;
 #endif
 	struct obex_usb_intf_transport_t self;
 };

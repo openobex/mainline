@@ -24,6 +24,6 @@
 #define FDOBEX_H
 
 struct obex_transport * fdobex_transport_create(void);
-void fdobex_set_fd(obex_t *self, socket_t in, socket_t out);
+void fdobex_set_fd(obex_t *self, int in, int out);
 
 #endif

@@ -54,7 +54,7 @@ struct obex {
 	struct obex_object *object;	/* Current object being transfered */
 	obex_event_t eventcb;		/* Event-callback */
 
-	obex_transport_t trans;		/* Transport being used */
+	obex_transport_t *trans;	/* Transport being used */
 
 	obex_interface_t *interfaces;	/* Array of discovered interfaces */
 	int interfaces_number;		/* Number of discovered interfaces */
@@ -75,7 +75,7 @@ void obex_deliver_event(obex_t *self, enum obex_event event, enum obex_cmd cmd,
 			enum obex_rsp rsp, int del);
 
 int obex_work(struct obex *self, int timeout);
-int obex_get_buffer_status(buf_t *msg);
+int obex_get_buffer_status(struct databuffer *msg);
 int obex_data_indication(struct obex *self);
 void obex_data_receive_finished(obex_t *self);
 

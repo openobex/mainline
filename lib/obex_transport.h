@@ -25,37 +25,17 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#define socket_t SOCKET
 #else
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#define socket_t int
-#define INVALID_SOCKET -1
 #endif
 
 /* forward declaration for all transport includes */
 struct obex_transport_ops;
-
-#ifdef HAVE_IRDA
-#include "transport/irobex.h"
-#endif /*HAVE_IRDA*/
-#ifdef HAVE_BLUETOOTH
-#include "transport/btobex.h"
-#endif /*HAVE_BLUETOOTH*/
-#ifdef HAVE_USB
-#include "transport/usbobex.h"
-#endif /*HAVE_USB*/
-#include "transport/inobex.h"
-#include "transport/customtrans.h"
-#include "transport/fdobex.h"
-
-#include <inttypes.h>
-
 struct obex;
 struct databuffer;
-#include "databuffer.h"
 
 struct obex_transport_ops {
 	int (*init)(obex_t*);
@@ -63,46 +43,36 @@ struct obex_transport_ops {
 	void (*cleanup)(obex_t*);
 
 	int (*handle_input)(obex_t*);
-	int (*write)(obex_t*, buf_t*);
+	int (*write)(obex_t*, struct databuffer*);
 	int (*read)(obex_t*, void*, int);
+	int (*disconnect)(obex_t*);
 
+	int (*get_fd)(obex_t*);
 	int (*set_local_addr)(obex_t*, struct sockaddr*, size_t);
 	int (*set_remote_addr)(obex_t*, struct sockaddr*, size_t);
 
 	struct {
 		int (*listen)(obex_t*);
-		int (*accept)(obex_t*); /* optional */
-		int (*disconnect)(obex_t*);
+		int (*accept)(obex_t*, obex_t*); /* optional */
 	} server;
 
 	struct {
 		int (*connect)(obex_t*);
-		int (*disconnect)(obex_t*);
 		int (*find_interfaces)(obex_t*, obex_interface_t**);
 		void (*free_interface)(obex_interface_t*);
 		int (*select_interface)(obex_t*, obex_interface_t*);
 	} client;
 };
-int obex_transport_standard_handle_input(obex_t *self);
 
 struct obex_transport * obex_transport_create(struct obex_transport_ops *ops,
 					      void *data);
-
-socket_t obex_transport_sock_create(struct obex *self, int domain, int proto);
-int obex_transport_sock_delete(struct obex *self, socket_t fd);
-int obex_transport_sock_send(obex_t *self, buf_t *msg);
-int obex_transport_sock_recv(obex_t *self, void *buf, int buflen);
 
 typedef struct obex_transport {
 	int type;
 	struct obex_transport_ops *ops;
 	void *data;		/* Private data for the transport */
 
-	socket_t fd;		/* Socket descriptor */
-	socket_t serverfd;
-
 	int timeout;		/* set timeout */
-
 	int connected;		/* Link connection state */
 	unsigned int mtu;	/* Tx MTU of the link */
 
@@ -110,17 +80,17 @@ typedef struct obex_transport {
 
 int obex_transport_init(obex_t *self, int transport);
 void obex_transport_cleanup(obex_t *self);
-void obex_transport_clone(obex_t *self, obex_t *old);
 void obex_transport_split(obex_t *self, obex_t *server);
 
+int obex_transport_accept(obex_t *self, obex_t *server);
 int obex_transport_handle_input(struct obex *self, int timeout);
 int obex_transport_connect_request(struct obex *self);
-void obex_transport_disconnect_request(struct obex *self);
+void obex_transport_disconnect(struct obex *self);
 int obex_transport_listen(struct obex *self);
-void obex_transport_disconnect_server(struct obex *self);
 int obex_transport_write(struct obex *self, struct databuffer *msg);
 int obex_transport_read(struct obex *self, int count);
 void obex_transport_enumerate(struct obex *self);
+int obex_transport_get_fd(struct obex *self);
 
 int obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len);
 int obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len);
