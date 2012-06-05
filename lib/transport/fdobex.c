@@ -31,19 +31,22 @@
 
 #if defined(_WIN32)
 #include <io.h>
+#define fd_t unsigned int
+#else
+#define fd_t int
 #endif
 
 struct fdobex_data {
-	int readfd;  /* read descriptor */
-	int writefd; /* write descriptor */
+	fd_t readfd;  /* read descriptor */
+	fd_t writefd; /* write descriptor */
 };
 
 static int fdobex_init(obex_t *self)
 {
 	struct fdobex_data *data = self->trans->data;
 
-	data->readfd = -1;
-	data->writefd = -1;
+	data->readfd = (fd_t)-1;
+	data->writefd = (fd_t)-1;
 
 	return 0;
 }
@@ -52,8 +55,8 @@ void fdobex_set_fd(obex_t *self, int in, int out)
 {
 	struct fdobex_data *data = self->trans->data;
 
-	data->readfd = in;
-	data->writefd = out;  
+	data->readfd = (fd_t)in;
+	data->writefd = (fd_t)out;  
 }
 
 static void fdobex_cleanup (obex_t *self)
@@ -68,8 +71,8 @@ static int fdobex_connect_request(obex_t *self)
 	struct fdobex_data *data = self->trans->data;
 
 	/* no real connect on the file */
-	if (data->readfd != -1 &&
-	    data->writefd != -1)
+	if (data->readfd != (fd_t)-1 &&
+	    data->writefd != (fd_t)-1)
 		return 0;
 	else {
 		errno = EINVAL;
@@ -87,7 +90,7 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = self->trans;
 	struct fdobex_data *data = self->trans->data;
-	int fd = data->writefd;
+	fd_t fd = data->writefd;
 	size_t size = buf_get_length(msg);
 	int status;
 	fd_set fdset;
@@ -127,7 +130,7 @@ static int fdobex_handle_input(obex_t *self)
 {
 	struct obex_transport *trans = self->trans;
 	struct fdobex_data *data = self->trans->data;
-	int fd = data->readfd;
+	fd_t fd = data->readfd;
 	struct timeval time = {trans->timeout, 0};
 	fd_set fdset;
 	int status;
@@ -147,7 +150,7 @@ static int fdobex_handle_input(obex_t *self)
 static int fdobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct fdobex_data *data = self->trans->data;
-	int fd = data->readfd;
+	fd_t fd = data->readfd;
 	int status;
 
 #ifdef _WIN32
