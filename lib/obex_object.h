@@ -51,11 +51,11 @@ struct obex_object {
 
 	uint16_t headeroffset;		/* Where to start parsing headers */
 	uint32_t hinted_body_len;	/* Hinted body-length or 0 */
-	int abort;			/* Request shall be aborted */
+	bool abort;			/* Request shall be aborted */
 
 	enum obex_rsp_mode rsp_mode;	/* OBEX_RSP_MODE_* */
 
-	int suspend;			/* Temporarily stop transfering object */
+	bool suspended;			/* Temporarily stop transfering object */
 
 	struct obex_hdr *body;		/* The body header need some extra help */
 	struct obex_body *body_rcv;	/* Deliver body */
@@ -76,8 +76,8 @@ int obex_object_setrsp(struct obex_object *object, enum obex_rsp rsp,
 		       enum obex_rsp lastrsp);
 int obex_object_get_opcode(obex_object_t *object, int allowfinalcmd,
 				enum obex_mode mode);
-int obex_object_append_data(obex_object_t *object, struct databuffer *txmsg,
-			    size_t tx_left);
+bool obex_object_append_data(obex_object_t *object, struct databuffer *txmsg,
+			     size_t tx_left);
 int obex_object_finished(obex_object_t *object, int allowfinal);
 
 int obex_object_receive_nonhdr_data(obex_object_t *object, const void *msgdata,

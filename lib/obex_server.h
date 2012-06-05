@@ -24,6 +24,6 @@
 
 struct obex;
 
-int obex_server(struct obex *self);
+result_t obex_server(struct obex *self);
 
 #endif

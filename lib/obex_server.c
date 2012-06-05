@@ -54,37 +54,44 @@ static __inline int msg_get_final(const obex_t *self)
 		return opcode & OBEX_FINAL;
 }
 
-static void obex_response_request_prepare(obex_t *self, uint8_t opcode)
+static bool obex_response_request_prepare(obex_t *self, uint8_t opcode)
 {
-	obex_data_request_init(self);
+	if (!obex_data_request_init(self))
+		return false;
+
 	obex_data_request_prepare(self, opcode | OBEX_FINAL);
+	return true;
 }
 
-static void obex_response_request(obex_t *self, uint8_t opcode)
+static result_t obex_response_request(obex_t *self, uint8_t opcode)
 {
-	obex_return_if_fail(self != NULL);
+	if (self == NULL)
+		return RESULT_ERROR;
 
-	obex_response_request_prepare(self, opcode);
+	if (!obex_response_request_prepare(self, opcode))
+		return RESULT_ERROR;
+
 	do {
-		int status = obex_data_request(self);
-		if (status < 0)
-			break;
+		result_t status = obex_data_request(self);
+		if (status == RESULT_ERROR)
+			return RESULT_ERROR;
 	} while (!buf_get_length(self->tx_msg));
+	return RESULT_SUCCESS;
 }
 
-static int obex_server_bad_request(obex_t *self)
+static result_t obex_server_bad_request(obex_t *self)
 {
 	enum obex_cmd cmd = obex_object_getcmd(self->object);
 
-	obex_response_request(self, OBEX_RSP_BAD_REQUEST);
+	(void)obex_response_request(self, OBEX_RSP_BAD_REQUEST);
 	self->state = STATE_IDLE;
 	obex_deliver_event(self, OBEX_EV_PARSEERR, cmd, 0, TRUE);
-	return -1;
+	return RESULT_ERROR;
 }
 
-static int obex_server_abort_transmit(obex_t *self)
+static result_t obex_server_abort_transmit(obex_t *self)
 {
-	int ret;
+	result_t ret;
 	enum obex_rsp rsp = OBEX_RSP_CONTINUE;
 	enum obex_cmd cmd = OBEX_CMD_ABORT;
 
@@ -102,15 +109,15 @@ static int obex_server_abort_transmit(obex_t *self)
 	return ret;
 }
 
-static int obex_server_abort_response(obex_t *self)
+static result_t obex_server_abort_response(obex_t *self)
 {
-	obex_response_request_prepare(self, OBEX_RSP_SUCCESS);
+	(void)obex_response_request_prepare(self, OBEX_RSP_SUCCESS);
 	self->state = STATE_ABORT;
 	self->substate = SUBSTATE_TRANSMIT_TX;
 	return obex_server_abort_transmit(self);
 }
 
-static int obex_server_abort_prepare(obex_t *self)
+static result_t obex_server_abort_prepare(obex_t *self)
 {
 	int opcode = OBEX_RSP_INTERNAL_SERVER_ERROR;
 
@@ -119,25 +126,28 @@ static int obex_server_abort_prepare(obex_t *self)
 	/* Do not send continue */
 	if (self->object->rsp != OBEX_RSP_CONTINUE)
 		opcode = self->object->lastrsp;
-	obex_response_request_prepare(self, opcode);
+
+	if (obex_response_request_prepare(self, opcode) != RESULT_SUCCESS)
+		return RESULT_ERROR;
+
 	self->substate = SUBSTATE_TRANSMIT_TX;
 	return obex_server_abort_transmit(self);
 }
 
-static int obex_server_response_transmit_tx(obex_t *self)
+static result_t obex_server_response_transmit_tx(obex_t *self)
 {
-	int ret;
+	result_t ret;
 	int cmd = self->object->cmd;
 
 	DEBUG(4, "STATE: RESPONSE/TRANSMIT_TX\n");
 
 	ret = obex_msg_transmit(self);
-	if (ret == -1) {
+	if (ret == RESULT_ERROR) {
 		/* Error sending response */
 		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
 		self->state = STATE_IDLE;
 
-	} else if (ret == 1) {
+	} else if (ret == RESULT_SUCCESS) {
 		/* Made some progress */
 		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
 		if (obex_object_finished(self->object, TRUE)) {
@@ -162,13 +172,11 @@ static int obex_server_response_transmit_tx(obex_t *self)
 	return ret;
 }
 
-static int obex_server_response_prepare_tx(obex_t *self)
+static result_t obex_server_response_prepare_tx(obex_t *self)
 {
-	int err;
-
 	DEBUG(4, "STATE: RESPONSE/PREPARE_TX\n");
 
-	if (self->object->abort == 1) {
+	if (self->object->abort) {
 		self->state = STATE_ABORT;
 		return obex_server_abort_prepare(self);
 	}
@@ -176,15 +184,14 @@ static int obex_server_response_prepare_tx(obex_t *self)
 	/* As a server, the final bit is always SET, and the "real final" packet
 	 * is distinguished by being SUCCESS instead of CONTINUE.
 	 * So, force the final bit here. */
-	err = obex_msg_prepare(self, self->object, TRUE);
-	if (err)
-		return -1;
+	if (!obex_msg_prepare(self, self->object, TRUE))
+		return RESULT_ERROR;
 
 	self->substate = SUBSTATE_TRANSMIT_TX;
 	return obex_server_response_transmit_tx(self);
 }
 
-static int obex_server_response_rx(obex_t *self)
+static result_t obex_server_response_rx(obex_t *self)
 {
 	enum obex_cmd cmd;
 
@@ -199,7 +206,7 @@ static int obex_server_response_rx(obex_t *self)
 			return obex_server_response_prepare_tx(self);
 		}
 
-		return 1;
+		return RESULT_SUCCESS;
 	}
 
 	/* Single response mode makes it possible for the client to send
@@ -235,19 +242,19 @@ static int obex_server_response_rx(obex_t *self)
 	}
 }
 
-static int obex_server_request_transmit_tx(obex_t *self)
+static result_t obex_server_request_transmit_tx(obex_t *self)
 {
-	int ret = 0;
+	result_t ret;
 	enum obex_cmd cmd = self->object->cmd;
 
 	DEBUG(4, "STATE: REQUEST/TRANSMIT_TX\n");
 
 	ret = obex_msg_transmit(self);
-	if (ret == -1) {
+	if (ret == RESULT_ERROR) {
 		obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
 		self->state = STATE_IDLE;
 
-	} else if (ret == 1) {
+	} else if (ret == RESULT_SUCCESS) {
 		enum obex_rsp rsp = self->object->rsp;
 		if (rsp == OBEX_RSP_CONTINUE) {
 			obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, rsp,
@@ -264,7 +271,7 @@ static int obex_server_request_transmit_tx(obex_t *self)
 	return ret;
 }
 
-static int obex_server_request_prepare_tx(obex_t *self)
+static result_t obex_server_request_prepare_tx(obex_t *self)
 {
 	DEBUG(4, "STATE: REQUEST/PREPARE_TX\n");
 
@@ -274,25 +281,25 @@ static int obex_server_request_prepare_tx(obex_t *self)
 	{
 		int err;
 
-		if (self->object->abort == 1) {
+		if (self->object->abort) {
 			self->state = STATE_ABORT;
 			return obex_server_abort_prepare(self);
 		}
 
 		err = obex_msg_prepare(self, self->object, FALSE);
 		if (err)
-			return -1;
+			return RESULT_ERROR;
 
 		self->substate = SUBSTATE_TRANSMIT_TX;
 		return obex_server_request_transmit_tx(self);
 
 	} else {
 		self->substate = SUBSTATE_RECEIVE_RX;
-		return 1;
+		return RESULT_SUCCESS;
 	}
 }
 
-static int obex_server_request_rx(obex_t *self, int first)
+static result_t obex_server_request_rx(obex_t *self, int first)
 {
 	int deny = 0;
 	uint64_t filter;
@@ -302,7 +309,7 @@ static int obex_server_request_rx(obex_t *self, int first)
 	DEBUG(4, "STATE: REQUEST/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self))
-		return 1;
+		return RESULT_SUCCESS;
 	cmd = msg_get_cmd(self);
 	final = msg_get_final(self);
 
@@ -409,7 +416,7 @@ static int obex_server_request_rx(obex_t *self, int first)
 	}
 }
 
-static int obex_server_idle(obex_t *self)
+static result_t obex_server_idle(obex_t *self)
 {
 	enum obex_cmd cmd;
 
@@ -417,14 +424,14 @@ static int obex_server_idle(obex_t *self)
 	DEBUG(4, "STATE: IDLE\n");
 	
 	if (!obex_msg_rx_status(self))
-		return 0;
+		return RESULT_SUCCESS;
 	cmd = msg_get_cmd(self);
 
 	if (self->object) {
 		/* What shall we do here? I don't know!*/
 		DEBUG(0, "Got a new server-request while already having one!\n");
 		obex_response_request(self, OBEX_RSP_INTERNAL_SERVER_ERROR);
-		return -1;
+		return RESULT_ERROR;
 	}
 
 	/* If ABORT command is done while we are not handling another command,
@@ -439,7 +446,7 @@ static int obex_server_idle(obex_t *self)
 	if (self->object == NULL) {
 		DEBUG(1, "Allocation of object failed!\n");
 		obex_response_request(self, OBEX_RSP_INTERNAL_SERVER_ERROR);
-		return -1;
+		return RESULT_ERROR;
 	}
 	/* Remember the initial command of the request.*/
 	obex_object_setcmd(self->object, cmd);
@@ -472,7 +479,7 @@ static int obex_server_idle(obex_t *self)
  *    Handle server-operations
  *
  */
-int obex_server(obex_t *self)
+result_t obex_server(obex_t *self)
 {
 	DEBUG(4, "\n");
 
@@ -524,5 +531,5 @@ int obex_server(obex_t *self)
 		break;
 	}
 
-	return -1;
+	return RESULT_ERROR;
 }

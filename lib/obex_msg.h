@@ -21,8 +21,9 @@
  */
 
 #include "obex_incl.h"
+#include "defines.h"
 
-int obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal);
+bool obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal);
 int obex_msg_getspace(obex_t *self, obex_object_t *object, unsigned int flags);
 
 int obex_msg_rx_status(const obex_t *self);

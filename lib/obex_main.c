@@ -121,7 +121,7 @@ void obex_deliver_event(obex_t *self, enum obex_event event, enum obex_cmd cmd,
 		obex_object_delete(object);
 }
 
-int obex_data_request_init(obex_t *self)
+bool obex_data_request_init(obex_t *self)
 {
 	buf_t *msg = self->tx_msg;
 	int err;
@@ -129,9 +129,10 @@ int obex_data_request_init(obex_t *self)
 	buf_clear(msg, buf_get_length(msg));
 	err = buf_set_size(msg, self->mtu_tx);
 	if (err)
-		return err;
+		return false;
+
 	buf_append(msg, NULL, sizeof(struct obex_common_hdr));
-	return 0;
+	return true;
 }
 
 /** Prepare response or command code along with optional headers/data to send.
@@ -156,10 +157,10 @@ void obex_data_request_prepare(obex_t *self, int opcode)
 }
 
 /** Transmit some data from the TX message buffer. */
-int obex_data_request(obex_t *self)
+result_t obex_data_request(obex_t *self)
 {
 	buf_t *msg = self->tx_msg;
-	int status;
+	result_t status;
 
 	obex_return_val_if_fail(self != NULL, -1);
 
@@ -173,23 +174,26 @@ int obex_data_request(obex_t *self)
 }
 
 /** Transmit one full message from TX message buffer */
-int obex_msg_transmit(obex_t *self)
+result_t obex_msg_transmit(obex_t *self)
 {
 	buf_t *msg = self->tx_msg;
 
 	if (buf_get_length(msg)) {
-		int ret = obex_data_request(self);
-		if (ret < 0) {
+		result_t ret = obex_data_request(self);
+		if (ret == RESULT_ERROR) {
 			DEBUG(4, "Send error\n");
-			return -1;
+			return RESULT_ERROR;
 		}
 	}
 
-	return (buf_get_length(msg) == 0);
+	if (buf_get_length(msg) == 0)
+		return RESULT_SUCCESS;
+	else
+		return RESULT_TIMEOUT;
 }
 
 
-static int obex_mode(obex_t *self)
+static result_t obex_mode(obex_t *self)
 {
 	switch (self->mode) {
 	case OBEX_MODE_SERVER:
@@ -199,7 +203,7 @@ static int obex_mode(obex_t *self)
 		return obex_client(self);
 
 	default:
-		return -1;
+		return RESULT_ERROR;
 	}
 }
 
@@ -209,13 +213,13 @@ static int obex_mode(obex_t *self)
  *    Do some work on the current transferred object.
  *
  */
-int obex_work(obex_t *self, int timeout)
+result_t obex_work(obex_t *self, int timeout)
 {
 	if (self->state == STATE_IDLE ||
 	    self->substate == SUBSTATE_RECEIVE_RX)
 	{
-		int ret = obex_transport_handle_input(self, timeout);
-		if (ret <= 0)
+		result_t ret = obex_transport_handle_input(self, timeout);
+		if (ret != RESULT_SUCCESS)
 			return ret;
 	}
 
@@ -223,7 +227,7 @@ int obex_work(obex_t *self, int timeout)
 }
 
 /** Read a message from transport into the RX message buffer. */
-int obex_data_indication(obex_t *self)
+result_t obex_data_indication(obex_t *self)
 {
 	obex_common_hdr_t *hdr;
 	buf_t *msg;
@@ -232,7 +236,7 @@ int obex_data_indication(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	obex_return_val_if_fail(self != NULL, -1);
+	obex_return_val_if_fail(self != NULL, RESULT_ERROR);
 
 	msg = self->rx_msg;
 
@@ -248,10 +252,10 @@ int obex_data_indication(obex_t *self)
 		 * partial buffer (custom transport) */
 		if (actual < 0) {
 			obex_deliver_event(self, OBEX_EV_LINKERR, 0, 0, TRUE);
-			return -1;
+			return RESULT_ERROR;
 		}
 		if (actual == 0)
-			return 0;
+			return RESULT_TIMEOUT;
 	}
 
 	/* If we have 3 bytes data we can decide how big the packet is */
@@ -274,16 +278,16 @@ int obex_data_indication(obex_t *self)
 			if (actual < 0) {
 				obex_deliver_event(self, OBEX_EV_LINKERR,
 								0, 0, TRUE);
-				return -1;
+				return RESULT_ERROR;
 			}
 			if (actual == 0)
-				return 0;
+				return RESULT_TIMEOUT;
 		}
 	} else {
 		/* Wait until we have at least 3 bytes data */
 		DEBUG(3, "Need at least 3 bytes got only %lu!\n",
 		      (unsigned long)buf_get_length(msg));
-		return 1;
+		return RESULT_SUCCESS;
         }
 
 	/* New data has been inserted at the end of message */
@@ -302,12 +306,12 @@ int obex_data_indication(obex_t *self)
 		      size, (unsigned long)buf_get_length(msg));
 
 		/* I'll be back! */
-		return 1;
+		return RESULT_SUCCESS;
 	}
 
 	DUMPBUFFER(2, "Rx", msg);
 
-	return 1;
+	return RESULT_SUCCESS;
 }
 
 /** Remove message from RX message buffer after evaluation */
@@ -347,7 +351,7 @@ int obex_cancelrequest(obex_t *self, int nice)
 	} else {
 		/* The client or server code will take action at the
 		 * right time. */
-		self->object->abort = TRUE;
+		self->object->abort = true;
 
 		return 1;
 	}

@@ -452,7 +452,7 @@ result_t obex_transport_sock_handle_input(struct obex_sock *sock, obex_t *self)
 			}
 
 			close_socket(fd);
-			sock->is_server = FALSE;
+			sock->is_server = true;
 		}
 
 		return RESULT_SUCCESS;

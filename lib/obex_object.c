@@ -314,11 +314,11 @@ int obex_object_get_opcode(obex_object_t *object, int allowfinal,
 	return opcode;
 }
 
-int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left)
+bool obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left)
 {
 	/* Don't do anything if object is suspended */
-	if (object->suspend)
-		return 0;
+	if (object->suspended)
+		return false;
 
 	/* Add nonheader-data first if any (SETPATH, CONNECT)*/
 	if (object->tx_nonhdr_data) {
@@ -337,7 +337,7 @@ int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left)
 	 * many as possible into the tx-msg */
 	if (object->tx_it) {
 		struct obex_hdr *h = obex_hdr_it_get(object->tx_it);
-		while (h != NULL && !object->suspend && tx_left > 0) {
+		while (h != NULL && !object->suspended && tx_left > 0) {
 			if (obex_hdr_get_id(h) != OBEX_HDR_ID_INVALID) {
 				size_t ret = obex_hdr_append(h, txmsg, tx_left);
 				if (ret == 0)
@@ -347,7 +347,7 @@ int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left)
 		
 			if (obex_hdr_is_finished(h)) {
 				if (h->flags & OBEX_FL_SUSPEND)
-					object->suspend = 1;
+					object->suspended = true;
 
 				obex_hdr_it_next(object->tx_it);
 				h = obex_hdr_it_get(object->tx_it);
@@ -355,12 +355,12 @@ int obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left)
 		}
 	}
 
-	return 1;
+	return true;
 }
 
 int obex_object_finished(obex_object_t *object, int allowfinal)
 {
-	return (!object->suspend &&
+	return (!object->suspended &&
 		(!object->tx_it || !obex_hdr_it_get(object->tx_it)) &&
 		allowfinal);
 }
@@ -620,18 +620,18 @@ const void * obex_object_read_body(obex_object_t *object, size_t *size)
 
 int obex_object_suspend(obex_object_t *object)
 {
-	if (object->suspend == 1)
+	if (object->suspended)
 		return -1;
 
-	object->suspend = 1;
+	object->suspended = true;
 	return 0;
 }
 
 int obex_object_resume(obex_object_t *object)
 {
-	if (object->suspend == 0)
+	if (!object->suspended)
 		return -1;
 
-	object->suspend = 0;
+	object->suspended = false;
 	return 0;
 }

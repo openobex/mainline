@@ -52,74 +52,76 @@ static __inline uint16_t msg_get_len(const buf_t *msg)
 		return 0;
 }
 
-static int obex_client_abort_transmit(obex_t *self)
+static result_t obex_client_abort_transmit(obex_t *self)
 {
-	int ret;
+	result_t ret;
 
 	DEBUG(4, "STATE: ABORT/TRANSMIT_TX\n");
 
 	ret = obex_msg_transmit(self);
-	if (ret == -1) {
-		int rsp = OBEX_RSP_CONTINUE;
+	if (ret == RESULT_ERROR) {
+		enum obex_rsp rsp = OBEX_RSP_CONTINUE;
 
 		obex_deliver_event(self, OBEX_EV_LINKERR,
 				   self->object->cmd, rsp, TRUE);
 		self->state = STATE_IDLE;
 
-	} else if (ret == 1) {
+	} else if (ret == RESULT_SUCCESS) {
 		self->substate = SUBSTATE_RECEIVE_RX;
 	}
 
 	return ret;
 }
 
-static int obex_client_abort_prepare(obex_t *self)
+static result_t obex_client_abort_prepare(obex_t *self)
 {
 	DEBUG(4, "STATE: ABORT/PREPARE_TX\n");
 
-	obex_data_request_init(self);
+	if (!obex_data_request_init(self))
+		return RESULT_ERROR;
+
 	obex_data_request_prepare(self, OBEX_CMD_ABORT);
 	self->substate = SUBSTATE_TRANSMIT_TX;
 	return obex_client_abort_transmit(self);
 }
 
-static int obex_client_abort(obex_t *self)
+static result_t obex_client_abort(obex_t *self)
 {
-	int ret = 1;
+	int ret = RESULT_SUCCESS;
 	enum obex_rsp rsp;
 	int event = OBEX_EV_LINKERR;
 
 	DEBUG(4, "STATE: ABORT/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self))
-		return 1;
+		return RESULT_SUCCESS;
 	rsp = msg_get_rsp(self);
 
 	if (rsp == OBEX_RSP_SUCCESS)
 		event = OBEX_EV_ABORT;
 	obex_deliver_event(self, event, self->object->cmd, rsp, TRUE);
 	if (event == OBEX_EV_LINKERR)
-		ret = -1;
+		ret = RESULT_ERROR;
 
 	self->mode = OBEX_MODE_SERVER;
 	self->state = STATE_IDLE;
 	return ret;
 }
 
-static int obex_client_response_transmit_tx(obex_t *self)
+static result_t obex_client_response_transmit_tx(obex_t *self)
 {
-	int ret;
+	result_t ret;
 	enum obex_rsp rsp = OBEX_RSP_CONTINUE;
 
 	DEBUG(4, "STATE: RESPONSE/TRANSMIT_TX\n");
 
 	ret = obex_msg_transmit(self);
-	if (ret == -1) {
+	if (ret == RESULT_ERROR) {
 		obex_deliver_event(self, OBEX_EV_LINKERR,
 				   self->object->cmd, rsp, TRUE);
 		self->state = STATE_IDLE;
 
-	} else if (ret == 1) {
+	} else if (ret == RESULT_SUCCESS) {
 		obex_deliver_event(self, OBEX_EV_PROGRESS,
 				   self->object->cmd, rsp, FALSE);
 		self->substate = SUBSTATE_RECEIVE_RX;
@@ -128,12 +130,12 @@ static int obex_client_response_transmit_tx(obex_t *self)
 	return ret;
 }
 
-static int obex_client_response_prepare_tx(obex_t *self)
+static result_t obex_client_response_prepare_tx(obex_t *self)
 {
 	DEBUG(4, "STATE: RESPONSE/PREPARE_TX\n");
 
 	/* Sending ABORT is allowed even during SRM */
-	if (self->object->abort == 1) {
+	if (self->object->abort) {
 		self->state = STATE_ABORT;
 		return obex_client_abort_prepare(self);
 	}
@@ -142,28 +144,26 @@ static int obex_client_response_prepare_tx(obex_t *self)
 	    (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
 	     self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
 	{
-		int err = obex_msg_prepare(self, self->object, TRUE);
-		if (err)
-			return -1;
+		if (!obex_msg_prepare(self, self->object, TRUE))
+			return RESULT_ERROR;
 
 		self->substate = SUBSTATE_TRANSMIT_TX;
 		return obex_client_response_transmit_tx(self);
 
 	} else {
 		self->substate = SUBSTATE_RECEIVE_RX;
-		return 1;
+		return RESULT_SUCCESS;
 	}
 }
 
-static int obex_client_response_rx(obex_t *self)
+static result_t obex_client_response_rx(obex_t *self)
 {
-	int ret;
 	enum obex_rsp rsp;
 
 	DEBUG(4, "STATE: RESPONSE/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self))
-		return 1;
+		return RESULT_SUCCESS;
 	rsp = msg_get_rsp(self);
 
 	switch (self->object->cmd) {
@@ -184,16 +184,16 @@ static int obex_client_response_rx(obex_t *self)
 		break;
 	}
 
-	if (self->object->abort == 0) {
+	if (!self->object->abort) {
 		/* Receive any headers */
-		ret = obex_msg_receive(self, self->object);
-		if (ret < 0) {
+		result_t ret = obex_msg_receive(self, self->object);
+		if (ret == RESULT_ERROR) {
 			obex_deliver_event(self, OBEX_EV_PARSEERR,
 					   self->object->cmd, 0, TRUE);
 			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
 			obex_data_receive_finished(self);
-			return -1;
+			return RESULT_ERROR;
 		}
 	}
 	obex_data_receive_finished(self);
@@ -208,7 +208,7 @@ static int obex_client_response_rx(obex_t *self)
 					   self->object->cmd, 0, TRUE);
 			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
-			return -1;
+			return RESULT_ERROR;
 		}
 	}
 
@@ -225,25 +225,25 @@ static int obex_client_response_rx(obex_t *self)
 								     rsp, TRUE);
 		self->mode = OBEX_MODE_SERVER;
 		self->state = STATE_IDLE;
-		return 1;
+		return RESULT_SUCCESS;
 	}
 }
 
-static int obex_client_request_transmit_tx(obex_t *self)
+static result_t obex_client_request_transmit_tx(obex_t *self)
 {
-	int ret;
+	result_t ret;
 
 	DEBUG(4, "STATE: REQUEST/TRANSMIT_TX\n");
 
 	ret = obex_msg_transmit(self);
-	if (ret < 0) {
+	if (ret == RESULT_ERROR) {
 		/* Error while sending */
 		obex_deliver_event(self, OBEX_EV_LINKERR,
 				   self->object->cmd, 0, TRUE);
 		self->mode = OBEX_MODE_SERVER;
 		self->state = STATE_IDLE;
 
-	} else if (ret == 1) {
+	} else if (ret == RESULT_SUCCESS) {
 		obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->cmd,
 								      0, FALSE);
 		if (obex_object_finished(self->object, TRUE)) {
@@ -268,34 +268,30 @@ static int obex_client_request_transmit_tx(obex_t *self)
 	return ret;
 }
 
-static int obex_client_request_prepare_tx(obex_t *self)
+static result_t obex_client_request_prepare_tx(obex_t *self)
 {
-	int err;
-
 	DEBUG(4, "STATE: REQUEST/PREPARE_TX\n");
 
-	if (self->object->abort == 1) {
+	if (self->object->abort) {
 		self->state = STATE_ABORT;
 		return obex_client_abort_prepare(self);
 	}
 
-
-	err = obex_msg_prepare(self, self->object, TRUE);
-	if (err)
-		return -1;
+	if (!obex_msg_prepare(self, self->object, TRUE))
+		return RESULT_ERROR;
 
 	self->substate = SUBSTATE_TRANSMIT_TX;
 	return obex_client_request_transmit_tx(self);
 }
 
-static int obex_client_request_rx(obex_t *self)
+static result_t obex_client_request_rx(obex_t *self)
 {
 	enum obex_rsp rsp;
 
 	DEBUG(4, "STATE: REQUEST/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self))
-		return 0;
+		return RESULT_SUCCESS;
 	rsp = msg_get_rsp(self);
 
 	/* Any errors from peer? Win2k will send RSP_SUCCESS after
@@ -312,7 +308,7 @@ static int obex_client_request_rx(obex_t *self)
 		/* This is not an Obex error, it is just that the peer
 		 * doesn't accept the request */
 		obex_data_receive_finished(self);
-		return 1;
+		return RESULT_SUCCESS;
 	}
 
 	if (!self->object->abort) {
@@ -323,7 +319,7 @@ static int obex_client_request_rx(obex_t *self)
 			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
 			obex_data_receive_finished(self);
-			return -1;
+			return RESULT_ERROR;
 		}
 	}
 
@@ -339,7 +335,7 @@ static int obex_client_request_rx(obex_t *self)
  *    Handle client operations
  *
  */
-int obex_client(obex_t *self)
+result_t obex_client(obex_t *self)
 {
 	DEBUG(4, "\n");
 
@@ -388,5 +384,5 @@ int obex_client(obex_t *self)
 		break;
 	}
 
-	return -1;
+	return RESULT_ERROR;
 }
