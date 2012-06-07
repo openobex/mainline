@@ -209,10 +209,29 @@ set_property ( TARGET openobex PROPERTY
 )
 
 install ( TARGETS openobex
+  EXPORT openobex-target
   RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openobex
+  COMPONENT library
+)
+
+#
+# Create the openobex-config file for the build tree
+#
+export ( TARGETS openobex FILE ${PROJECT_BINARY_DIR}/openobex-build.cmake )
+
+#
+# Create and copy the openobex-config.cmake files for the installed copy
+#
+install ( EXPORT openobex-target
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OpenObex-${openobex_VERSION}
+  COMPONENT library
+)
+
+install ( FILES ${PROJECT_SOURCE_DIR}/openobex-config.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OpenObex-${openobex_VERSION}
   COMPONENT library
 )
 
