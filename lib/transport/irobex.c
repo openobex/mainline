@@ -328,11 +328,13 @@ static unsigned int irobex_get_mtu(socket_t fd)
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-static int irobex_accept(obex_t *self, obex_t *server)
+static int irobex_accept(obex_t *self, const obex_t *server)
 {
 	socket_t fd;
 	struct irobex_data *server_data = server->trans->data;
-	struct irobex_data *data = self->trans->data;
+	struct irobex_data *data = calloc(1, sizeof(*data));
+
+	self->trans->data = data;
 
 	data->sock = obex_transport_sock_accept(server_data->sock,
 						server->init_flags);
@@ -551,7 +553,6 @@ static int irobex_get_fd(obex_t *self)
 
 static struct obex_transport_ops irobex_transport_ops = {
 	&irobex_init,
-	NULL,
 	&irobex_cleanup,
 
 	&irobex_handle_input,

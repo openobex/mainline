@@ -39,7 +39,6 @@ struct databuffer;
 
 struct obex_transport_ops {
 	int (*init)(obex_t*);
-	int (*clone)(obex_t*, const obex_t*);
 	void (*cleanup)(obex_t*);
 
 	int (*handle_input)(obex_t*);
@@ -53,7 +52,7 @@ struct obex_transport_ops {
 
 	struct {
 		int (*listen)(obex_t*);
-		int (*accept)(obex_t*, obex_t*); /* optional */
+		int (*accept)(obex_t*, const obex_t*);
 	} server;
 
 	struct {
@@ -82,7 +81,7 @@ int obex_transport_init(obex_t *self, int transport);
 void obex_transport_cleanup(obex_t *self);
 void obex_transport_split(obex_t *self, obex_t *server);
 
-int obex_transport_accept(obex_t *self, obex_t *server);
+int obex_transport_accept(obex_t *self, const obex_t *server);
 int obex_transport_handle_input(struct obex *self, int timeout);
 int obex_transport_connect_request(struct obex *self);
 void obex_transport_disconnect(struct obex *self);

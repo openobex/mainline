@@ -159,10 +159,12 @@ static int btobex_listen(obex_t *self)
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-static int btobex_accept(obex_t *self, obex_t *server)
+static int btobex_accept(obex_t *self, const obex_t *server)
 {
 	struct btobex_rfcomm_data *server_data = server->trans->data;
-	struct btobex_rfcomm_data *data = self->trans->data;
+	struct btobex_rfcomm_data *data = calloc(1, sizeof(*data));
+
+	self->trans->data = data;
 
 	data->sock = obex_transport_sock_accept(server_data->sock,
 						server->init_flags);
@@ -252,7 +254,6 @@ static int btobex_get_fd(obex_t *self)
 
 static struct obex_transport_ops btobex_transport_ops = {
 	&btobex_init,
-	NULL,
 	&btobex_cleanup,
 
 	&btobex_handle_input,

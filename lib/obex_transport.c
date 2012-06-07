@@ -70,8 +70,6 @@ struct obex_transport * obex_transport_create(struct obex_transport_ops *ops,
 
 int obex_transport_init(obex_t *self, int transport)
 {
-	struct obex_transport *trans = self->trans;
-
 	switch (transport) {
 #ifdef HAVE_IRDA
 	case OBEX_TRANS_IRDA:
@@ -111,9 +109,12 @@ int obex_transport_init(obex_t *self, int transport)
 		return -1;
 	}
 
-	trans->type = transport;
-	if (trans->ops->init)
-		return trans->ops->init(self);
+	if (!self->trans)
+		return -1;
+
+	self->trans->type = transport;
+	if (self->trans->ops->init)
+		return self->trans->ops->init(self);
 	else
 		return 0;
 }
@@ -125,34 +126,17 @@ void obex_transport_cleanup(obex_t *self)
 		self->trans->ops->cleanup(self);
 }
 
-static void obex_transport_clone(obex_t *self, obex_t *old)
-{
-	struct obex_transport *trans = self->trans;
-
-	/* Copy transport data:
-	 * This includes the transport operations and either the
-	 * transport data can be cloned (means: implements the clone()
-	 * function) or they must be initialized.
-	 */
-	*trans = *old->trans;
-	trans->data = NULL;
-	if (trans->ops->clone)
-		trans->ops->clone(self, old);
-	else if (trans->ops->init)
-		trans->ops->init(self);
-}
-
 /*
  * Function obex_transport_accept(self)
  *
  *    Accept an incoming connection.
  *
  */
-int obex_transport_accept(obex_t *self, obex_t *server)
+int obex_transport_accept(obex_t *self, const obex_t *server)
 {
 	DEBUG(4, "\n");
 
-	obex_transport_clone(self, server);
+	self->trans = obex_transport_create(server->trans->ops, NULL);
 
 	if (self->trans->ops->server.accept) {
 		if (self->trans->ops->server.accept(self, server) < 0)

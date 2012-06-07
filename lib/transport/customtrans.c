@@ -27,16 +27,6 @@
 #include <errno.h>
 #include <stdlib.h>
 
-static int custom_clone(obex_t *self, const obex_t *from)
-{
-	const obex_ctrans_t *old = from->trans->data;
-	obex_ctrans_t *ctrans = self->trans->data;
-
-	*ctrans = *old;
-
-	return 0;
-}
-
 static void custom_cleanup (obex_t *self)
 {
 	struct obex_transport_ops *ops = self->trans->ops;
@@ -84,6 +74,18 @@ static int custom_listen(obex_t *self)
 	obex_ctrans_t *ctrans = trans->data;
 
 	return ctrans->listen(self, ctrans->customdata);
+}
+
+static int custom_accept(obex_t *self, const obex_t *from)
+{
+	const obex_ctrans_t *old = from->trans->data;
+	obex_ctrans_t *ctrans = calloc(1, sizeof(*ctrans));
+
+	self->trans->data = ctrans;
+
+	*ctrans = *old;
+
+	return 0;
 }
 
 static int custom_handle_input(obex_t *self)
@@ -135,6 +137,7 @@ int custom_register(obex_t *self, const obex_ctrans_t *in)
 	ops->write = &custom_write;
 	ops->read = &custom_read;
 
+	ops->server.accept = &custom_accept;
 	if (ctrans->listen)
 		ops->server.listen = &custom_listen;
 	if (ctrans->connect)
@@ -159,7 +162,6 @@ struct obex_transport * custom_transport_create(void)
 	}
 
 	ops->cleanup = &custom_cleanup;
-	ops->clone = &custom_clone;
 
 	trans = obex_transport_create(ops, data);
 	if (!trans) {

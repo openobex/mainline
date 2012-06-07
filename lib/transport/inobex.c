@@ -276,10 +276,12 @@ static int inobex_listen(obex_t *self)
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-static int inobex_accept(obex_t *self, obex_t *server)
+static int inobex_accept(obex_t *self, const obex_t *server)
 {
 	struct inobex_data *server_data = server->trans->data;
-	struct inobex_data *data = self->trans->data;
+	struct inobex_data *data = calloc(1, sizeof(*data));
+
+	self->trans->data = data;
 
 	data->sock = obex_transport_sock_accept(server_data->sock,
 						server->init_flags);
@@ -364,7 +366,6 @@ static int inobex_get_fd(obex_t *self)
 
 static struct obex_transport_ops inobex_transport_ops = {
 	&inobex_init,
-	NULL,
 	&inobex_cleanup,
 
 	&inobex_handle_input,

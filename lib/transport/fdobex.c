@@ -175,7 +175,6 @@ static int fdobex_get_fd(obex_t *self)
 
 static struct obex_transport_ops fdobex_transport_ops = {
 	&fdobex_init,
-	NULL,
 	&fdobex_cleanup,
 
 	&fdobex_handle_input,

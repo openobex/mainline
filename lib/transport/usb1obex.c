@@ -579,7 +579,6 @@ static int usbobex_handle_input(obex_t *self)
 
 static struct obex_transport_ops usbobex_transport_ops = {
 	&usbobex_init,
-	NULL,
 	&usbobex_cleanup,
 
 	&usbobex_handle_input,
