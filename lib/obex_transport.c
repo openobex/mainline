@@ -155,7 +155,7 @@ result_t obex_transport_handle_input(obex_t *self, int timeout)
 {
 	DEBUG(4, "\n");
 	self->trans->timeout = timeout;
-	if (obex_msg_rx_status(self)) {
+	if (self->trans->connected && obex_msg_rx_status(self)) {
 		DEBUG(4, "full message already in buffer\n");
 		return RESULT_SUCCESS;
 	}
@@ -174,7 +174,7 @@ result_t obex_transport_handle_input(obex_t *self, int timeout)
  */
 bool obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
-	if (self->trans->ops->set_local_addr)
+	if (!self->trans->connected && self->trans->ops->set_local_addr)
 		return self->trans->ops->set_local_addr(self, addr, len);
 
 	return false;
@@ -188,7 +188,7 @@ bool obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t l
  */
 bool obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
-	if (self->trans->ops->set_remote_addr)
+	if (!self->trans->connected && self->trans->ops->set_remote_addr)
 		return self->trans->ops->set_remote_addr(self, addr, len);
 
 	return false;
@@ -222,7 +222,7 @@ bool obex_transport_connect_request(obex_t *self)
  */
 void obex_transport_disconnect(obex_t *self)
 {
-	if (self->trans->ops->disconnect)
+	if (self->trans->connected && self->trans->ops->disconnect)
 		self->trans->connected = !self->trans->ops->disconnect(self);
 }
 
@@ -248,6 +248,9 @@ bool obex_transport_listen(obex_t *self)
  */
 ssize_t obex_transport_write(obex_t *self, buf_t *msg)
 {
+	if (!self->trans->connected)
+		return false;
+
 	if (self->trans->ops->write)
 		return self->trans->ops->write(self, msg);
 
@@ -265,6 +268,9 @@ ssize_t obex_transport_read(obex_t *self, int max)
 	struct databuffer *msg = self->rx_msg;
 	size_t msglen = buf_get_length(msg);
 	void *buf;
+
+	if (!self->trans->connected)
+		return false;
 
 	if (buf_set_size(msg, msglen + self->mtu_rx))
 		return -1;

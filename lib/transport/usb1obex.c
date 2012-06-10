@@ -456,12 +456,8 @@ err1:
  */
 static bool usbobex_disconnect(obex_t *self)
 {
-	struct obex_transport *trans = self->trans;
 	struct usbobex_data *data = self->trans->data;
 	int ret;
-
-	if (trans->connected == FALSE)
-		return 0;
 
 	DEBUG(4, "\n");
 
@@ -511,10 +507,6 @@ static ssize_t usbobex_write(obex_t *self, struct databuffer *msg)
 	int actual = 0;
 	int usberror;
 
-	DEBUG(4, "\n");
-	if (trans->connected != TRUE)
-		return -1;
-
 	DEBUG(4, "Endpoint %d\n", data->self.data_endpoint_write);
 	usberror = libusb_bulk_transfer(data->self.dev,
 					data->self.data_endpoint_write,
@@ -541,9 +533,6 @@ static ssize_t usbobex_read(obex_t *self, void *buf, int buflen)
 	struct usbobex_data *data = self->trans->data;
 	int usberror;
 	int actual = 0;
-
-	if (trans->connected != TRUE)
-		return -1;
 
 	/* USB can only read 0xFFFF bytes at once (equals mtu_rx) */
 	DEBUG(4, "Endpoint %d\n", data->self.data_endpoint_read);
