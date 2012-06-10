@@ -67,7 +67,6 @@ struct obex_transport * obex_transport_create(struct obex_transport_ops *ops,
 					      void *data);
 
 typedef struct obex_transport {
-	int type;
 	struct obex_transport_ops *ops;
 	void *data;		/* Private data for the transport */
 

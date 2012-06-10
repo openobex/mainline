@@ -103,13 +103,6 @@ bool obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
 
 	obex_hdr_it_init_from(&it, object->tx_it);
 
-#ifdef HAVE_IRDA
-	if (self->trans->type == OBEX_TRANS_IRDA &&
-	    self->trans->mtu > 0 &&
-	    self->trans->mtu < self->mtu_tx)
-		tx_left -= self->mtu_tx % self->trans->mtu;
-#endif /*HAVE_IRDA*/
-
 	if (!obex_data_request_init(self))
 		return false;
 

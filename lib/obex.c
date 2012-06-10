@@ -924,7 +924,6 @@ LIB_SYMBOL
 int CALLAPI OBEX_SetCustomData(obex_t *self, void *data)
 {
 	obex_return_val_if_fail(self == NULL, -1);
-	obex_return_val_if_fail(self->trans->type != OBEX_TRANS_CUSTOM, -1);
 
 	custom_set_data(self, data);
 	return 0;
@@ -939,7 +938,6 @@ LIB_SYMBOL
 void * CALLAPI OBEX_GetCustomData(obex_t *self)
 {
 	obex_return_val_if_fail(self == NULL, NULL);
-	obex_return_val_if_fail(self->trans->type != OBEX_TRANS_CUSTOM, NULL);
 
 	return custom_get_data(self);
 }

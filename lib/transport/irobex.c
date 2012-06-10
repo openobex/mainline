@@ -295,26 +295,6 @@ static bool irobex_listen(obex_t *self)
 	return obex_transport_sock_listen(data->sock);
 }
 
-static unsigned int irobex_get_mtu(socket_t fd)
-{
-#ifndef _WIN32
-	int mtu;
-	socklen_t len = sizeof(mtu);
-
-	/* Check what the IrLAP data size is */
-	if (getsockopt(fd, SOL_IRLMP, IRTTP_MAX_SDU_SIZE, (void *)&mtu, &len))
-		return 0;
-#else
-	DWORD mtu;
-	int len = sizeof(mtu);
-
-	if (getsockopt(fd, SOL_IRLMP, IRLMP_SEND_PDU_LEN, (char *)&mtu, &len))
-		return 0;
-#endif /* _WIN32 */
-
-	return (unsigned int)mtu;
-}
-
 /*
  * Function irobex_accept (self)
  *
@@ -325,7 +305,6 @@ static unsigned int irobex_get_mtu(socket_t fd)
  */
 static bool irobex_accept(obex_t *self, const obex_t *server)
 {
-	socket_t fd;
 	struct irobex_data *server_data = server->trans->data;
 	struct irobex_data *data = calloc(1, sizeof(*data));
 
@@ -337,8 +316,7 @@ static bool irobex_accept(obex_t *self, const obex_t *server)
 	if (data->sock == NULL)
 		return false;
 
-	fd = obex_transport_sock_get_fd(data->sock);
-	self->trans->mtu = irobex_get_mtu(fd);
+	self->trans->mtu = OBEX_DEFAULT_MTU;
 
 	return true;
 }
@@ -475,7 +453,6 @@ static void irobex_free_interface(obex_interface_t *intf)
  */
 static bool irobex_connect_request(obex_t *self)
 {
-	socket_t fd;
 	struct irobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
@@ -487,8 +464,7 @@ static bool irobex_connect_request(obex_t *self)
 	if (obex_transport_sock_connect(data->sock) == -1)
 		return false;
 
-	fd = obex_transport_sock_get_fd(data->sock);
-	self->trans->mtu = irobex_get_mtu(fd);
+	self->trans->mtu = OBEX_DEFAULT_MTU;
 
 	return true;
 }

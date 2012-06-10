@@ -112,7 +112,6 @@ bool obex_transport_init(obex_t *self, int transport)
 	if (!self->trans)
 		return false;
 
-	self->trans->type = transport;
 	if (self->trans->ops->init)
 		return self->trans->ops->init(self);
 	else
