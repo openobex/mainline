@@ -510,9 +510,7 @@ static int irobex_disconnect(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	obex_transport_sock_destroy(data->sock);
-	data->sock = NULL;
-	return 1;
+	return obex_transport_sock_disconnect(data->sock)? 1: -1;
 }
 
 static int irobex_handle_input(obex_t *self)

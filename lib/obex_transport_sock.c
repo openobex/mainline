@@ -55,15 +55,17 @@ socket_t create_stream_socket(int domain, int proto, unsigned int flags)
 	return fd;
 }
 
-void close_socket(socket_t fd)
+bool close_socket(socket_t fd)
 {
 	if (fd != INVALID_SOCKET) {
 #ifdef _WIN32
-		(void)closesocket(fd);
+		return (closesocket(fd) == 0);
 #else /* _WIN32 */
-		(void)close(fd);
+		return (close(fd) == 0);
 #endif /* _WIN32 */
 	}
+
+	return false;
 }
 
 /** Initialize the socket interface */
@@ -126,11 +128,25 @@ struct obex_sock * obex_transport_sock_create(int domain, int proto,
 }
 
 /** Close socket. */
+bool obex_transport_sock_disconnect(struct obex_sock *sock)
+{
+	bool res;
+
+	DEBUG(4, "\n");
+
+	res = close_socket(sock->fd);
+	if (res)
+		sock->fd = INVALID_SOCKET;
+
+	return res;
+}
+
+/** Close socket. */
 void obex_transport_sock_destroy(struct obex_sock *sock)
 {
 	DEBUG(4, "\n");
 
-	(void)close_socket(sock->fd);
+	obex_transport_sock_disconnect(sock);
 	free(sock);
 }
 
@@ -259,8 +275,7 @@ bool obex_transport_sock_connect(struct obex_sock *sock)
 	return true;
 
 err:
-	close_socket(sock->fd);
-	sock->fd = INVALID_SOCKET;
+	obex_transport_sock_disconnect(sock);
 	return false;
 }
 
@@ -298,8 +313,7 @@ bool obex_transport_sock_listen(struct obex_sock *sock)
 	return true;
 
 err:
-	close_socket(sock->fd);
-	sock->fd = INVALID_SOCKET;
+	obex_transport_sock_disconnect(sock);
 	return false;
 }
 
@@ -325,8 +339,7 @@ static bool accept_client(struct obex_sock *sock, socket_t serverfd)
 	if (getsockname(sock->fd, (struct sockaddr *)&sock->local,
 			&socklen) == -1)
 	{
-		close_socket(sock->fd);
-		sock->fd = INVALID_SOCKET;
+		obex_transport_sock_disconnect(sock);
 		return false;
 	}
 

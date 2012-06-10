@@ -61,7 +61,7 @@ bool obex_transport_sock_init(void);
 void obex_transport_sock_cleanup(void);
 
 socket_t create_stream_socket(int domain, int proto, unsigned int flags);
-void close_socket(socket_t fd);
+bool close_socket(socket_t fd);
 
 struct obex_sock * obex_transport_sock_create(int domain, int proto,
 					      socklen_t addr_size,
@@ -78,6 +78,7 @@ bool obex_transport_sock_connect(struct obex_sock *sock);
 bool obex_transport_sock_listen(struct obex_sock *sock);
 struct obex_sock * obex_transport_sock_accept(struct obex_sock *sock,
 					      unsigned int flags);
+bool obex_transport_sock_disconnect(struct obex_sock *sock);
 
 ssize_t obex_transport_sock_send(struct obex_sock *sock, struct databuffer *msg,
 				 int timeout);
