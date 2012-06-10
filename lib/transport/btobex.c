@@ -53,17 +53,19 @@ struct btobex_rfcomm_data {
 	struct obex_sock *sock;
 };
 
-static int btobex_init(obex_t *self)
+static bool btobex_init(obex_t *self)
 {
 	struct btobex_rfcomm_data *data = self->trans->data;
 	socklen_t len = sizeof(struct sockaddr_rc);
 
 	data->sock = obex_transport_sock_create(AF_BLUETOOTH, BTPROTO_RFCOMM,
 						len, self->init_flags);
-	if (data->sock == NULL)
+	if (data->sock == NULL) {
 		free(data);
+		return false;
+	}
 
-	return 0;
+	return true;
 }
 
 static void btobex_cleanup (obex_t *self)
@@ -75,7 +77,7 @@ static void btobex_cleanup (obex_t *self)
 	free(data);	
 }
 
-static int btobex_set_local_addr(obex_t *self, struct sockaddr *addr,
+static bool btobex_set_local_addr(obex_t *self, struct sockaddr *addr,
 				 size_t len)
 {
 	struct btobex_rfcomm_data *data = self->trans->data;
@@ -83,7 +85,7 @@ static int btobex_set_local_addr(obex_t *self, struct sockaddr *addr,
 	return obex_transport_sock_set_local(data->sock, addr, len);
 }
 
-static int btobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
+static bool btobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
 	struct btobex_rfcomm_data *data = self->trans->data;
 
@@ -139,16 +141,13 @@ void btobex_prepare_listen(obex_t *self, const bdaddr_t *src, uint8_t channel)
  *    Listen for incoming connections.
  *
  */
-static int btobex_listen(obex_t *self)
+static bool btobex_listen(obex_t *self)
 {
 	struct btobex_rfcomm_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	if (obex_transport_sock_listen(data->sock) < 0)
-		return -1;
-	else
-		return 1;
+	return obex_transport_sock_listen(data->sock);
 }
 
 /*
@@ -159,7 +158,7 @@ static int btobex_listen(obex_t *self)
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-static int btobex_accept(obex_t *self, const obex_t *server)
+static bool btobex_accept(obex_t *self, const obex_t *server)
 {
 	struct btobex_rfcomm_data *server_data = server->trans->data;
 	struct btobex_rfcomm_data *data = calloc(1, sizeof(*data));
@@ -170,11 +169,11 @@ static int btobex_accept(obex_t *self, const obex_t *server)
 						server->init_flags);
 	
 	if (data->sock == NULL)
-		return -1;
+		return false;
 
 	self->trans->mtu = OBEX_DEFAULT_MTU;
 
-	return 0;
+	return true;
 }
 
 /*
@@ -183,18 +182,18 @@ static int btobex_accept(obex_t *self, const obex_t *server)
  *    Open the RFCOMM connection
  *
  */
-static int btobex_connect_request(obex_t *self)
+static bool btobex_connect_request(obex_t *self)
 {
 	struct btobex_rfcomm_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	if (obex_transport_sock_connect(data->sock) == -1)
-		return -1;
+	if (!obex_transport_sock_connect(data->sock))
+		return false;
 
 	self->trans->mtu = OBEX_DEFAULT_MTU;
 
-	return 1;
+	return true;
 }
 
 /*
@@ -203,44 +202,41 @@ static int btobex_connect_request(obex_t *self)
  *    Shutdown the RFCOMM link
  *
  */
-static int btobex_disconnect(obex_t *self)
+static bool btobex_disconnect(obex_t *self)
 {
 	struct btobex_rfcomm_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return obex_transport_sock_disconnect(data->sock)? 1: -1;
+	return obex_transport_sock_disconnect(data->sock);
 }
 
-static int btobex_handle_input(obex_t *self)
+static result_t btobex_handle_input(obex_t *self)
 {
 	struct btobex_rfcomm_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return (int)obex_transport_sock_handle_input(data->sock, self);
-
-
+	return obex_transport_sock_handle_input(data->sock, self);
 }
 
-static int btobex_write(obex_t *self, struct databuffer *msg)
+static ssize_t btobex_write(obex_t *self, struct databuffer *msg)
 {
 	struct obex_transport *trans = self->trans;
 	struct btobex_rfcomm_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return (int)obex_transport_sock_send(data->sock, msg,
-					     trans->timeout);
+	return obex_transport_sock_send(data->sock, msg, trans->timeout);
 }
 
-static int btobex_read(obex_t *self, void *buf, int buflen)
+static ssize_t btobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct btobex_rfcomm_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return (int)obex_transport_sock_recv(data->sock, buf, buflen);
+	return obex_transport_sock_recv(data->sock, buf, buflen);
 }
 
 static int btobex_get_fd(obex_t *self)

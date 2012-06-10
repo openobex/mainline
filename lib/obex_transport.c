@@ -63,12 +63,12 @@ struct obex_transport * obex_transport_create(struct obex_transport_ops *ops,
 	trans->data = data;
 
 	trans->timeout = -1; /* no time-out */
-	trans->connected = FALSE;
+	trans->connected = false;
 
 	return trans;
 }
 
-int obex_transport_init(obex_t *self, int transport)
+bool obex_transport_init(obex_t *self, int transport)
 {
 	switch (transport) {
 #ifdef HAVE_IRDA
@@ -106,17 +106,18 @@ int obex_transport_init(obex_t *self, int transport)
 #endif /*HAVE_USB*/
 
 	default:
-		return -1;
+		self->trans = NULL;
+		break;
 	}
 
 	if (!self->trans)
-		return -1;
+		return false;
 
 	self->trans->type = transport;
 	if (self->trans->ops->init)
 		return self->trans->ops->init(self);
 	else
-		return 0;
+		return true;
 }
 
 void obex_transport_cleanup(obex_t *self)
@@ -132,21 +133,17 @@ void obex_transport_cleanup(obex_t *self)
  *    Accept an incoming connection.
  *
  */
-int obex_transport_accept(obex_t *self, const obex_t *server)
+bool obex_transport_accept(obex_t *self, const obex_t *server)
 {
 	DEBUG(4, "\n");
 
 	self->trans = obex_transport_create(server->trans->ops, NULL);
 
-	if (self->trans->ops->server.accept) {
-		if (self->trans->ops->server.accept(self, server) < 0)
-			return -1;
-		else
-			return 1;
-	}
+	if (self->trans->ops->server.accept)
+		self->trans->connected =
+			self->trans->ops->server.accept(self, server);
 
-	errno = EINVAL;
-	return -1;
+	return self->trans->connected;
 }
 
 /*
@@ -155,19 +152,19 @@ int obex_transport_accept(obex_t *self, const obex_t *server)
  *    Used when working in synchronous mode.
  *
  */
-int obex_transport_handle_input(obex_t *self, int timeout)
+result_t obex_transport_handle_input(obex_t *self, int timeout)
 {
 	DEBUG(4, "\n");
 	self->trans->timeout = timeout;
 	if (obex_msg_rx_status(self)) {
 		DEBUG(4, "full message already in buffer\n");
-		return 1;
+		return RESULT_SUCCESS;
 	}
 
 	if (self->trans->ops->handle_input)
 		return self->trans->ops->handle_input(self);
 	else
-		return -1;
+		return RESULT_ERROR;
 }
 
 /*
@@ -176,12 +173,12 @@ int obex_transport_handle_input(obex_t *self, int timeout)
  *    Set the local server address to bind and listen to.
  *
  */
-int obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
+bool obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
 	if (self->trans->ops->set_local_addr)
 		return self->trans->ops->set_local_addr(self, addr, len);
-	else
-		return -1;
+
+	return false;
 }
 
 /*
@@ -190,12 +187,12 @@ int obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t le
  *    Set the remote server address to connect to.
  *
  */
-int obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
+bool obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
 	if (self->trans->ops->set_remote_addr)
 		return self->trans->ops->set_remote_addr(self, addr, len);
-	else
-		return -1;
+
+	return false;
 }
 
 /*
@@ -204,21 +201,15 @@ int obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t l
  *    Try to connect transport
  *
  */
-int obex_transport_connect_request(obex_t *self)
+bool obex_transport_connect_request(obex_t *self)
 {
-	int ret = -1;
-
 	if (self->trans->connected)
-		return 1;
+		return false;
 
-	if (self->trans->ops->client.connect) {
-		ret = self->trans->ops->client.connect(self);
-		if (ret >= 0)
-			self->trans->connected = TRUE;
-	} else
-		errno = EINVAL;
+	if (self->trans->ops->client.connect)
+		self->trans->connected = self->trans->ops->client.connect(self);
 
-	return ret;
+	return self->trans->connected;
 }
 
 /*
@@ -233,9 +224,7 @@ int obex_transport_connect_request(obex_t *self)
 void obex_transport_disconnect(obex_t *self)
 {
 	if (self->trans->ops->disconnect)
-		self->trans->ops->disconnect(self);
-
-	self->trans->connected = FALSE;
+		self->trans->connected = !self->trans->ops->disconnect(self);
 }
 
 /*
@@ -244,14 +233,12 @@ void obex_transport_disconnect(obex_t *self)
  *    Prepare for incomming connections
  *
  */
-int obex_transport_listen(obex_t *self)
+bool obex_transport_listen(obex_t *self)
 {
 	if (self->trans->ops->server.listen)
 		return self->trans->ops->server.listen(self);
-	else {
-		errno = EINVAL;
-		return -1;
-	}
+
+	return false;
 }
 
 /*
@@ -260,12 +247,12 @@ int obex_transport_listen(obex_t *self)
  *    Do the writing
  *
  */
-int obex_transport_write(obex_t *self, buf_t *msg)
+ssize_t obex_transport_write(obex_t *self, buf_t *msg)
 {
 	if (self->trans->ops->write)
 		return self->trans->ops->write(self, msg);
-	else
-		return -1;
+
+	return -1;
 }
 
 /*
@@ -274,20 +261,19 @@ int obex_transport_write(obex_t *self, buf_t *msg)
  *    Do the reading
  *
  */
-int obex_transport_read(obex_t *self, int max)
+ssize_t obex_transport_read(obex_t *self, int max)
 {
 	struct databuffer *msg = self->rx_msg;
 	size_t msglen = buf_get_length(msg);
 	void *buf;
-	int err = buf_set_size(msg, msglen + self->mtu_rx);
 
-	if (err)
+	if (buf_set_size(msg, msglen + self->mtu_rx))
 		return -1;
 
 	buf = buf_get(msg) + msglen;
 
 	if (self->trans->ops->read) {
-		int ret = self->trans->ops->read(self, buf, max);
+		ssize_t ret = self->trans->ops->read(self, buf, max);
 		if (ret > 0)
 			buf_append(msg, NULL, ret);
 		return ret;

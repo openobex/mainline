@@ -38,28 +38,28 @@ struct obex;
 struct databuffer;
 
 struct obex_transport_ops {
-	int (*init)(obex_t*);
+	bool (*init)(obex_t*);
 	void (*cleanup)(obex_t*);
 
-	int (*handle_input)(obex_t*);
-	int (*write)(obex_t*, struct databuffer*);
-	int (*read)(obex_t*, void*, int);
-	int (*disconnect)(obex_t*);
+	result_t (*handle_input)(obex_t*);
+	ssize_t (*write)(obex_t*, struct databuffer*);
+	ssize_t (*read)(obex_t*, void*, int);
+	bool (*disconnect)(obex_t*);
 
 	int (*get_fd)(obex_t*);
-	int (*set_local_addr)(obex_t*, struct sockaddr*, size_t);
-	int (*set_remote_addr)(obex_t*, struct sockaddr*, size_t);
+	bool (*set_local_addr)(obex_t*, struct sockaddr*, size_t);
+	bool (*set_remote_addr)(obex_t*, struct sockaddr*, size_t);
 
 	struct {
-		int (*listen)(obex_t*);
-		int (*accept)(obex_t*, const obex_t*);
+		bool (*listen)(obex_t*);
+		bool (*accept)(obex_t*, const obex_t*);
 	} server;
 
 	struct {
-		int (*connect)(obex_t*);
+		bool (*connect)(obex_t*);
 		int (*find_interfaces)(obex_t*, obex_interface_t**);
 		void (*free_interface)(obex_interface_t*);
-		int (*select_interface)(obex_t*, obex_interface_t*);
+		bool (*select_interface)(obex_t*, obex_interface_t*);
 	} client;
 };
 
@@ -72,26 +72,26 @@ typedef struct obex_transport {
 	void *data;		/* Private data for the transport */
 
 	int timeout;		/* set timeout */
-	int connected;		/* Link connection state */
+	bool connected;		/* Link connection state */
 	unsigned int mtu;	/* Tx MTU of the link */
 
 } obex_transport_t;
 
-int obex_transport_init(obex_t *self, int transport);
+bool obex_transport_init(obex_t *self, int transport);
 void obex_transport_cleanup(obex_t *self);
 void obex_transport_split(obex_t *self, obex_t *server);
 
-int obex_transport_accept(obex_t *self, const obex_t *server);
-int obex_transport_handle_input(struct obex *self, int timeout);
-int obex_transport_connect_request(struct obex *self);
+bool obex_transport_accept(obex_t *self, const obex_t *server);
+result_t obex_transport_handle_input(struct obex *self, int timeout);
+bool obex_transport_connect_request(struct obex *self);
 void obex_transport_disconnect(struct obex *self);
-int obex_transport_listen(struct obex *self);
-int obex_transport_write(struct obex *self, struct databuffer *msg);
-int obex_transport_read(struct obex *self, int count);
+bool obex_transport_listen(struct obex *self);
+ssize_t obex_transport_write(struct obex *self, struct databuffer *msg);
+ssize_t obex_transport_read(struct obex *self, int count);
 void obex_transport_enumerate(struct obex *self);
 int obex_transport_get_fd(struct obex *self);
 
-int obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len);
-int obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len);
+bool obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len);
+bool obex_transport_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len);
 
 #endif /* OBEX_TRANSPORT_H */

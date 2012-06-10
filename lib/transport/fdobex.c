@@ -41,14 +41,14 @@ struct fdobex_data {
 	fd_t writefd; /* write descriptor */
 };
 
-static int fdobex_init(obex_t *self)
+static bool fdobex_init(obex_t *self)
 {
 	struct fdobex_data *data = self->trans->data;
 
 	data->readfd = (fd_t)-1;
 	data->writefd = (fd_t)-1;
 
-	return 0;
+	return true;
 }
 
 void fdobex_set_fd(obex_t *self, int in, int out)
@@ -66,27 +66,22 @@ static void fdobex_cleanup (obex_t *self)
 	free(data);
 }
 
-static int fdobex_connect_request(obex_t *self)
+static bool fdobex_connect_request(obex_t *self)
 {
 	struct fdobex_data *data = self->trans->data;
 
 	/* no real connect on the file */
-	if (data->readfd != (fd_t)-1 &&
-	    data->writefd != (fd_t)-1)
-		return 0;
-	else {
-		errno = EINVAL;
-		return -1;
-	}
+	return (data->readfd != (fd_t)-1 &&
+		data->writefd != (fd_t)-1);
 }
 
-static int fdobex_disconnect(obex_t *self)
+static bool fdobex_disconnect(obex_t *self)
 {
 	/* no real disconnect on a file */
 	return fdobex_init(self);
 }
 
-static int fdobex_write(obex_t *self, buf_t *msg)
+static ssize_t fdobex_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = self->trans;
 	struct fdobex_data *data = self->trans->data;
@@ -126,7 +121,7 @@ static int fdobex_write(obex_t *self, buf_t *msg)
 	return status;
 }
 
-static int fdobex_handle_input(obex_t *self)
+static result_t fdobex_handle_input(obex_t *self)
 {
 	struct obex_transport *trans = self->trans;
 	struct fdobex_data *data = self->trans->data;
@@ -144,10 +139,15 @@ static int fdobex_handle_input(obex_t *self)
 	else
 		status = select(fd+1, NULL, &fdset, NULL, NULL);
 
-	return status;
+	if (status == -1)
+		return RESULT_ERROR;
+	else if (status == 0)
+		return RESULT_TIMEOUT;
+	else
+		return RESULT_SUCCESS;
 }
 
-static int fdobex_read(obex_t *self, void *buf, int buflen)
+static ssize_t fdobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct fdobex_data *data = self->trans->data;
 	fd_t fd = data->readfd;

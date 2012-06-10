@@ -302,10 +302,10 @@ int CALLAPI OBEX_ServerRegister(obex_t *self, struct sockaddr *saddr, int addrle
 	obex_return_val_if_fail((addrlen == 0) || (saddr != NULL), -1);
 
 	if (addrlen != 0 && saddr != NULL &&
-	    obex_transport_set_local_addr(self, saddr, addrlen) == -1)
+	    !obex_transport_set_local_addr(self, saddr, addrlen))
 		return -1;
 
-	return obex_transport_listen(self);
+	return obex_transport_listen(self)? 1: -1;
 }
 
 /**
@@ -355,7 +355,8 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 	self->userdata = data;
 	self->init_flags = server->init_flags;
 
-	obex_transport_accept(self, server);
+	if (!obex_transport_accept(self, server))
+		goto out_err;
 
 	self->mtu_rx = server->mtu_rx;
 	self->mtu_tx = server->mtu_tx;
@@ -446,10 +447,10 @@ int CALLAPI OBEX_TransportConnect(obex_t *self, struct sockaddr *saddr, int addr
 	obex_return_val_if_fail((addrlen == 0) || (saddr != NULL), -1);
 
 	if (addrlen != 0 && saddr != NULL &&
-	    obex_transport_set_remote_addr(self, saddr, addrlen) == -1)
+	    !obex_transport_set_remote_addr(self, saddr, addrlen))
 		return -1;
 
-	return obex_transport_connect_request(self);
+	return obex_transport_connect_request(self)? 1: -1;
 }
 
 /**
@@ -966,7 +967,7 @@ int CALLAPI TcpOBEX_ServerRegister(obex_t *self, struct sockaddr *addr,
 
 	inobex_prepare_listen(self, addr, addrlen);
 
-	return obex_transport_listen(self);
+	return obex_transport_listen(self)? 1: -1;
 }
 
 /**
@@ -996,7 +997,7 @@ int CALLAPI TcpOBEX_TransportConnect(obex_t *self, struct sockaddr *addr,
 
 	inobex_prepare_connect(self, addr, addrlen);
 
-	return obex_transport_connect_request(self);
+	return obex_transport_connect_request(self)? 1: -1;
 }
 
 /**
@@ -1017,7 +1018,7 @@ int CALLAPI IrOBEX_ServerRegister(obex_t *self, const char *service)
 
 #ifdef HAVE_IRDA
 	irobex_prepare_listen(self, service);
-	return obex_transport_listen(self);
+	return obex_transport_listen(self)? 1: -1;
 #else
 	return -ESOCKTNOSUPPORT;
 #endif /* HAVE_IRDA */
@@ -1069,7 +1070,7 @@ int CALLAPI BtOBEX_ServerRegister(obex_t *self, const bt_addr_t *src, uint8_t ch
 	if (src == NULL)
 		src = BDADDR_ANY;
 	btobex_prepare_listen(self, src, channel);
-	return obex_transport_listen(self);
+	return obex_transport_listen(self)? 1: -1;
 #else
 	return -ESOCKTNOSUPPORT;
 #endif /* HAVE_BLUETOOTH */
@@ -1104,7 +1105,7 @@ int CALLAPI BtOBEX_TransportConnect(obex_t *self, const bt_addr_t *src,
 	if (src == NULL)
 		src = BDADDR_ANY;
 	btobex_prepare_connect(self, src, dst, channel);
-	return obex_transport_connect_request(self);
+	return obex_transport_connect_request(self)? 1: -1;
 #else
 	return -ESOCKTNOSUPPORT;
 #endif /* HAVE_BLUETOOTH */
@@ -1132,7 +1133,7 @@ int CALLAPI FdOBEX_TransportSetup(obex_t *self, int rfd, int wfd, int mtu)
 	}
 	fdobex_set_fd(self, rfd, wfd);
 	self->trans->mtu = mtu ? mtu : self->mtu_tx_max;
-	return obex_transport_connect_request(self);
+	return obex_transport_connect_request(self)? 1: -1;
 }
 
 /**
@@ -1158,9 +1159,9 @@ int CALLAPI OBEX_InterfaceConnect(obex_t *self, obex_interface_t *intf)
 
 	obex_return_val_if_fail(intf != NULL, -1);
 	if (self->trans->ops->client.select_interface) {
-		if (self->trans->ops->client.select_interface(self, intf) == -1)
+		if (!self->trans->ops->client.select_interface(self, intf))
 			return -1;
-		return obex_transport_connect_request(self);
+		return obex_transport_connect_request(self)? 1: -1;
 	} else
 		return -ESOCKTNOSUPPORT;
 }

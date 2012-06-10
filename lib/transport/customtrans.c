@@ -52,31 +52,31 @@ void* custom_get_data(obex_t *self)
 	return ctrans->customdata;
 }
 
-static int custom_connect_request(obex_t *self)
+static bool custom_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = self->trans;
 	obex_ctrans_t *ctrans = trans->data;
 
-	return ctrans->connect(self, ctrans->customdata);
+	return (ctrans->connect(self, ctrans->customdata) >= 0);
 }
 
-static int custom_disconnect(obex_t *self)
+static bool custom_disconnect(obex_t *self)
 {
 	struct obex_transport *trans = self->trans;
 	obex_ctrans_t *ctrans = trans->data;
 
-	return ctrans->disconnect(self, ctrans->customdata);
+	return (ctrans->disconnect(self, ctrans->customdata) >= 0);
 }
 
-static int custom_listen(obex_t *self)
+static bool custom_listen(obex_t *self)
 {
 	struct obex_transport *trans = self->trans;
 	obex_ctrans_t *ctrans = trans->data;
 
-	return ctrans->listen(self, ctrans->customdata);
+	return (ctrans->listen(self, ctrans->customdata) >= 0);
 }
 
-static int custom_accept(obex_t *self, const obex_t *from)
+static bool custom_accept(obex_t *self, const obex_t *from)
 {
 	const obex_ctrans_t *old = from->trans->data;
 	obex_ctrans_t *ctrans = calloc(1, sizeof(*ctrans));
@@ -85,18 +85,24 @@ static int custom_accept(obex_t *self, const obex_t *from)
 
 	*ctrans = *old;
 
-	return 0;
+	return true;
 }
 
-static int custom_handle_input(obex_t *self)
+static result_t custom_handle_input(obex_t *self)
 {
 	struct obex_transport *trans = self->trans;
 	obex_ctrans_t *ctrans = trans->data;
+	int res = ctrans->handleinput(self, ctrans->customdata, trans->timeout);
 
-	return ctrans->handleinput(self, ctrans->customdata, trans->timeout);
+	if (res < 0)
+		return RESULT_ERROR;
+	else if (res == 0)
+		return RESULT_TIMEOUT;
+	else
+		return RESULT_SUCCESS;
 }
 
-static int custom_write(obex_t *self, buf_t *msg)
+static ssize_t custom_write(obex_t *self, buf_t *msg)
 {
 	struct obex_transport *trans = self->trans;
 	obex_ctrans_t *ctrans = trans->data;
@@ -105,7 +111,7 @@ static int custom_write(obex_t *self, buf_t *msg)
 			     buf_get_length(msg));
 }
 
-static int custom_read(obex_t *self, void *buf, int size)
+static ssize_t custom_read(obex_t *self, void *buf, int size)
 {
 	struct obex_transport *trans = self->trans;
 	obex_ctrans_t *ctrans = trans->data;

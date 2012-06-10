@@ -110,19 +110,21 @@ static void map_ip4to6(struct sockaddr_in *in, struct sockaddr_in6 *out)
 	}
 }
 
-static int inobex_init (obex_t *self)
+static bool inobex_init (obex_t *self)
 {
 	struct inobex_data *data = self->trans->data;
 	socklen_t len = sizeof(struct sockaddr_in6);
 
 	data->sock = obex_transport_sock_create(AF_INET6, 0,
 						len, self->init_flags);
-	if (data->sock == NULL)
+	if (data->sock == NULL) {
 		free(data);
+		return false;
+	}
 
 	data->sock->set_sock_opts = &set_sock_opts;
 
-	return 0;
+	return true;
 }
 
 static void inobex_cleanup (obex_t *self)
@@ -134,7 +136,7 @@ static void inobex_cleanup (obex_t *self)
 	free(data);	
 }
 
-static int inobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
+static bool inobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
 	size_t expected_len;
 
@@ -143,17 +145,17 @@ static int inobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t le
 	else if (addr->sa_family == AF_INET6)
 		expected_len = sizeof(struct sockaddr_in6);
 	else
-		return -1;
+		return false;
 
 	if (expected_len != len)
-		return -1;
+		return false;
 
 	inobex_prepare_connect(self, addr, len);
 
-	return 0;
+	return true;
 }
 
-static int inobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
+static bool inobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
 	size_t expected_len;
 
@@ -162,14 +164,14 @@ static int inobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len
 	else if (addr->sa_family == AF_INET6)
 		expected_len = sizeof(struct sockaddr_in6);
 	else
-		return -1;
+		return false;
 
 	if (expected_len != len)
-		return -1;
+		return false;
 
 	inobex_prepare_listen(self, addr, len);
 
-	return 0;
+	return true;
 }
 
 #define OBEX_DEFAULT_PORT 650
@@ -256,16 +258,13 @@ void inobex_prepare_listen(obex_t *self, struct sockaddr *saddr, int addrlen)
  *    Wait for incomming connections
  *
  */
-static int inobex_listen(obex_t *self)
+static bool inobex_listen(obex_t *self)
 {
 	struct inobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	if (obex_transport_sock_listen(data->sock) < 0)
-		return -1;
-	else
-		return 1;
+	return obex_transport_sock_listen(data->sock);
 }
 
 /*
@@ -276,7 +275,7 @@ static int inobex_listen(obex_t *self)
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-static int inobex_accept(obex_t *self, const obex_t *server)
+static bool inobex_accept(obex_t *self, const obex_t *server)
 {
 	struct inobex_data *server_data = server->trans->data;
 	struct inobex_data *data = calloc(1, sizeof(*data));
@@ -287,28 +286,28 @@ static int inobex_accept(obex_t *self, const obex_t *server)
 						server->init_flags);
 	
 	if (data->sock == NULL)
-		return -1;
+		return false;
 
 	self->trans->mtu = OBEX_DEFAULT_MTU;
 
-	return 0;
+	return true;
 }
 
 /*
  * Function inobex_connect_request (self)
  */
-static int inobex_connect_request(obex_t *self)
+static bool inobex_connect_request(obex_t *self)
 {
 	struct inobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
 	if (obex_transport_sock_connect(data->sock) == -1)
-		return -1;
+		return false;
 
 	self->trans->mtu = OBEX_DEFAULT_MTU;
 
-	return 1;
+	return true;
 }
 
 /*
@@ -317,42 +316,41 @@ static int inobex_connect_request(obex_t *self)
  *    Shutdown the TCP/IP link
  *
  */
-static int inobex_disconnect(obex_t *self)
+static bool inobex_disconnect(obex_t *self)
 {
 	struct inobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return obex_transport_sock_disconnect(data->sock)? 1: -1;
+	return obex_transport_sock_disconnect(data->sock);
 }
 
-static int inobex_handle_input(obex_t *self)
+static result_t inobex_handle_input(obex_t *self)
 {
 	struct inobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return (int)obex_transport_sock_handle_input(data->sock, self);
+	return obex_transport_sock_handle_input(data->sock, self);
 }
 
-static int inobex_write(obex_t *self, struct databuffer *msg)
+static ssize_t inobex_write(obex_t *self, struct databuffer *msg)
 {
 	struct obex_transport *trans = self->trans;
 	struct inobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return (int)obex_transport_sock_send(data->sock, msg,
-					     trans->timeout);
+	return obex_transport_sock_send(data->sock, msg, trans->timeout);
 }
 
-static int inobex_read(obex_t *self, void *buf, int buflen)
+static ssize_t inobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct inobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return (int)obex_transport_sock_recv(data->sock, buf, buflen);
+	return obex_transport_sock_recv(data->sock, buf, buflen);
 }
 
 static int inobex_get_fd(obex_t *self)

@@ -62,13 +62,13 @@ static void usbobex_cleanup (obex_t *self)
  *    Prepare for USB OBEX connect
  *
  */
-static int usbobex_select_interface(obex_t *self, obex_interface_t *intf)
+static bool usbobex_select_interface(obex_t *self, obex_interface_t *intf)
 {
 	struct usbobex_data *data = self->trans->data;
 
-	obex_return_val_if_fail(intf->usb.intf != NULL, -1);
+	obex_return_val_if_fail(intf->usb.intf != NULL, false);
 	data->self = *intf->usb.intf;
-	return 0;
+	return true;
 }
 
 /*
@@ -364,7 +364,7 @@ static void usbobex_free_interface(obex_interface_t *intf)
  *    Open the USB connection
  *
  */
-static int usbobex_connect_request(obex_t *self)
+static bool usbobex_connect_request(obex_t *self)
 {
 	struct obex_transport *trans = self->trans;
 	struct usbobex_data *data = self->trans->data;
@@ -405,7 +405,7 @@ static int usbobex_connect_request(obex_t *self)
 
 	trans->mtu = OBEX_MAXIMUM_MTU;
 	DEBUG(2, "transport mtu=%d\n", trans->mtu);
-	return 1;
+	return true;
 
 err3:
 	usb_release_interface(data->self.dev, data->self.data_interface);
@@ -413,7 +413,7 @@ err2:
 	usb_release_interface(data->self.dev, data->self.control_interface);
 err1:
 	usb_close(data->self.dev);
-	return ret;
+	return false;
 }
 
 /*
@@ -422,7 +422,7 @@ err1:
  *    Shutdown the USB link
  *
  */
-static int usbobex_disconnect(obex_t *self)
+static bool usbobex_disconnect(obex_t *self)
 {
 	struct obex_transport *trans = self->trans;
 	struct usbobex_data *data = self->trans->data;
@@ -440,20 +440,24 @@ static int usbobex_disconnect(obex_t *self)
 	if (ret < 0) {
 		DEBUG(4, "Can't set data idle setting %d", ret);
 	}
+
 	ret = usb_release_interface(data->self.dev, data->self.data_interface);
 	if (ret < 0) {
 		DEBUG(4, "Can't release data interface %d", ret);
 	}
+
 	ret = usb_release_interface(data->self.dev, data->self.control_interface);
 	if (ret < 0) {
 		DEBUG(4, "Can't release control interface %d", ret);
 	}
+
 	ret = usb_close(data->self.dev);
 	if (ret < 0) {
 		DEBUG(4, "Can't close interface %d", ret);
+		return false;
 	}
 
-	return ret;
+	return true;
 }
 
 static int usbobex_get_timeout(int timeout)
@@ -467,7 +471,7 @@ static int usbobex_get_timeout(int timeout)
 	return timeout*1000;
 }
 
-static int usbobex_write(obex_t *self, struct databuffer *msg)
+static ssize_t usbobex_write(obex_t *self, struct databuffer *msg)
 {
 	struct obex_transport *trans = self->trans;
 	struct usbobex_data *data = self->trans->data;
@@ -492,7 +496,7 @@ static int usbobex_write(obex_t *self, struct databuffer *msg)
 	return status;
 }
 
-static int usbobex_read(obex_t *self, void *buf, int buflen)
+static ssize_t usbobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct obex_transport *trans = self->trans;
 	struct usbobex_data *data = self->trans->data;
@@ -518,13 +522,15 @@ static int usbobex_read(obex_t *self, void *buf, int buflen)
 	return status;
 }
 
-static int usbobex_handle_input(obex_t *self)
+static result_t usbobex_handle_input(obex_t *self)
 {
-	int err = obex_transport_read(self, 0);
+	ssize_t err = obex_transport_read(self, 0);
 	if (err > 0)
 		return obex_data_indication(self);
+	else if (err == 0)
+		return RESULT_TIMEOUT;
 	else
-		return err;
+		return RESULT_ERROR;
 }
 
 static struct obex_transport_ops usbobex_transport_ops = {

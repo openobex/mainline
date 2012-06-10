@@ -56,17 +56,19 @@ struct irobex_data {
 	struct obex_sock *sock;
 };
 
-static int irobex_init (obex_t *self)
+static bool irobex_init (obex_t *self)
 {
 	struct irobex_data *data = self->trans->data;
 	socklen_t len = sizeof(struct sockaddr_irda);
 
 	data->sock = obex_transport_sock_create(AF_IRDA, 0,
 						len, self->init_flags);
-	if (data->sock == NULL)
+	if (data->sock == NULL) {
 		free(data);
+		return false;
+	}
 
-	return 0;
+	return true;
 }
 
 static void irobex_cleanup (obex_t *self)
@@ -84,7 +86,7 @@ static void irobex_cleanup (obex_t *self)
  *    Check if the address is not valid for connection
  *
  */
-static int irobex_no_addr(struct sockaddr_irda *addr)
+static bool irobex_no_addr(struct sockaddr_irda *addr)
 {
 #ifndef _WIN32
 	return ((addr->sir_addr == 0x0) || (addr->sir_addr == 0xFFFFFFFF));
@@ -100,7 +102,7 @@ static int irobex_no_addr(struct sockaddr_irda *addr)
 #endif /* _WIN32 */
 }
 
-static int irobex_query_ias(obex_t *self, uint32_t addr, const char* class_name)
+static bool irobex_query_ias(obex_t *self, uint32_t addr, const char* class_name)
 {
 	int err;
 	struct irda_ias_set ias_query;
@@ -123,7 +125,7 @@ static int irobex_query_ias(obex_t *self, uint32_t addr, const char* class_name)
 
 	fd = create_stream_socket(AF_IRDA, 0, OBEX_FL_CLOEXEC);
 	if (fd == INVALID_SOCKET)
-		return 0;
+		return false;
 	err = getsockopt(fd, SOL_IRLMP, IRLMP_IAS_QUERY, (void*)&ias_query, &len);
 	close_socket(fd);
 
@@ -134,7 +136,7 @@ static int irobex_query_ias(obex_t *self, uint32_t addr, const char* class_name)
 		} else {
 			DEBUG(1, " <can't query IAS>\n");
 		}
-		return 0;
+		return false;
 	}
 #else
 	if (err == -1) {
@@ -143,35 +145,29 @@ static int irobex_query_ias(obex_t *self, uint32_t addr, const char* class_name)
 		} else {
 			DEBUG(1, " <can't query IAS>\n");
 		}
-		return 0;
+		return false;
 	}
 #endif
 
 	DEBUG(1, ", has service %s\n", class_name);
-	return 1;
+	return true;
 }
 
-static int irobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
+static bool irobex_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
 	struct irobex_data *data = self->trans->data;
 
-	if (obex_transport_sock_set_local(data->sock, addr, len))
-		return 0;
-
-	return -1;
+	return obex_transport_sock_set_local(data->sock, addr, len);
 }
 
-static int irobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
+static bool irobex_set_remote_addr(obex_t *self, struct sockaddr *addr, size_t len)
 {
 	struct irobex_data *data = self->trans->data;
 
-	if (obex_transport_sock_set_remote(data->sock, addr, len))
-		return 0;
-
-	return -1;
+	return obex_transport_sock_set_remote(data->sock, addr, len);
 }
 
-static int irobex_select_interface(obex_t *self, obex_interface_t *intf)
+static bool irobex_select_interface(obex_t *self, obex_interface_t *intf)
 {
 	struct sockaddr_irda addr;
 
@@ -183,7 +179,8 @@ static int irobex_select_interface(obex_t *self, obex_interface_t *intf)
 #else
 	memset(addr.irdaDeviceID, 0, sizeof(addr.irdaDeviceID));
 #endif
-	irobex_set_local_addr(self, (struct sockaddr *)&addr, sizeof(addr));
+	if (!irobex_set_local_addr(self, (struct sockaddr *)&addr, sizeof(addr)))
+		return false;
 
 	/* remote address */
 	memset(&addr, 0, sizeof(addr));
@@ -198,9 +195,10 @@ static int irobex_select_interface(obex_t *self, obex_interface_t *intf)
 	addr.irdaDeviceID[2] = (intf->irda.remote >> 8) & 0xFF;
 	addr.irdaDeviceID[3] = intf->irda.remote & 0xFF;
 #endif
-	irobex_set_remote_addr(self, (struct sockaddr *)&addr, sizeof(addr));
+	if (!irobex_set_remote_addr(self, (struct sockaddr *)&addr, sizeof(addr)))
+		return false;
 
-	return 0;
+	return true;
 }
 
 /*
@@ -286,7 +284,7 @@ static bool set_listen_sock_opts(socket_t fd)
  *    Listen for incoming connections.
  *
  */
-static int irobex_listen(obex_t *self)
+static bool irobex_listen(obex_t *self)
 {
 	struct irobex_data *data = self->trans->data;
 
@@ -294,10 +292,7 @@ static int irobex_listen(obex_t *self)
 
 	data->sock->set_sock_opts = &set_listen_sock_opts;
 
-	if (obex_transport_sock_listen(data->sock) < 0)
-		return -1;
-	else
-		return 1;	
+	return obex_transport_sock_listen(data->sock);
 }
 
 static unsigned int irobex_get_mtu(socket_t fd)
@@ -328,7 +323,7 @@ static unsigned int irobex_get_mtu(socket_t fd)
  * Note : don't close the server socket here, so apps may want to continue
  * using it...
  */
-static int irobex_accept(obex_t *self, const obex_t *server)
+static bool irobex_accept(obex_t *self, const obex_t *server)
 {
 	socket_t fd;
 	struct irobex_data *server_data = server->trans->data;
@@ -340,12 +335,12 @@ static int irobex_accept(obex_t *self, const obex_t *server)
 						server->init_flags);
 	
 	if (data->sock == NULL)
-		return -1;
+		return false;
 
 	fd = obex_transport_sock_get_fd(data->sock);
 	self->trans->mtu = irobex_get_mtu(fd);
 
-	return 1;
+	return true;
 }
 
 /*
@@ -478,7 +473,7 @@ static void irobex_free_interface(obex_interface_t *intf)
  *    Open the TTP connection
  *
  */
-static int irobex_connect_request(obex_t *self)
+static bool irobex_connect_request(obex_t *self)
 {
 	socket_t fd;
 	struct irobex_data *data = self->trans->data;
@@ -487,15 +482,15 @@ static int irobex_connect_request(obex_t *self)
 
 	/* Check if the application did supply a valid address. */
 	if (irobex_no_addr((struct sockaddr_irda *)&data->sock->remote))
-		return -1;
+		return false;
 
 	if (obex_transport_sock_connect(data->sock) == -1)
-		return -1;
+		return false;
 
 	fd = obex_transport_sock_get_fd(data->sock);
 	self->trans->mtu = irobex_get_mtu(fd);
 
-	return 1;
+	return true;
 }
 
 /*
@@ -504,42 +499,41 @@ static int irobex_connect_request(obex_t *self)
  *    Shutdown the IrTTP link
  *
  */
-static int irobex_disconnect(obex_t *self)
+static bool irobex_disconnect(obex_t *self)
 {
 	struct irobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return obex_transport_sock_disconnect(data->sock)? 1: -1;
+	return obex_transport_sock_disconnect(data->sock);
 }
 
-static int irobex_handle_input(obex_t *self)
+static result_t irobex_handle_input(obex_t *self)
 {
 	struct irobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return (int)obex_transport_sock_handle_input(data->sock, self);
+	return obex_transport_sock_handle_input(data->sock, self);
 }
 
-static int irobex_write(obex_t *self, struct databuffer *msg)
+static ssize_t irobex_write(obex_t *self, struct databuffer *msg)
 {
 	struct obex_transport *trans = self->trans;
 	struct irobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return (int)obex_transport_sock_send(data->sock, msg,
-					     trans->timeout);
+	return obex_transport_sock_send(data->sock, msg, trans->timeout);
 }
 
-static int irobex_read(obex_t *self, void *buf, int buflen)
+static ssize_t irobex_read(obex_t *self, void *buf, int buflen)
 {
 	struct irobex_data *data = self->trans->data;
 
 	DEBUG(4, "\n");
 
-	return (int)obex_transport_sock_recv(data->sock, buf, buflen);
+	return obex_transport_sock_recv(data->sock, buf, buflen);
 }
 
 static int irobex_get_fd(obex_t *self)

@@ -254,8 +254,8 @@ static result_t obex_client_request_transmit_tx(obex_t *self)
 			   !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
 			/* Still, we need to do a zero-wait check for an
 			 * negative response or for connection errors. */
-			int check = obex_transport_handle_input(self, 0);
-			if (check <= 0) /* no input */
+			result_t check = obex_transport_handle_input(self, 0);
+			if (check != RESULT_SUCCESS) /* no input */
 				self->substate = SUBSTATE_RECEIVE_RX;
 			else
 				self->substate = SUBSTATE_PREPARE_TX;
