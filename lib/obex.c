@@ -1115,7 +1115,7 @@ int CALLAPI BtOBEX_TransportConnect(obex_t *self, const bt_addr_t *src,
 	\param self OBEX handle
 	\param rfd descriptor to read
 	\param wfd descriptor to write
-	\param mtu transport mtu: 0 - default
+	\param mtu (ignored)
 	\return -1 or negative error code on error
  */
 LIB_SYMBOL
@@ -1130,7 +1130,6 @@ int CALLAPI FdOBEX_TransportSetup(obex_t *self, int rfd, int wfd, int mtu)
 		return -EBUSY;
 	}
 	fdobex_set_fd(self, rfd, wfd);
-	self->trans->mtu = mtu ? mtu : self->mtu_tx_max;
 	return obex_transport_connect_request(self)? 1: -1;
 }
 

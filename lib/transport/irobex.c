@@ -316,8 +316,6 @@ static bool irobex_accept(obex_t *self, const obex_t *server)
 	if (data->sock == NULL)
 		return false;
 
-	self->trans->mtu = OBEX_DEFAULT_MTU;
-
 	return true;
 }
 
@@ -463,8 +461,6 @@ static bool irobex_connect_request(obex_t *self)
 
 	if (obex_transport_sock_connect(data->sock) == -1)
 		return false;
-
-	self->trans->mtu = OBEX_DEFAULT_MTU;
 
 	return true;
 }

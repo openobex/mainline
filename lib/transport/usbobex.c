@@ -366,7 +366,6 @@ static void usbobex_free_interface(obex_interface_t *intf)
  */
 static bool usbobex_connect_request(obex_t *self)
 {
-	struct obex_transport *trans = self->trans;
 	struct usbobex_data *data = self->trans->data;
 	int ret;
 
@@ -403,8 +402,6 @@ static bool usbobex_connect_request(obex_t *self)
 		goto err3;
 	}
 
-	trans->mtu = OBEX_MAXIMUM_MTU;
-	DEBUG(2, "transport mtu=%d\n", trans->mtu);
 	return true;
 
 err3:

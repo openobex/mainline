@@ -72,7 +72,6 @@ typedef struct obex_transport {
 
 	int timeout;		/* set timeout */
 	bool connected;		/* Link connection state */
-	unsigned int mtu;	/* Tx MTU of the link */
 
 } obex_transport_t;
 

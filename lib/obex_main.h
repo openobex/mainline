@@ -36,8 +36,8 @@ struct obex_object;
 #include "debug.h"
 
 struct obex {
-	uint16_t mtu_tx;			/* Maximum OBEX TX packet size */
-	uint16_t mtu_rx;			/* Maximum OBEX RX packet size */
+	uint16_t mtu_tx;		/* Maximum OBEX TX packet size */
+	uint16_t mtu_rx;		/* Maximum OBEX RX packet size */
 	uint16_t mtu_tx_max;		/* Maximum TX we can accept */
 
 	enum obex_state state;

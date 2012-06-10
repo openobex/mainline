@@ -94,8 +94,6 @@ static ssize_t fdobex_write(obex_t *self, buf_t *msg)
 	if (size == 0)
 		return 0;
 
-	if (size > trans->mtu)
-		size = trans->mtu;
 	DEBUG(1, "sending %lu bytes\n", (unsigned long)size);
 
 	FD_ZERO(&fdset);
