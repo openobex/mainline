@@ -32,7 +32,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
 
 #if defined(_WIN32)
 #include <io.h>

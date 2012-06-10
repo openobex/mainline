@@ -32,7 +32,6 @@
 /* Linux/FreeBSD/NetBSD case */
 
 #include <string.h>
-#include <errno.h>		/* errno and EADDRNOTAVAIL */
 #include <sys/socket.h>
 #endif /* _WIN32 */
 

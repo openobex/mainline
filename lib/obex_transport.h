@@ -79,7 +79,6 @@ typedef struct obex_transport {
 
 bool obex_transport_init(obex_t *self, int transport);
 void obex_transport_cleanup(obex_t *self);
-void obex_transport_split(obex_t *self, obex_t *server);
 
 bool obex_transport_accept(obex_t *self, const obex_t *server);
 result_t obex_transport_handle_input(struct obex *self, int timeout);

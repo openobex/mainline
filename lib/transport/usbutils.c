@@ -28,7 +28,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>		/* perror */
-#include <errno.h>		/* errno and EADDRNOTAVAIL */
 #include <stdlib.h>
 #include "obex_main.h"
 #include "usbobex.h"

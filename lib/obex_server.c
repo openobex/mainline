@@ -32,7 +32,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 
 static __inline enum obex_cmd msg_get_cmd(const obex_t *self)
 {
