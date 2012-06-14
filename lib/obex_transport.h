@@ -38,6 +38,7 @@ struct obex;
 struct databuffer;
 
 struct obex_transport_ops {
+	void * (*create)(void);
 	bool (*init)(obex_t*);
 	void (*cleanup)(obex_t*);
 
@@ -63,8 +64,7 @@ struct obex_transport_ops {
 	} client;
 };
 
-struct obex_transport * obex_transport_create(struct obex_transport_ops *ops,
-					      void *data);
+struct obex_transport * obex_transport_create(struct obex_transport_ops *ops);
 
 typedef struct obex_transport {
 	struct obex_transport_ops *ops;
@@ -72,12 +72,13 @@ typedef struct obex_transport {
 
 	int timeout;		/* set timeout */
 	bool connected;		/* Link connection state */
-
+	bool server;		/* Listens on local interface */
 } obex_transport_t;
 
 bool obex_transport_init(obex_t *self, int transport);
 void obex_transport_cleanup(obex_t *self);
 
+bool obex_transport_is_server(obex_t *self);
 bool obex_transport_accept(obex_t *self, const obex_t *server);
 result_t obex_transport_handle_input(struct obex *self, int timeout);
 bool obex_transport_connect_request(struct obex *self);

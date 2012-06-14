@@ -41,9 +41,17 @@ struct fdobex_data {
 	fd_t writefd; /* write descriptor */
 };
 
+static void * fdobex_create(void)
+{
+	return calloc(1, sizeof(struct fdobex_data));
+}
+
 static bool fdobex_init(obex_t *self)
 {
 	struct fdobex_data *data = self->trans->data;
+
+	if (data == NULL)
+		return false;
 
 	data->readfd = (fd_t)-1;
 	data->writefd = (fd_t)-1;
@@ -172,6 +180,7 @@ static int fdobex_get_fd(obex_t *self)
 }
 
 static struct obex_transport_ops fdobex_transport_ops = {
+	&fdobex_create,
 	&fdobex_init,
 	&fdobex_cleanup,
 
@@ -197,16 +206,7 @@ static struct obex_transport_ops fdobex_transport_ops = {
 	},
 };
 
-struct obex_transport * fdobex_transport_create(void) {
-	struct fdobex_data *data = calloc(1, sizeof(*data));
-	struct obex_transport *trans;
-
-	if (!data)
-		return NULL;
-
-	trans = obex_transport_create(&fdobex_transport_ops, data);
-	if (!trans)
-		free(data);
-
-	return trans;
+struct obex_transport * fdobex_transport_create(void)
+{
+	return obex_transport_create(&fdobex_transport_ops);
 }

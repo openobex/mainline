@@ -110,10 +110,18 @@ static void map_ip4to6(struct sockaddr_in *in, struct sockaddr_in6 *out)
 	}
 }
 
+static void * inobex_create(void)
+{
+	return calloc(1, sizeof(struct inobex_data));
+}
+
 static bool inobex_init (obex_t *self)
 {
 	struct inobex_data *data = self->trans->data;
 	socklen_t len = sizeof(struct sockaddr_in6);
+
+	if (data == NULL)
+		return false;
 
 	data->sock = obex_transport_sock_create(AF_INET6, 0,
 						len, self->init_flags);
@@ -278,13 +286,12 @@ static bool inobex_listen(obex_t *self)
 static bool inobex_accept(obex_t *self, const obex_t *server)
 {
 	struct inobex_data *server_data = server->trans->data;
-	struct inobex_data *data = calloc(1, sizeof(*data));
+	struct inobex_data *data = self->trans->data;
 
-	self->trans->data = data;
+	if (data == NULL)
+		return false;
 
-	data->sock = obex_transport_sock_accept(server_data->sock,
-						server->init_flags);
-	
+	data->sock = obex_transport_sock_accept(server_data->sock);
 	if (data->sock == NULL)
 		return false;
 
@@ -327,7 +334,7 @@ static result_t inobex_handle_input(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	return obex_transport_sock_handle_input(data->sock, self);
+	return obex_transport_sock_wait(data->sock, self->trans->timeout);
 }
 
 static ssize_t inobex_write(obex_t *self, struct databuffer *msg)
@@ -357,6 +364,7 @@ static int inobex_get_fd(obex_t *self)
 }
 
 static struct obex_transport_ops inobex_transport_ops = {
+	&inobex_create,
 	&inobex_init,
 	&inobex_cleanup,
 
@@ -382,16 +390,7 @@ static struct obex_transport_ops inobex_transport_ops = {
 	},
 };
 
-struct obex_transport * inobex_transport_create(void) {
-	struct inobex_data *data = calloc(1, sizeof(*data));
-	struct obex_transport *trans;
-
-	if (!data)
-		return NULL;
-
-	trans = obex_transport_create(&inobex_transport_ops, data);
-	if (!trans)
-		free(data);
-
-	return trans;
+struct obex_transport * inobex_transport_create(void)
+{
+	return obex_transport_create(&inobex_transport_ops);
 }

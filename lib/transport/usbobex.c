@@ -49,6 +49,11 @@
 #include "usbutils.h"
 #include "databuffer.h"
 
+static void * usbobex_create (void)
+{
+	return calloc(1, sizeof(struct usbobex_data));
+}
+
 static void usbobex_cleanup (obex_t *self)
 {
 	struct usbobex_data *data = self->trans->data;
@@ -513,7 +518,7 @@ static result_t usbobex_handle_input(obex_t *self)
 {
 	ssize_t err = obex_transport_read(self, 0);
 	if (err > 0)
-		return obex_data_indication(self);
+		return RESULT_SUCCESS;
 	else if (err == 0)
 		return RESULT_TIMEOUT;
 	else
@@ -521,6 +526,7 @@ static result_t usbobex_handle_input(obex_t *self)
 }
 
 static struct obex_transport_ops usbobex_transport_ops = {
+	&usbobex_create,
 	NULL,
 	&usbobex_cleanup,
 
@@ -546,17 +552,8 @@ static struct obex_transport_ops usbobex_transport_ops = {
 	},
 };
 
-struct obex_transport * usbobex_transport_create(void) {
-	struct usbobex_data *data = calloc(1, sizeof(*data));
-	struct obex_transport *trans;
-
-	if (!data)
-		return NULL;
-
-	trans = obex_transport_create(&usbobex_transport_ops, data);
-	if (!trans)
-		free(data);
-
-	return trans;
+struct obex_transport * usbobex_transport_create(void)
+{
+	return obex_transport_create(&usbobex_transport_ops);
 }
 #endif /* HAVE_USB */

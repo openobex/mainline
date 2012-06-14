@@ -50,8 +50,7 @@
 #include "transport/customtrans.h"
 #include "transport/fdobex.h"
 
-struct obex_transport * obex_transport_create(struct obex_transport_ops *ops,
-					      void *data)
+struct obex_transport * obex_transport_create(struct obex_transport_ops *ops)
 {
 	struct obex_transport *trans = calloc(1, sizeof(*trans));
 
@@ -59,10 +58,13 @@ struct obex_transport * obex_transport_create(struct obex_transport_ops *ops,
 		return NULL;
 
 	trans->ops = ops;
-	trans->data = data;
+	trans->data = NULL;
+	if (ops->create)
+		trans->data = ops->create();
 
 	trans->timeout = -1; /* no time-out */
 	trans->connected = false;
+	trans->server = false;
 
 	return trans;
 }
@@ -125,6 +127,11 @@ void obex_transport_cleanup(obex_t *self)
 		self->trans->ops->cleanup(self);
 }
 
+bool obex_transport_is_server(obex_t *self)
+{
+	return self->trans->server;
+}
+
 /*
  * Function obex_transport_accept(self)
  *
@@ -135,8 +142,10 @@ bool obex_transport_accept(obex_t *self, const obex_t *server)
 {
 	DEBUG(4, "\n");
 
-	self->trans = obex_transport_create(server->trans->ops, NULL);
+	if (self != server)
+		self->trans = obex_transport_create(server->trans->ops);
 
+	self->trans->server = false;
 	if (self->trans->ops->server.accept)
 		self->trans->connected =
 			self->trans->ops->server.accept(self, server);
@@ -234,9 +243,9 @@ void obex_transport_disconnect(obex_t *self)
 bool obex_transport_listen(obex_t *self)
 {
 	if (self->trans->ops->server.listen)
-		return self->trans->ops->server.listen(self);
+		self->trans->server = self->trans->ops->server.listen(self);
 
-	return false;
+	return self->trans->server;
 }
 
 /*

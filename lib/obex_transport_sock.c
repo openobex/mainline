@@ -112,6 +112,7 @@ struct obex_sock * obex_transport_sock_create(int domain, int proto,
 					      unsigned int flags)
 {
 	struct obex_sock *sock = calloc(1, sizeof(*sock));
+#define SAVE_FLAGS (OBEX_FL_CLOEXEC | OBEX_FL_NONBLOCK | OBEX_FL_KEEPSERVER)
 
 	DEBUG(4, "\n");
 
@@ -121,7 +122,7 @@ struct obex_sock * obex_transport_sock_create(int domain, int proto,
 	sock->domain = domain;
 	sock->proto = proto;
 	sock->addr_size = addr_size;
-	sock->flags = flags & (OBEX_FL_CLOEXEC | OBEX_FL_NONBLOCK);
+	sock->flags = flags & SAVE_FLAGS;
 	sock->fd = INVALID_SOCKET;
 
 	return sock;
@@ -309,7 +310,6 @@ bool obex_transport_sock_listen(struct obex_sock *sock)
 	}
 
 	DEBUG(4, "We are now listening for connections\n");
-	sock->is_server = true;
 	return true;
 
 err:
@@ -317,47 +317,23 @@ err:
 	return false;
 }
 
-bool obex_transport_sock_is_server(struct obex_sock *sock)
-{
-	return sock->is_server;
-}
-
-static bool accept_client(struct obex_sock *sock, socket_t serverfd)
-{
-	struct sockaddr *addr = (struct sockaddr *) &sock->remote;
-	socklen_t socklen = sock->addr_size;
-	unsigned int flags = sock->flags;
-
-	if (flags & OBEX_FL_CLOEXEC)
-		sock->fd = accept_cloexec(serverfd, addr, &socklen);
-	else
-		sock->fd = accept(serverfd, addr, &socklen);
-
-	if (sock->fd == INVALID_SOCKET)
-		return false;
-
-	if (getsockname(sock->fd, (struct sockaddr *)&sock->local,
-			&socklen) == -1)
-	{
-		obex_transport_sock_disconnect(sock);
-		return false;
-	}
-
-	if (flags & OBEX_FL_NONBLOCK)
-		socket_set_nonblocking(sock->fd);
-
-	return true;
-}
-
 /** Accept an incoming client connection
  *
  * @param sock the server socket instance
  * @return the client socket instance
  */
-struct obex_sock * obex_transport_sock_accept(struct obex_sock *sock,
-					      unsigned int flags)
+struct obex_sock * obex_transport_sock_accept(struct obex_sock *sock)
 {
-	struct obex_sock *client = calloc(1, sizeof(*sock));
+	socket_t serverfd = sock->fd;
+	unsigned int flags = sock->flags;
+	socklen_t socklen = sock->addr_size;
+	struct obex_sock *client;
+	struct sockaddr *addr;
+
+	if (flags & OBEX_FL_KEEPSERVER)
+		client = calloc(1, sizeof(*sock));
+	else
+		client = sock;
 
 	if (client == NULL)
 		return NULL;
@@ -365,14 +341,36 @@ struct obex_sock * obex_transport_sock_accept(struct obex_sock *sock,
 	client->fd = INVALID_SOCKET;
 	client->addr_size = sock->addr_size;
 	client->flags = sock->flags;
+	addr = (struct sockaddr *) &client->remote;
 
-	// Accept the connection and get the new client socket.
-	if (!accept_client(client, sock->fd)) {
-		free(client);
-		client = NULL;
+	// Accept the connection: get socket for the new client
+	if (flags & OBEX_FL_CLOEXEC)
+		client->fd = accept_cloexec(serverfd, addr, &socklen);
+	else
+		client->fd = accept(serverfd, addr, &socklen);
+
+	if (client->fd == INVALID_SOCKET)
+		goto err_out;
+
+	if (getsockname(client->fd, (struct sockaddr *)&client->local, &socklen)
+	    == -1)
+	{
+		obex_transport_sock_disconnect(client);
+		goto err_out;
 	}
 
+	if (flags & OBEX_FL_NONBLOCK)
+		socket_set_nonblocking(client->fd);
+
+	if (client == sock)
+		(void)close_socket(serverfd);
+
 	return client;
+
+err_out:
+	if (client != sock)
+		free(client);
+	return NULL;
 }
 
 /** Wait for incoming data/events
@@ -440,38 +438,4 @@ ssize_t obex_transport_sock_recv(struct obex_sock *sock, void *buf, int buflen)
 #endif
 
 	return status;
-}
-
-
-result_t obex_transport_sock_handle_input(struct obex_sock *sock, obex_t *self)
-{
-	result_t ret = obex_transport_sock_wait(sock, self->trans->timeout);
-
-	if (ret != RESULT_SUCCESS)
-		return ret;
-
-	if (obex_transport_sock_is_server(sock)) {
-		DEBUG(4, "Data available on server socket\n");
-		if (self->init_flags & OBEX_FL_KEEPSERVER)
-			/* Tell the app to perform the OBEX_Accept() */
-			obex_deliver_event(self, OBEX_EV_ACCEPTHINT, 0, 0, FALSE);
-
-		else {
-			int fd = sock->fd;
-			
-			if (!accept_client(sock, fd)) {
-				sock->fd = fd;
-				return RESULT_ERROR;
-			}
-
-			close_socket(fd);
-			sock->is_server = true;
-		}
-
-		return RESULT_SUCCESS;
-
-	} else {
-		DEBUG(4, "Data available on client socket\n");
-		return obex_data_indication(self);
-	}
 }

@@ -207,6 +207,30 @@ static result_t obex_mode(obex_t *self)
 	}
 }
 
+result_t obex_handle_input(obex_t *self, int timeout)
+{
+	result_t ret = obex_transport_handle_input(self, timeout);
+
+	if (ret != RESULT_SUCCESS)
+		return ret;
+
+	if (obex_transport_is_server(self)) {
+		DEBUG(4, "Data available on server socket\n");
+		if (self->init_flags & OBEX_FL_KEEPSERVER)
+			/* Tell the app to perform the OBEX_Accept() */
+			obex_deliver_event(self, OBEX_EV_ACCEPTHINT, 0, 0, FALSE);
+
+		else
+			obex_transport_accept(self, self);
+
+		return RESULT_SUCCESS;
+
+	} else {
+		DEBUG(4, "Data available on client socket\n");
+		return obex_data_indication(self);
+	}
+}
+
 /*
  * Function obex_work (self, timeout)
  *
@@ -218,7 +242,7 @@ result_t obex_work(obex_t *self, int timeout)
 	if (self->state == STATE_IDLE ||
 	    self->substate == SUBSTATE_RECEIVE_RX)
 	{
-		result_t ret = obex_transport_handle_input(self, timeout);
+		result_t ret = obex_handle_input(self, timeout);
 		if (ret != RESULT_SUCCESS)
 			return ret;
 	}

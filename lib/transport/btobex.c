@@ -52,10 +52,18 @@ struct btobex_rfcomm_data {
 	struct obex_sock *sock;
 };
 
+static void * btobex_create(void)
+{
+	return calloc(1, sizeof(struct btobex_rfcomm_data));
+}
+
 static bool btobex_init(obex_t *self)
 {
 	struct btobex_rfcomm_data *data = self->trans->data;
 	socklen_t len = sizeof(struct sockaddr_rc);
+
+	if (data == NULL)
+		return false;
 
 	data->sock = obex_transport_sock_create(AF_BLUETOOTH, BTPROTO_RFCOMM,
 						len, self->init_flags);
@@ -160,13 +168,12 @@ static bool btobex_listen(obex_t *self)
 static bool btobex_accept(obex_t *self, const obex_t *server)
 {
 	struct btobex_rfcomm_data *server_data = server->trans->data;
-	struct btobex_rfcomm_data *data = calloc(1, sizeof(*data));
+	struct btobex_rfcomm_data *data = self->trans->data;
 
-	self->trans->data = data;
+	if (data == NULL)
+		return false;
 
-	data->sock = obex_transport_sock_accept(server_data->sock,
-						server->init_flags);
-	
+	data->sock = obex_transport_sock_accept(server_data->sock);
 	if (data->sock == NULL)
 		return false;
 
@@ -212,7 +219,7 @@ static result_t btobex_handle_input(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	return obex_transport_sock_handle_input(data->sock, self);
+	return obex_transport_sock_wait(data->sock, self->trans->timeout);
 }
 
 static ssize_t btobex_write(obex_t *self, struct databuffer *msg)
@@ -242,6 +249,7 @@ static int btobex_get_fd(obex_t *self)
 }
 
 static struct obex_transport_ops btobex_transport_ops = {
+	&btobex_create,
 	&btobex_init,
 	&btobex_cleanup,
 
@@ -267,18 +275,9 @@ static struct obex_transport_ops btobex_transport_ops = {
 	},
 };
 
-struct obex_transport * btobex_transport_create(void) {
-	struct btobex_rfcomm_data *data = calloc(1, sizeof(*data));
-	struct obex_transport *trans;
-
-	if (!data)
-		return NULL;
-
-	trans = obex_transport_create(&btobex_transport_ops, data);
-	if (!trans)
-		free(data);
-
-	return trans;
+struct obex_transport * btobex_transport_create(void)
+{
+	return obex_transport_create(&btobex_transport_ops);
 }
 
 #endif /* HAVE_BLUETOOTH */

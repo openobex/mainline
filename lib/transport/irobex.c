@@ -56,10 +56,18 @@ struct irobex_data {
 	struct obex_sock *sock;
 };
 
+static void * irobex_create(void)
+{
+	return calloc(1, sizeof(struct irobex_data));
+}
+
 static bool irobex_init (obex_t *self)
 {
 	struct irobex_data *data = self->trans->data;
 	socklen_t len = sizeof(struct sockaddr_irda);
+
+	if (data == NULL)
+		return false;
 
 	data->sock = obex_transport_sock_create(AF_IRDA, 0,
 						len, self->init_flags);
@@ -306,13 +314,12 @@ static bool irobex_listen(obex_t *self)
 static bool irobex_accept(obex_t *self, const obex_t *server)
 {
 	struct irobex_data *server_data = server->trans->data;
-	struct irobex_data *data = calloc(1, sizeof(*data));
+	struct irobex_data *data = self->trans->data;
 
-	self->trans->data = data;
+	if (data == NULL)
+		return false;
 
-	data->sock = obex_transport_sock_accept(server_data->sock,
-						server->init_flags);
-	
+	data->sock = obex_transport_sock_accept(server_data->sock);
 	if (data->sock == NULL)
 		return false;
 
@@ -486,7 +493,7 @@ static result_t irobex_handle_input(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	return obex_transport_sock_handle_input(data->sock, self);
+	return obex_transport_sock_wait(data->sock, self->trans->timeout);
 }
 
 static ssize_t irobex_write(obex_t *self, struct databuffer *msg)
@@ -516,6 +523,7 @@ static int irobex_get_fd(obex_t *self)
 }
 
 static struct obex_transport_ops irobex_transport_ops = {
+	&irobex_create,
 	&irobex_init,
 	&irobex_cleanup,
 
@@ -539,16 +547,7 @@ static struct obex_transport_ops irobex_transport_ops = {
 	},
 };
 
-struct obex_transport * irobex_transport_create(void) {
-	struct irobex_data *data = calloc(1, sizeof(*data));
-	struct obex_transport *trans;
-
-	if (!data)
-		return NULL;
-
-	trans = obex_transport_create(&irobex_transport_ops, data);
-	if (!trans)
-		free(data);
-
-	return trans;
+struct obex_transport * irobex_transport_create(void)
+{
+	return obex_transport_create(&irobex_transport_ops);
 }

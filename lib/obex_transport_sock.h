@@ -51,8 +51,6 @@ struct obex_sock {
 	socklen_t addr_size;
 	/** socket OBEX_FL_* flags */
 	unsigned int flags;
-	/** listen() was called on #fd */
-	bool is_server;
 	/** callback to set transport-specific socket options */
 	bool (*set_sock_opts)(socket_t);
 };
@@ -76,8 +74,7 @@ bool obex_transport_sock_set_remote(struct obex_sock *sock,
 
 bool obex_transport_sock_connect(struct obex_sock *sock);
 bool obex_transport_sock_listen(struct obex_sock *sock);
-struct obex_sock * obex_transport_sock_accept(struct obex_sock *sock,
-					      unsigned int flags);
+struct obex_sock * obex_transport_sock_accept(struct obex_sock *sock);
 bool obex_transport_sock_disconnect(struct obex_sock *sock);
 
 ssize_t obex_transport_sock_send(struct obex_sock *sock, struct databuffer *msg,
@@ -86,7 +83,5 @@ result_t obex_transport_sock_wait(struct obex_sock *sock, int timeout);
 ssize_t obex_transport_sock_recv(struct obex_sock *sock, void *buf, int buflen);
 
 result_t obex_transport_sock_handle_input(struct obex_sock *sock, obex_t *self);
-
-bool obex_transport_sock_is_server(struct obex_sock *sock);
 
 #endif /* OBEX_TRANSPORT_SOCK_H */
