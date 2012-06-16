@@ -166,6 +166,14 @@ link_directories ( "${CMAKE_CURRENT_BINARY_DIR}/lib" )
 if ( BUILD_SHARED_LIBS )
   add_definitions ( -DOPENOBEX_DLL )
 endif ( BUILD_SHARED_LIBS )
+option ( EXPORT_PACKAGE "Register build directory for find_package" OFF )
+if ( EXPORT_PACKAGE )
+  export ( PACKAGE OpenObex )
+endif ( EXPORT_PACKAGE )
+
+#
+# build udev support 
+#
 add_subdirectory ( udev )
 
 #

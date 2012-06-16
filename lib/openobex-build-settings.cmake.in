@@ -1,0 +1,1 @@
+set(OpenObex_SOURCE_DIR "@PROJECT_SOURCE_DIR@")

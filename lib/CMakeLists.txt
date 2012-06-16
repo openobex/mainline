@@ -210,29 +210,62 @@ set_property ( TARGET openobex PROPERTY
 
 install ( TARGETS openobex
   EXPORT openobex-target
-  RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openobex
-  COMPONENT library
+  RUNTIME
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT library
+  LIBRARY
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT library
+  ARCHIVE
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT devel
+  PUBLIC_HEADER
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openobex
+    COMPONENT devel
 )
 
 #
 # Create the openobex-config file for the build tree
 #
-export ( TARGETS openobex FILE ${PROJECT_BINARY_DIR}/openobex-build.cmake )
+export ( TARGETS openobex
+  FILE ${CMAKE_CURRENT_BINARY_DIR}/openobex-build.cmake
+)
+configure_file (
+  ${CMAKE_CURRENT_SOURCE_DIR}/openobex-build-settings.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/openobex-build-settings.cmake
+  @ONLY
+)
 
 #
 # Create and copy the openobex-config.cmake files for the installed copy
 #
-install ( EXPORT openobex-target
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OpenObex-${openobex_VERSION}
-  COMPONENT library
+set ( CMAKE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/OpenObex-${openobex_VERSION}
+      CACHE PATH "Where to install the cmake config files" )
+
+file(RELATIVE_PATH CMAKE_INSTALL_REL_INCLUDEDIR
+  ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/OpenObex
+  ${CMAKE_INSTALL_FULL_INCLUDEDIR}
+)
+configure_file (
+  ${PROJECT_SOURCE_DIR}/openobex-config.cmake.in
+  ${PROJECT_BINARY_DIR}/openobex-config.cmake
+  @ONLY
+)
+configure_file (
+  ${PROJECT_SOURCE_DIR}/openobex-config-version.cmake.in
+  ${PROJECT_BINARY_DIR}/openobex-config-version.cmake
+  @ONLY
 )
 
-install ( FILES ${PROJECT_SOURCE_DIR}/openobex-config.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OpenObex-${openobex_VERSION}
-  COMPONENT library
+install ( FILES
+  ${PROJECT_BINARY_DIR}/openobex-config.cmake
+  ${PROJECT_BINARY_DIR}/openobex-config-version.cmake
+  DESTINATION ${CMAKE_INSTALL_CMAKEDIR}
+  COMPONENT devel
+)
+install ( EXPORT openobex-target
+  DESTINATION ${CMAKE_INSTALL_CMAKEDIR}
+  COMPONENT devel
 )
 
 #
@@ -246,6 +279,7 @@ add_custom_command ( TARGET openobex
 )
 install ( FILES ${CMAKE_CURRENT_BINARY_DIR}/openobex.pc
   DESTINATION ${PKGCONFIG_INSTALL_DIR}
+  COMPONENT devel
   OPTIONAL
 )
 
@@ -253,4 +287,3 @@ install ( FILES ${CMAKE_CURRENT_BINARY_DIR}/openobex.pc
 #  include ( GetPrerequisites )
 #  get_prerequisites ( openobex CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS 0 1 )
 include ( InstallRequiredSystemLibraries )
-
