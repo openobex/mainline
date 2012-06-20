@@ -38,6 +38,7 @@
 #include <stdio.h>
 
 #endif /* _WIN32 */
+#include <errno.h>
 
 #include "obex_main.h"
 #include "obex_transport.h"
@@ -93,26 +94,13 @@ obex_t * obex_create(obex_event_t eventcb, unsigned int flags)
 	/* Safe values.
 	 * Both self->mtu_rx and self->mtu_tx_max can be increased by app
 	 * self->mtu_tx will be whatever the other end sends us - Jean II */
-	self->mtu_rx = OBEX_DEFAULT_MTU;
 	self->mtu_tx = OBEX_MINIMUM_MTU;
-	self->mtu_tx_max = OBEX_DEFAULT_MTU;
-
-	/* Allocate message buffers */
-	/* It's safe to allocate them smaller than OBEX_MAXIMUM_MTU
-	 * because buf_t will realloc data as needed. - Jean II */
-	self->rx_msg = membuf_create(self->mtu_rx);
-	if (self->rx_msg == NULL)
-		goto out_err;
-
-	self->tx_msg = membuf_create(self->mtu_tx_max);
-	if (self->tx_msg == NULL)
-		goto out_err;
+	if (obex_set_mtu(self, OBEX_DEFAULT_MTU, OBEX_DEFAULT_MTU)) {
+		obex_destroy(self);
+		self = NULL;
+	}
 
 	return self;
-
-out_err:
-	obex_destroy(self);
-	return NULL;
 }
 
 void obex_destroy(obex_t *self)
@@ -129,6 +117,36 @@ void obex_destroy(obex_t *self)
 	obex_transport_free_interfaces(self);
 
 	free(self);
+}
+
+int obex_set_mtu(obex_t *self, uint16_t mtu_rx, uint16_t mtu_tx_max)
+{
+	if (mtu_rx < OBEX_MINIMUM_MTU /*|| mtu_rx > OBEX_MAXIMUM_MTU*/)
+		return -E2BIG;
+
+	if (mtu_tx_max < OBEX_MINIMUM_MTU /*|| mtu_tx_max > OBEX_MAXIMUM_MTU*/)
+		return -E2BIG;
+
+	/* Change MTUs */
+	self->mtu_rx = mtu_rx;
+	self->mtu_tx_max = mtu_tx_max;
+
+	/* (Re)Allocate transport buffers */
+	if (self->rx_msg)
+		buf_set_size(self->rx_msg, self->mtu_rx);
+	else
+		self->rx_msg = membuf_create(self->mtu_rx);		
+	if (self->rx_msg == NULL)
+		return -ENOMEM;
+
+	if (self->tx_msg)
+		buf_set_size(self->tx_msg, self->mtu_tx_max);
+	else
+		self->tx_msg = membuf_create(self->mtu_tx_max);
+	if (self->tx_msg == NULL)
+		return -ENOMEM;
+
+	return 0;
 }
 
 /*

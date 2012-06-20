@@ -203,24 +203,7 @@ int CALLAPI OBEX_SetTransportMTU(obex_t *self, uint16_t mtu_rx,
 		return -EBUSY;
 	}
 
-	if (mtu_rx < OBEX_MINIMUM_MTU /*|| mtu_rx > OBEX_MAXIMUM_MTU*/)
-		return -E2BIG;
-
-	if (mtu_tx_max < OBEX_MINIMUM_MTU /*|| mtu_tx_max > OBEX_MAXIMUM_MTU*/)
-		return -E2BIG;
-
-	/* Change MTUs */
-	self->mtu_rx = mtu_rx;
-	self->mtu_tx_max = mtu_tx_max;
-	/* Reallocate transport buffers */
-	buf_set_size(self->rx_msg, self->mtu_rx);
-	if (self->rx_msg == NULL)
-		return -ENOMEM;
-	buf_set_size(self->tx_msg, self->mtu_tx_max);
-	if (self->tx_msg == NULL)
-		return -ENOMEM;
-
-	return 0;
+	return obex_set_mtu(self, mtu_rx, mtu_tx_max);
 }
 
 /**
@@ -273,7 +256,6 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 								void *data)
 {
 	obex_t *self;
-	int err;
 
 	DEBUG(3, "\n");
 
@@ -298,15 +280,8 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 	if (!obex_transport_accept(self, server))
 		goto out_err;
 
-	self->mtu_rx = server->mtu_rx;
 	self->mtu_tx = server->mtu_tx;
-	self->mtu_tx_max = server->mtu_tx_max;
-
-	/* Allocate message buffers */
-	err = buf_set_size(self->rx_msg, self->mtu_rx);
-	if (!err)
-		err = buf_set_size(self->tx_msg, self->mtu_tx_max);
-	if (err)
+	if (obex_set_mtu(self, server->mtu_rx, server->mtu_tx_max))
 		goto out_err;
 
 	self->mode = OBEX_MODE_SERVER;
