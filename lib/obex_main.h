@@ -35,6 +35,8 @@ struct obex_object;
 #include "defines.h"
 #include "debug.h"
 
+void obex_library_init(void);
+
 struct obex {
 	uint16_t mtu_tx;		/* Maximum OBEX TX packet size */
 	uint16_t mtu_rx;		/* Maximum OBEX RX packet size */
@@ -61,6 +63,9 @@ struct obex {
 
 	void * userdata;		/* For user */
 };
+
+obex_t * obex_create(obex_event_t eventcb, unsigned int flags);
+void obex_destroy(obex_t *self);
 
 /* Common header used by all frames */
 #pragma pack(1)

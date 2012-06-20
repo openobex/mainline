@@ -310,6 +310,29 @@ void obex_transport_enumerate(struct obex *self)
 	self->interfaces_number = i;
 }
 
+void obex_transport_free_interfaces(struct obex *self)
+{
+	int i, interfaces_number;
+
+	DEBUG(4, "\n");
+
+	interfaces_number = self->interfaces_number;
+	self->interfaces_number = 0;
+
+	if (self->interfaces == NULL)
+		return;
+
+	if (self->trans->ops->client.free_interface == NULL)
+		goto done;
+
+	for (i = 0; i < interfaces_number; i++)
+		self->trans->ops->client.free_interface(&self->interfaces[i]);
+
+done:
+	free(self->interfaces);
+	self->interfaces = NULL;
+}
+
 int obex_transport_get_fd(struct obex *self)
 {
 	struct obex_transport_ops *ops = self->trans->ops;

@@ -87,65 +87,17 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb,
 							unsigned int flags)
 {
 	obex_t *self;
-	char *env;
-
-#if OBEX_DEBUG
-	obex_debug = OBEX_DEBUG;
-#else
-	obex_debug = -1;
-#endif
-#if OBEX_DUMP
-	obex_dump = OBEX_DUMP;
-#else
-	obex_dump = 0;
-#endif
-
-	env = getenv("OBEX_DEBUG");
-	if (env)
-		obex_debug = atoi(env);
-
-	env = getenv("OBEX_DUMP");
-	if (env)
-		obex_dump = atoi(env);
 
 	obex_return_val_if_fail(eventcb != NULL, NULL);
 
-	self = calloc(1, sizeof(*self));
-	if (self == NULL)
-		return NULL;
-
-	self->eventcb = eventcb;
-	self->init_flags = flags;
-	self->mode = OBEX_MODE_SERVER;
-	self->state = STATE_IDLE;
-	self->rsp_mode = OBEX_RSP_MODE_NORMAL;
-
-	/* Safe values.
-	 * Both self->mtu_rx and self->mtu_tx_max can be increased by app
-	 * self->mtu_tx will be whatever the other end sends us - Jean II */
-	self->mtu_rx = OBEX_DEFAULT_MTU;
-	self->mtu_tx = OBEX_MINIMUM_MTU;
-	self->mtu_tx_max = OBEX_DEFAULT_MTU;
-
-	if (obex_transport_init(self, transport) < 0)
-		goto out_err;
-
-	/* Allocate message buffers */
-	/* It's safe to allocate them smaller than OBEX_MAXIMUM_MTU
-	 * because buf_t will realloc data as needed. - Jean II */
-	self->rx_msg = membuf_create(self->mtu_rx);
-	if (self->rx_msg == NULL)
-		goto out_err;
-
-	self->tx_msg = membuf_create(self->mtu_tx_max);
-	if (self->tx_msg == NULL)
-		goto out_err;
+	obex_library_init();
+	self = obex_create(eventcb, flags);
+	if (obex_transport_init(self, transport) < 0) {
+		obex_destroy(self);
+		self = NULL;
+	}
 
 	return self;
-
-out_err:
-	OBEX_Cleanup(self);
-	return NULL;
 }
 
 /**
@@ -179,17 +131,7 @@ void CALLAPI OBEX_Cleanup(obex_t *self)
 {
 	obex_return_if_fail(self != NULL);
 
-	obex_transport_cleanup(self);
-
-	if (self->tx_msg)
-		buf_delete(self->tx_msg);
-
-	if (self->rx_msg)
-		buf_delete(self->rx_msg);
-
-	OBEX_FreeInterfaces(self);
-
-	free(self);
+	obex_destroy(self);
 }
 
 /**
@@ -331,6 +273,7 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 								void *data)
 {
 	obex_t *self;
+	int err;
 
 	DEBUG(3, "\n");
 
@@ -340,21 +283,18 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 	if (server->object != NULL)
 		return NULL;
 
-	/* Allocate new instance */
-	self = calloc(1, sizeof(*self));
-	if (self == NULL)
-		return NULL;
-
 	/* Set callback and callback data as needed */
 	if (eventcb == NULL)
 		eventcb = server->eventcb;
 	if (data == NULL)
 		data = server->userdata;
 
-	self->eventcb = eventcb;
-	self->userdata = data;
-	self->init_flags = server->init_flags;
+	/* Allocate new instance */
+	self = obex_create(eventcb, server->init_flags);
+	if (self == NULL)
+		return NULL;
 
+	self->userdata = data;
 	if (!obex_transport_accept(self, server))
 		goto out_err;
 
@@ -363,13 +303,10 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 	self->mtu_tx_max = server->mtu_tx_max;
 
 	/* Allocate message buffers */
-	self->rx_msg = membuf_create(self->mtu_rx);
-	if (self->rx_msg == NULL)
-		goto out_err;
-
-	/* Note : mtu_tx not yet negociated, so let's be safe here - Jean II */
-	self->tx_msg = membuf_create(self->mtu_tx_max);
-	if (self->tx_msg == NULL)
+	err = buf_set_size(self->rx_msg, self->mtu_rx);
+	if (!err)
+		err = buf_set_size(self->tx_msg, self->mtu_tx_max);
+	if (err)
 		goto out_err;
 
 	self->mode = OBEX_MODE_SERVER;
@@ -379,11 +316,7 @@ obex_t *CALLAPI OBEX_ServerAccept(obex_t *server, obex_event_t eventcb,
 	return self;
 
 out_err:
-	if (self->tx_msg != NULL)
-		buf_delete(self->tx_msg);
-	if (self->rx_msg != NULL)
-		buf_delete(self->rx_msg);
-	free(self);
+	obex_destroy(self);
 	return NULL;
 }
 
@@ -1209,25 +1142,7 @@ obex_interface_t * CALLAPI OBEX_GetInterfaceByIndex(obex_t *self, int i)
 LIB_SYMBOL
 void CALLAPI OBEX_FreeInterfaces(obex_t *self)
 {
-	int i, interfaces_number;
-
-	DEBUG(4, "\n");
-
 	obex_return_if_fail(self != NULL);
 
-	interfaces_number = self->interfaces_number;
-	self->interfaces_number = 0;
-
-	if (self->interfaces == NULL)
-		return;
-
-	if (self->trans->ops->client.free_interface == NULL)
-		goto done;
-
-	for (i = 0; i < interfaces_number; i++)
-		self->trans->ops->client.free_interface(&self->interfaces[i]);
-
-done:
-	free(self->interfaces);
-	self->interfaces = NULL;
+	obex_transport_free_interfaces(self);
 }

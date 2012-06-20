@@ -53,6 +53,84 @@
 int obex_debug;
 int obex_dump;
 
+void obex_library_init(void)
+{
+	char *env;
+
+#if OBEX_DEBUG
+	obex_debug = OBEX_DEBUG;
+#else
+	obex_debug = -1;
+#endif
+	env = getenv("OBEX_DEBUG");
+	if (env)
+		obex_debug = atoi(env);
+
+#if OBEX_DUMP
+	obex_dump = OBEX_DUMP;
+#else
+	obex_dump = 0;
+#endif
+	env = getenv("OBEX_DUMP");
+	if (env)
+		obex_dump = atoi(env);
+}
+
+obex_t * obex_create(obex_event_t eventcb, unsigned int flags)
+{
+	obex_t *self;
+
+	self = calloc(1, sizeof(*self));
+	if (self == NULL)
+		return NULL;
+
+	self->eventcb = eventcb;
+	self->init_flags = flags;
+	self->mode = OBEX_MODE_SERVER;
+	self->state = STATE_IDLE;
+	self->rsp_mode = OBEX_RSP_MODE_NORMAL;
+
+	/* Safe values.
+	 * Both self->mtu_rx and self->mtu_tx_max can be increased by app
+	 * self->mtu_tx will be whatever the other end sends us - Jean II */
+	self->mtu_rx = OBEX_DEFAULT_MTU;
+	self->mtu_tx = OBEX_MINIMUM_MTU;
+	self->mtu_tx_max = OBEX_DEFAULT_MTU;
+
+	/* Allocate message buffers */
+	/* It's safe to allocate them smaller than OBEX_MAXIMUM_MTU
+	 * because buf_t will realloc data as needed. - Jean II */
+	self->rx_msg = membuf_create(self->mtu_rx);
+	if (self->rx_msg == NULL)
+		goto out_err;
+
+	self->tx_msg = membuf_create(self->mtu_tx_max);
+	if (self->tx_msg == NULL)
+		goto out_err;
+
+	return self;
+
+out_err:
+	obex_destroy(self);
+	return NULL;
+}
+
+void obex_destroy(obex_t *self)
+{
+	if (self->trans)
+		obex_transport_cleanup(self);
+
+	if (self->tx_msg)
+		buf_delete(self->tx_msg);
+
+	if (self->rx_msg)
+		buf_delete(self->rx_msg);
+
+	obex_transport_free_interfaces(self);
+
+	free(self);
+}
+
 /*
  * Function obex_response_to_string(rsp)
  *

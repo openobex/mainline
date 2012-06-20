@@ -87,6 +87,7 @@ bool obex_transport_listen(struct obex *self);
 ssize_t obex_transport_write(struct obex *self, struct databuffer *msg);
 ssize_t obex_transport_read(struct obex *self, int count);
 void obex_transport_enumerate(struct obex *self);
+void obex_transport_free_interfaces(struct obex *self);
 int obex_transport_get_fd(struct obex *self);
 
 bool obex_transport_set_local_addr(obex_t *self, struct sockaddr *addr, size_t len);
