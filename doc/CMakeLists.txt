@@ -2,7 +2,7 @@
 add_custom_target ( doc )
 
 set ( SOURCES
-  "${CMAKE_SOURCE_DIR}/lib/obex.c"
+  "${CMAKE_SOURCE_DIR}/lib/api.c"
   "${CMAKE_SOURCE_DIR}/include/openobex/obex.h"
   "${CMAKE_SOURCE_DIR}/include/openobex/obex_const.h"
   "${CMAKE_SOURCE_DIR}/doc/openobex.coverpage"
@@ -22,6 +22,9 @@ if ( DOXYGEN_FOUND )
       set ( DOC_${i}_OUTPUT "NO" )
     endforeach ( i )
     set ( DOC_${type}_OUTPUT "YES" )
+    foreach ( src ${SOURCES} )
+      set ( DOC_SOURCE_FILES "${DOC_SOURCE_FILES} ${src}" )
+    endforeach ( src )
     configure_file (
       ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in
       ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile_${type}

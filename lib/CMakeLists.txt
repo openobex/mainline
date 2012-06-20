@@ -22,7 +22,7 @@ set ( openobex_SOVERSION "2" )
 
 
 set ( SOURCES
-  obex.c
+  api.c
   obex_client.c
   obex_connect.c
   obex_hdr.c

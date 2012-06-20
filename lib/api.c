@@ -1,5 +1,5 @@
 /**
-	\file obex.c
+	\file api.c
 	OpenOBEX API definition.
 	OpenOBEX library - Free implementation of the Object Exchange protocol.
 
