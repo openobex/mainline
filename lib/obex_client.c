@@ -52,37 +52,22 @@ static __inline uint16_t msg_get_len(const buf_t *msg)
 		return 0;
 }
 
-static result_t obex_client_abort_transmit(obex_t *self)
+static result_t obex_client_abort_complete(obex_t *self)
 {
-	result_t ret;
-
-	DEBUG(4, "STATE: ABORT/TRANSMIT_TX\n");
-
-	ret = obex_msg_transmit(self);
-	if (ret == RESULT_ERROR) {
-		enum obex_rsp rsp = OBEX_RSP_CONTINUE;
-
-		obex_deliver_event(self, OBEX_EV_LINKERR,
-				   self->object->cmd, rsp, TRUE);
-		self->state = STATE_IDLE;
-
-	} else if (ret == RESULT_SUCCESS) {
-		self->substate = SUBSTATE_RECEIVE_RX;
-	}
-
-	return ret;
+	self->substate = SUBSTATE_RX;
+	return RESULT_SUCCESS;
 }
 
 static result_t obex_client_abort_prepare(obex_t *self)
 {
-	DEBUG(4, "STATE: ABORT/PREPARE_TX\n");
+	DEBUG(4, "STATE: ABORT/TX_PREPARE\n");
 
 	if (!obex_data_request_init(self))
 		return RESULT_ERROR;
 
 	obex_data_request_prepare(self, OBEX_CMD_ABORT);
-	self->substate = SUBSTATE_TRANSMIT_TX;
-	return obex_client_abort_transmit(self);
+	self->substate = SUBSTATE_TX_INPROGRESS;
+	return RESULT_SUCCESS;
 }
 
 static result_t obex_client_abort(obex_t *self)
@@ -91,7 +76,7 @@ static result_t obex_client_abort(obex_t *self)
 	enum obex_rsp rsp;
 	int event = OBEX_EV_LINKERR;
 
-	DEBUG(4, "STATE: ABORT/RECEIVE_RX\n");
+	DEBUG(4, "STATE: ABORT/RX\n");
 
 	if (!obex_msg_rx_status(self))
 		return RESULT_SUCCESS;
@@ -108,31 +93,20 @@ static result_t obex_client_abort(obex_t *self)
 	return ret;
 }
 
-static result_t obex_client_response_transmit_tx(obex_t *self)
+static result_t obex_client_response_tx_complete(obex_t *self)
 {
-	result_t ret;
+	enum obex_cmd cmd = self->object->cmd;
 	enum obex_rsp rsp = OBEX_RSP_CONTINUE;
 
-	DEBUG(4, "STATE: RESPONSE/TRANSMIT_TX\n");
+	obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, rsp, FALSE);
+	self->substate = SUBSTATE_RX;
 
-	ret = obex_msg_transmit(self);
-	if (ret == RESULT_ERROR) {
-		obex_deliver_event(self, OBEX_EV_LINKERR,
-				   self->object->cmd, rsp, TRUE);
-		self->state = STATE_IDLE;
-
-	} else if (ret == RESULT_SUCCESS) {
-		obex_deliver_event(self, OBEX_EV_PROGRESS,
-				   self->object->cmd, rsp, FALSE);
-		self->substate = SUBSTATE_RECEIVE_RX;
-	}
-
-	return ret;
+	return RESULT_SUCCESS;
 }
 
-static result_t obex_client_response_prepare_tx(obex_t *self)
+static result_t obex_client_response_tx_prepare(obex_t *self)
 {
-	DEBUG(4, "STATE: RESPONSE/PREPARE_TX\n");
+	DEBUG(4, "STATE: RESPONSE/TX_PREPARE\n");
 
 	/* Sending ABORT is allowed even during SRM */
 	if (self->object->abort) {
@@ -147,20 +121,20 @@ static result_t obex_client_response_prepare_tx(obex_t *self)
 		if (!obex_msg_prepare(self, self->object, TRUE))
 			return RESULT_ERROR;
 
-		self->substate = SUBSTATE_TRANSMIT_TX;
-		return obex_client_response_transmit_tx(self);
+		self->substate = SUBSTATE_TX_INPROGRESS;
 
 	} else {
-		self->substate = SUBSTATE_RECEIVE_RX;
-		return RESULT_SUCCESS;
+		self->substate = SUBSTATE_RX;
 	}
+
+	return RESULT_SUCCESS;
 }
 
 static result_t obex_client_response_rx(obex_t *self)
 {
 	enum obex_rsp rsp;
 
-	DEBUG(4, "STATE: RESPONSE/RECEIVE_RX\n");
+	DEBUG(4, "STATE: RESPONSE/RX\n");
 
 	if (!obex_msg_rx_status(self))
 		return RESULT_SUCCESS;
@@ -215,62 +189,49 @@ static result_t obex_client_response_rx(obex_t *self)
 	/* Are we done yet? */
 	if (rsp == OBEX_RSP_CONTINUE) {
 		DEBUG(3, "Continue...\n");
-		self->substate = SUBSTATE_PREPARE_TX;
-		return obex_client_response_prepare_tx(self);
+		self->substate = SUBSTATE_TX_PREPARE;
+		return obex_client_response_tx_prepare(self);
 
 	} else {
+		enum obex_cmd cmd = self->object->cmd;
+
 		/* Notify app that client-operation is done! */
 		DEBUG(3, "Done! Rsp=%02x!\n", rsp);
-		obex_deliver_event(self, OBEX_EV_REQDONE, self->object->cmd,
-								     rsp, TRUE);
+		obex_deliver_event(self, OBEX_EV_REQDONE, cmd, rsp, TRUE);
 		self->mode = OBEX_MODE_SERVER;
 		self->state = STATE_IDLE;
 		return RESULT_SUCCESS;
 	}
 }
 
-static result_t obex_client_request_transmit_tx(obex_t *self)
+static result_t obex_client_request_tx_complete(obex_t *self)
 {
-	result_t ret;
+	obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->cmd, 0, FALSE);
+	if (obex_object_finished(self->object, TRUE)) {
+		self->state = STATE_RESPONSE;
+		self->substate = SUBSTATE_RX;
 
-	DEBUG(4, "STATE: REQUEST/TRANSMIT_TX\n");
+	} else if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+		   !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL))
+	{
+		/* Still, we need to do a zero-wait check for an
+		 * negative response or for connection errors. */
+		result_t check = obex_transport_handle_input(self, 0);
+		if (check != RESULT_SUCCESS) /* no input */
+			self->substate = SUBSTATE_RX;
+		else
+			self->substate = SUBSTATE_TX_PREPARE;
 
-	ret = obex_msg_transmit(self);
-	if (ret == RESULT_ERROR) {
-		/* Error while sending */
-		obex_deliver_event(self, OBEX_EV_LINKERR,
-				   self->object->cmd, 0, TRUE);
-		self->mode = OBEX_MODE_SERVER;
-		self->state = STATE_IDLE;
-
-	} else if (ret == RESULT_SUCCESS) {
-		obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->cmd,
-								      0, FALSE);
-		if (obex_object_finished(self->object, TRUE)) {
-			self->state = STATE_RESPONSE;
-			self->substate = SUBSTATE_RECEIVE_RX;
-
-		} else if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
-			   !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL)) {
-			/* Still, we need to do a zero-wait check for an
-			 * negative response or for connection errors. */
-			result_t check = obex_transport_handle_input(self, 0);
-			if (check != RESULT_SUCCESS) /* no input */
-				self->substate = SUBSTATE_RECEIVE_RX;
-			else
-				self->substate = SUBSTATE_PREPARE_TX;
-
-		} else {
-			self->substate = SUBSTATE_RECEIVE_RX;
-		}
+	} else {
+		self->substate = SUBSTATE_RX;
 	}
 
-	return ret;
+	return RESULT_SUCCESS;
 }
 
-static result_t obex_client_request_prepare_tx(obex_t *self)
+static result_t obex_client_request_tx_prepare(obex_t *self)
 {
-	DEBUG(4, "STATE: REQUEST/PREPARE_TX\n");
+	DEBUG(4, "STATE: REQUEST/TX_PREPARE\n");
 
 	if (self->object->abort) {
 		self->state = STATE_ABORT;
@@ -280,15 +241,15 @@ static result_t obex_client_request_prepare_tx(obex_t *self)
 	if (!obex_msg_prepare(self, self->object, TRUE))
 		return RESULT_ERROR;
 
-	self->substate = SUBSTATE_TRANSMIT_TX;
-	return obex_client_request_transmit_tx(self);
+	self->substate = SUBSTATE_TX_INPROGRESS;
+	return RESULT_SUCCESS;
 }
 
 static result_t obex_client_request_rx(obex_t *self)
 {
 	enum obex_rsp rsp;
 
-	DEBUG(4, "STATE: REQUEST/RECEIVE_RX\n");
+	DEBUG(4, "STATE: REQUEST/RX\n");
 
 	if (!obex_msg_rx_status(self))
 		return RESULT_SUCCESS;
@@ -324,8 +285,8 @@ static result_t obex_client_request_rx(obex_t *self)
 	}
 
 	obex_data_receive_finished(self);
-	self->substate = SUBSTATE_PREPARE_TX;
-	return obex_client_request_prepare_tx(self);
+	self->substate = SUBSTATE_TX_PREPARE;
+	return obex_client_request_tx_prepare(self);
 }
 
 
@@ -342,40 +303,49 @@ result_t obex_client(obex_t *self)
 	switch (self->state) {
 	case STATE_REQUEST:
 		switch (self->substate) {
-		case SUBSTATE_RECEIVE_RX:
+		case SUBSTATE_RX:
 			return obex_client_request_rx(self);
 
-		case SUBSTATE_PREPARE_TX:
-			return obex_client_request_prepare_tx(self);
+		case SUBSTATE_TX_PREPARE:
+			return obex_client_request_tx_prepare(self);
 
-		case SUBSTATE_TRANSMIT_TX:
-			return obex_client_request_transmit_tx(self);
+		case SUBSTATE_TX_COMPLETE:
+			return obex_client_request_tx_complete(self);
+
+		default:
+			break;
 		}
 		break;
 
 	case STATE_RESPONSE:
 		switch (self->substate) {
-		case SUBSTATE_RECEIVE_RX:
+		case SUBSTATE_RX:
 			return obex_client_response_rx(self);
 
-		case SUBSTATE_PREPARE_TX:
-			return obex_client_response_prepare_tx(self);
+		case SUBSTATE_TX_PREPARE:
+			return obex_client_response_tx_prepare(self);
 
-		case SUBSTATE_TRANSMIT_TX:
-			return obex_client_response_transmit_tx(self);
+		case SUBSTATE_TX_COMPLETE:
+			return obex_client_response_tx_complete(self);
+
+		default:
+			break;
 		}
 		break;
 
 	case STATE_ABORT:
 		switch (self->substate) {
-		case SUBSTATE_RECEIVE_RX:
+		case SUBSTATE_RX:
 			return obex_client_abort(self);
 
-		case SUBSTATE_PREPARE_TX:
+		case SUBSTATE_TX_PREPARE:
 			return obex_client_abort_prepare(self);
 
-		case SUBSTATE_TRANSMIT_TX:
-			return obex_client_abort_transmit(self);
+		case SUBSTATE_TX_COMPLETE:
+			return obex_client_abort_complete(self);
+
+		default:
+			break;
 		}
 		break;
 

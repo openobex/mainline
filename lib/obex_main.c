@@ -335,12 +335,36 @@ result_t obex_handle_input(obex_t *self, int timeout)
  */
 result_t obex_work(obex_t *self, int timeout)
 {
+	result_t ret;
+
 	if (self->state == STATE_IDLE ||
-	    self->substate == SUBSTATE_RECEIVE_RX)
+	    self->substate == SUBSTATE_RX)
 	{
-		result_t ret = obex_handle_input(self, timeout);
+		ret = obex_handle_input(self, timeout);
 		if (ret != RESULT_SUCCESS)
 			return ret;
+
+	} else if (self->substate == SUBSTATE_TX_INPROGRESS) {
+		enum obex_cmd cmd = OBEX_CMD_ABORT;
+
+		if (self->object)
+			cmd = obex_object_getcmd(self->object);
+		
+		ret = obex_msg_transmit(self);
+		switch (ret) {
+		case RESULT_SUCCESS:
+			self->substate = SUBSTATE_TX_COMPLETE;
+			break;
+
+		case RESULT_ERROR:
+			obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
+			self->mode = OBEX_MODE_SERVER;
+			self->state = STATE_IDLE;
+			/* no break */
+
+		default:
+			return ret;
+		}
 	}
 
 	return obex_mode(self);

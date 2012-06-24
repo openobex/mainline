@@ -427,7 +427,7 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 	self->object = object;
 	self->mode = OBEX_MODE_CLIENT;
         self->state = STATE_REQUEST;
-	self->substate = SUBSTATE_PREPARE_TX;
+	self->substate = SUBSTATE_TX_PREPARE;
 
 	return 0;
 }
