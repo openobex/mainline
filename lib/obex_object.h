@@ -74,11 +74,11 @@ void obex_object_setcmd(struct obex_object *object, enum obex_cmd cmd);
 enum obex_cmd obex_object_getcmd(const obex_object_t *object);
 int obex_object_setrsp(struct obex_object *object, enum obex_rsp rsp,
 		       enum obex_rsp lastrsp);
-int obex_object_get_opcode(obex_object_t *object, int allowfinalcmd,
+int obex_object_get_opcode(obex_object_t *object, bool allowfinalcmd,
 				enum obex_mode mode);
 bool obex_object_append_data(obex_object_t *object, struct databuffer *txmsg,
 			     size_t tx_left);
-int obex_object_finished(obex_object_t *object, int allowfinal);
+int obex_object_finished(obex_object_t *object, bool allowfinal);
 
 int obex_object_receive_nonhdr_data(obex_object_t *object, const void *msgdata,
 				    size_t rx_left);

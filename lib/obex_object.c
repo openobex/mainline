@@ -283,7 +283,7 @@ enum obex_cmd obex_object_getcmd(const obex_object_t *object)
 	return object->cmd;
 }
 
-int obex_object_get_opcode(obex_object_t *object, int allowfinal,
+int obex_object_get_opcode(obex_object_t *object, bool allowfinal,
 			   enum obex_mode mode)
 {
 	int opcode = -1;
@@ -358,7 +358,7 @@ bool obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left
 	return true;
 }
 
-int obex_object_finished(obex_object_t *object, int allowfinal)
+int obex_object_finished(obex_object_t *object, bool allowfinal)
 {
 	return (!object->suspended &&
 		(!object->tx_it || !obex_hdr_it_get(object->tx_it)) &&

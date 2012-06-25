@@ -94,7 +94,7 @@ static bool obex_msg_post_prepare(obex_t *self, obex_object_t *object,
 	return true;
 }
 
-bool obex_msg_prepare(obex_t *self, obex_object_t *object, int allowfinal)
+bool obex_msg_prepare(obex_t *self, obex_object_t *object, bool allowfinal)
 {
 	buf_t *txmsg = self->tx_msg;
 	uint16_t tx_left = self->mtu_tx - sizeof(struct obex_common_hdr);
@@ -193,7 +193,7 @@ int obex_msg_post_receive(obex_t *self)
 }
 
 int obex_msg_receive_filtered(obex_t *self, obex_object_t *object,
-			      uint64_t filter, int first_run)
+			      uint64_t filter, bool first_run)
 {
 	buf_t *msg = self->rx_msg;
 	size_t len;
