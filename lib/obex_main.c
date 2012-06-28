@@ -253,30 +253,15 @@ void obex_data_request_prepare(obex_t *self, int opcode)
 }
 
 /** Transmit some data from the TX message buffer. */
-result_t obex_data_request(obex_t *self)
-{
-	buf_t *msg = self->tx_msg;
-	result_t status;
-
-	obex_return_val_if_fail(self != NULL, -1);
-
-	DEBUG(1, "len = %lu bytes\n", (unsigned long)buf_get_length(msg));
-
-	status = obex_transport_write(self, msg);
-	if (status > 0)
-		buf_clear(msg, status);
-
-	return status;
-}
-
-/** Transmit one full message from TX message buffer */
-result_t obex_msg_transmit(obex_t *self)
+static result_t obex_data_request_transmit(obex_t *self)
 {
 	buf_t *msg = self->tx_msg;
 
 	if (buf_get_length(msg)) {
-		result_t ret = obex_data_request(self);
-		if (ret == RESULT_ERROR) {
+		ssize_t status = obex_transport_write(self, msg);
+		if (status > 0)
+			buf_clear(msg, status);
+		else if (status < 0) {
 			DEBUG(4, "Send error\n");
 			return RESULT_ERROR;
 		}
@@ -350,7 +335,7 @@ result_t obex_work(obex_t *self, int timeout)
 		if (self->object)
 			cmd = obex_object_getcmd(self->object);
 		
-		ret = obex_msg_transmit(self);
+		ret = obex_data_request_transmit(self);
 		switch (ret) {
 		case RESULT_SUCCESS:
 			self->substate = SUBSTATE_TX_COMPLETE;

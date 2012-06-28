@@ -55,6 +55,7 @@ struct obex {
 
 	struct obex_object *object;	/* Current object being transfered */
 	obex_event_t eventcb;		/* Event-callback */
+	enum obex_event abort_event;	/**< event for application when server aborts */
 
 	obex_transport_t *trans;	/* Transport being used */
 
@@ -88,8 +89,6 @@ void obex_data_receive_finished(obex_t *self);
 int obex_set_mtu(obex_t *self, uint16_t mtu_rx, uint16_t mtu_tx_max);
 bool obex_data_request_init(struct obex *self);
 void obex_data_request_prepare(struct obex *self, int opcode);
-int obex_data_request(struct obex *self);
-int obex_msg_transmit(obex_t *self);
 int obex_cancelrequest(struct obex *self, int nice);
 
 char *obex_response_to_string(int rsp);
