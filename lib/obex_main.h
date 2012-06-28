@@ -77,7 +77,7 @@ struct obex_common_hdr {
 typedef struct obex_common_hdr obex_common_hdr_t;
 
 void obex_deliver_event(obex_t *self, enum obex_event event, enum obex_cmd cmd,
-			enum obex_rsp rsp, int del);
+			enum obex_rsp rsp, bool delete_object);
 
 result_t obex_handle_input(obex_t *self, int timeout);
 result_t obex_work(struct obex *self, int timeout);

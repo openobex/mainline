@@ -204,16 +204,16 @@ char *obex_response_to_string(int rsp)
  *
  */
 void obex_deliver_event(obex_t *self, enum obex_event event, enum obex_cmd cmd,
-			enum obex_rsp rsp, int del)
+			enum obex_rsp rsp, bool delete_object)
 {
 	obex_object_t *object = self->object;
 
-	if (del == TRUE)
+	if (delete_object)
 		self->object = NULL;
 
 	self->eventcb(self, object, self->mode, event, cmd, rsp);
 
-	if (del == TRUE)
+	if (delete_object)
 		obex_object_delete(object);
 }
 

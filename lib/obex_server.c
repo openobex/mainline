@@ -126,7 +126,7 @@ static result_t obex_server_response_tx_complete(obex_t *self)
 	int cmd = self->object->cmd;
 
 	/* Made some progress */
-	obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, FALSE);
+	obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, 0, false);
 	if (obex_object_finished(self->object, TRUE)) {
 		self->state = STATE_IDLE;
 		/* Response sent and object finished! */
@@ -136,7 +136,7 @@ static result_t obex_server_response_tx_complete(obex_t *self)
 			self->rsp_mode = OBEX_RSP_MODE_NORMAL;
 			self->srm_flags = 0;
 		}
-		obex_deliver_event(self, OBEX_EV_REQDONE, cmd, 0, TRUE);
+		obex_deliver_event(self, OBEX_EV_REQDONE, cmd, 0, true);
 
 	} else if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
 		   !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL))
@@ -226,11 +226,11 @@ static result_t obex_server_request_tx_complete(obex_t *self)
 	enum obex_rsp rsp = self->object->rsp;
 
 	if (rsp == OBEX_RSP_CONTINUE) {
-		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, rsp, FALSE);
+		obex_deliver_event(self, OBEX_EV_PROGRESS, cmd, rsp, false);
 		self->substate = SUBSTATE_RX;
 
 	} else {
-		obex_deliver_event(self, OBEX_EV_REQDONE, cmd, rsp, TRUE);
+		obex_deliver_event(self, OBEX_EV_REQDONE, cmd, rsp, true);
 		self->state = STATE_IDLE;
 	}
 
@@ -317,7 +317,7 @@ static result_t obex_server_request_rx(obex_t *self, int first)
 		break;
 	}
 
-	if (obex_msg_receive_filtered(self, self->object, filter, TRUE) < 0) {
+	if (obex_msg_receive_filtered(self, self->object, filter, true) < 0) {
 		obex_data_receive_finished(self);
 		return obex_server_bad_request(self);
 	}
@@ -326,7 +326,7 @@ static result_t obex_server_request_rx(obex_t *self, int first)
 	 * multi-packet request by examining all headers in
 	 * the first packet */
 	if (first)
-		obex_deliver_event(self, OBEX_EV_REQCHECK, cmd, 0, FALSE);
+		obex_deliver_event(self, OBEX_EV_REQCHECK, cmd, 0, false);
 
 	/* Everything except 0x1X and 0x2X means that the user
 	 * callback denied the request. In the denied cases
@@ -370,7 +370,7 @@ static result_t obex_server_request_rx(obex_t *self, int first)
 		 * in the response */
 		if (!deny) {
 			DEBUG(4, "We got a request!\n");
-			obex_deliver_event(self, OBEX_EV_REQ, cmd, 0, FALSE);
+			obex_deliver_event(self, OBEX_EV_REQ, cmd, 0, false);
 		}
 		/* More connect-magic woodoo stuff */
 		if (cmd == OBEX_CMD_CONNECT)
@@ -421,7 +421,7 @@ static result_t obex_server_idle(obex_t *self)
 	/* Hint app that something is about to come so that
 	 * the app can deny a PUT-like request early, or
 	 * set the header-offset */
-	obex_deliver_event(self, OBEX_EV_REQHINT, cmd, 0, FALSE);
+	obex_deliver_event(self, OBEX_EV_REQHINT, cmd, 0, false);
 
 	/* Check the response from the REQHINT event */
 	switch ((self->object->rsp & ~OBEX_FINAL) & 0xF0) {
