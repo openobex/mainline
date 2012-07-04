@@ -253,7 +253,7 @@ void obex_data_request_prepare(obex_t *self, int opcode)
 }
 
 /** Transmit some data from the TX message buffer. */
-static result_t obex_data_request_transmit(obex_t *self)
+static bool obex_data_request_transmit(obex_t *self)
 {
 	buf_t *msg = self->tx_msg;
 
@@ -263,14 +263,10 @@ static result_t obex_data_request_transmit(obex_t *self)
 			buf_clear(msg, status);
 		else if (status < 0) {
 			DEBUG(4, "Send error\n");
-			return RESULT_ERROR;
+			return false;
 		}
 	}
-
-	if (buf_get_length(msg) == 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_TIMEOUT;
+	return true;
 }
 
 
@@ -351,26 +347,22 @@ result_t obex_work(obex_t *self, int timeout)
 		}
 
 	} else if (self->substate == SUBSTATE_TX_INPROGRESS) {
-		enum obex_cmd cmd = OBEX_CMD_ABORT;
+		if (obex_data_request_transmit(self)) {
+			enum obex_cmd cmd = OBEX_CMD_ABORT;
 
-		if (self->object)
-			cmd = obex_object_getcmd(self->object);
+			if (self->object)
+				cmd = obex_object_getcmd(self->object);
 		
-		ret = obex_data_request_transmit(self);
-		switch (ret) {
-		case RESULT_SUCCESS:
-			self->substate = SUBSTATE_TX_COMPLETE;
-			break;
-
-		case RESULT_ERROR:
 			obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
 			self->mode = OBEX_MODE_SERVER;
 			self->state = STATE_IDLE;
-			/* no break */
-
-		default:
-			return ret;
+			return RESULT_ERROR;
 		}
+
+		if (!obex_msg_tx_status(self))
+			return RESULT_TIMEOUT;
+
+		self->substate = SUBSTATE_TX_COMPLETE;
 	}
 
 	return obex_mode(self);

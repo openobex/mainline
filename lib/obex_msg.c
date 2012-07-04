@@ -137,6 +137,14 @@ int obex_msg_rx_status(const obex_t *self)
 		buf_get_length(msg) >= ntohs(hdr->len));
 }
 
+/** Check if the TX message buffer was sent completely */
+bool obex_msg_tx_status(const obex_t *self)
+{
+	buf_t *msg = self->tx_msg;
+
+	return (buf_get_length(msg) == 0);
+}
+
 int obex_msg_get_opcode(const obex_t *self)
 {
 	buf_t *msg = self->rx_msg;
