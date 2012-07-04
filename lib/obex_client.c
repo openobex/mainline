@@ -207,25 +207,10 @@ static result_t obex_client_response_rx(obex_t *self)
 static result_t obex_client_request_tx_complete(obex_t *self)
 {
 	obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->cmd, 0, true);
-	if (obex_object_finished(self->object, TRUE)) {
+	if (obex_object_finished(self->object, TRUE))
 		self->state = STATE_RESPONSE;
-		self->substate = SUBSTATE_RX;
 
-	} else if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
-		   !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL))
-	{
-		/* Still, we need to do a zero-wait check for an
-		 * negative response or for connection errors. */
-		result_t check = obex_transport_handle_input(self, 0);
-		if (check != RESULT_SUCCESS) /* no input */
-			self->substate = SUBSTATE_RX;
-		else
-			self->substate = SUBSTATE_TX_PREPARE;
-
-	} else {
-		self->substate = SUBSTATE_RX;
-	}
-
+	self->substate = SUBSTATE_RX;
 	return RESULT_SUCCESS;
 }
 

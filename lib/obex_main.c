@@ -312,6 +312,22 @@ result_t obex_handle_input(obex_t *self, int timeout)
 	}
 }
 
+static bool obex_check_srm_input(obex_t *self)
+{
+	if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+	    !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL) &&
+	    ((self->mode == OBEX_MODE_CLIENT && self->state == STATE_REQUEST) ||
+	     (self->mode == OBEX_MODE_SERVER && self->state == STATE_RESPONSE)))
+	{
+		result_t ret = obex_handle_input(self, 0);
+		if (ret == RESULT_TIMEOUT) {
+			self->substate = SUBSTATE_TX_PREPARE;
+			return false;
+		}
+	}
+	return true;
+}
+
 /*
  * Function obex_work (self, timeout)
  *
@@ -322,12 +338,17 @@ result_t obex_work(obex_t *self, int timeout)
 {
 	result_t ret;
 
-	if (self->state == STATE_IDLE ||
-	    self->substate == SUBSTATE_RX)
-	{
+	if (self->state == STATE_IDLE) {
 		ret = obex_handle_input(self, timeout);
 		if (ret != RESULT_SUCCESS)
 			return ret;
+
+	} else if (self->substate == SUBSTATE_RX) {
+		if (obex_check_srm_input(self)) {
+			ret = obex_handle_input(self, timeout);
+			if (ret != RESULT_SUCCESS)
+				return ret;
+		}
 
 	} else if (self->substate == SUBSTATE_TX_INPROGRESS) {
 		enum obex_cmd cmd = OBEX_CMD_ABORT;
