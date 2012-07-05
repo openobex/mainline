@@ -26,7 +26,7 @@
 bool obex_msg_prepare(obex_t *self, obex_object_t *object, bool allowfinal);
 int obex_msg_getspace(obex_t *self, obex_object_t *object, unsigned int flags);
 
-int obex_msg_rx_status(const obex_t *self);
+bool obex_msg_rx_status(const obex_t *self);
 bool obex_msg_tx_status(const obex_t *self);
 int obex_msg_get_opcode(const obex_t *self);
 size_t obex_msg_get_len(const obex_t *self);

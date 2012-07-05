@@ -127,8 +127,8 @@ int obex_msg_getspace(obex_t *self, obex_object_t *object, unsigned int flags)
 	return self->mtu_tx - objlen;
 }
 
-/** Check if a message buffer contains at least one full message. */
-int obex_msg_rx_status(const obex_t *self)
+/** Check if the RX message buffer contains at least one full message. */
+bool obex_msg_rx_status(const obex_t *self)
 {
 	buf_t *msg = self->rx_msg;
 	obex_common_hdr_t *hdr = buf_get(msg);
