@@ -38,8 +38,7 @@ enum obex_state {
 enum obex_substate {
 	SUBSTATE_RX,
 	SUBSTATE_TX_PREPARE,
-	SUBSTATE_TX_INPROGRESS,
-	SUBSTATE_TX_COMPLETE,
+	SUBSTATE_TX,
 };
 
 #define OBEX_SRM_FLAG_WAIT_LOCAL  (1 << 0)

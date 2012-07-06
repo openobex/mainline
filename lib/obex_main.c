@@ -346,23 +346,24 @@ result_t obex_work(obex_t *self, int timeout)
 				return ret;
 		}
 
-	} else if (self->substate == SUBSTATE_TX_INPROGRESS) {
-		if (obex_data_request_transmit(self)) {
-			enum obex_cmd cmd = OBEX_CMD_ABORT;
+	} else if (self->substate == SUBSTATE_TX) {
+		if (obex_msg_tx_status(self)) {
+			if (obex_data_request_transmit(self)) {
+				enum obex_cmd cmd = OBEX_CMD_ABORT;
 
-			if (self->object)
-				cmd = obex_object_getcmd(self->object);
+				if (self->object)
+					cmd = obex_object_getcmd(self->object);
 		
-			obex_deliver_event(self, OBEX_EV_LINKERR, cmd, 0, TRUE);
-			self->mode = OBEX_MODE_SERVER;
-			self->state = STATE_IDLE;
-			return RESULT_ERROR;
+				obex_deliver_event(self, OBEX_EV_LINKERR, cmd,
+						   0, TRUE);
+				self->mode = OBEX_MODE_SERVER;
+				self->state = STATE_IDLE;
+				return RESULT_ERROR;
+			}
+
+			if (!obex_msg_tx_status(self))
+				return RESULT_TIMEOUT;
 		}
-
-		if (!obex_msg_tx_status(self))
-			return RESULT_TIMEOUT;
-
-		self->substate = SUBSTATE_TX_COMPLETE;
 	}
 
 	return obex_mode(self);
