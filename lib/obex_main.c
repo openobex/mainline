@@ -347,8 +347,8 @@ result_t obex_work(obex_t *self, int timeout)
 		}
 
 	} else if (self->substate == SUBSTATE_TX) {
-		if (obex_msg_tx_status(self)) {
-			if (obex_data_request_transmit(self)) {
+		if (!obex_msg_tx_status(self)) {
+			if (!obex_data_request_transmit(self)) {
 				enum obex_cmd cmd = OBEX_CMD_ABORT;
 
 				if (self->object)
