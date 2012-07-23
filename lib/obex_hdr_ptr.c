@@ -20,6 +20,8 @@
  * along with OpenOBEX. If not, see <http://www.gnu.org/>.
  */
 
+#include <string.h>
+
 #include "obex_hdr.h"
 #include "debug.h"
 
