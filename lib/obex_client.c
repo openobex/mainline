@@ -206,7 +206,7 @@ static result_t obex_client_response_rx(obex_t *self)
 
 static result_t obex_client_request_tx(obex_t *self)
 {
-	obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->cmd, 0, true);
+	obex_deliver_event(self, OBEX_EV_PROGRESS, self->object->cmd, 0, false);
 	if (obex_object_finished(self->object, TRUE))
 		self->state = STATE_RESPONSE;
 
