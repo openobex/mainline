@@ -172,6 +172,7 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	int ret;
 	struct obex_hdr *hdr;
 	const void *value;
+	uint32_t bq4;
 	size_t size;
 	enum obex_hdr_id id = hi & OBEX_HDR_ID_MASK;
 	enum obex_hdr_type type = hi & OBEX_HDR_TYPE_MASK;
@@ -217,7 +218,8 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 	switch (type) {
 	case OBEX_HDR_TYPE_UINT32:
 		DEBUG(2, "4BQ header %d\n", hv.bq4);
-		value = &hv.bq4;
+		bq4 = htonl(hv.bq4);
+		value = &bq4;
 		size = 4;
 		break;
 
