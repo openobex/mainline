@@ -44,9 +44,19 @@ void obex_hdr_stream_destroy(void *self)
 }
 
 static
+bool obex_hdr_stream_is_finished(void *self)
+{
+	struct obex_hdr_stream *hdr = self;
+	return hdr->s_stop && (hdr->s_size == hdr->s_offset);
+}
+
+static
 enum obex_hdr_id obex_hdr_stream_get_id(void *self)
 {
-	return OBEX_HDR_ID_BODY;
+	if (obex_hdr_stream_is_finished(self))
+		return OBEX_HDR_ID_BODY_END;
+	else
+		return OBEX_HDR_ID_BODY;
 }
 
 static
@@ -125,13 +135,6 @@ size_t obex_hdr_stream_append_data(void *self, struct databuffer *buf,
 	}
 
 	return ret;
-}
-
-static
-int obex_hdr_stream_is_finished(void *self)
-{
-	struct obex_hdr_stream *hdr = self;
-	return hdr->s_stop && (hdr->s_size == hdr->s_offset);
 }
 
 static
