@@ -126,7 +126,7 @@ const void * obex_hdr_get_data_ptr(struct obex_hdr *hdr)
 		return NULL;
 }
 
-int obex_hdr_is_splittable(struct obex_hdr *hdr)
+bool obex_hdr_is_splittable(struct obex_hdr *hdr)
 {
 	return (obex_hdr_get_id(hdr) == OBEX_HDR_ID_BODY &&
 		obex_hdr_get_type(hdr) == OBEX_HDR_TYPE_BYTES);
@@ -197,7 +197,7 @@ size_t obex_hdr_append(struct obex_hdr *hdr, struct databuffer *buf,
 	return actual;
 }
 
-int obex_hdr_is_finished(struct obex_hdr *hdr)
+bool obex_hdr_is_finished(struct obex_hdr *hdr)
 {
 	if (hdr->ops && hdr->ops->is_finished)
 		return hdr->ops->is_finished(hdr->data);

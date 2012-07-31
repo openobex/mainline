@@ -22,6 +22,7 @@
 
 #include <databuffer.h>
 #include <obex_incl.h>
+#include <defines.h>
 
 struct obex_hdr {
 	unsigned int flags;
@@ -63,7 +64,7 @@ struct obex_hdr_ops {
 	size_t (*get_data_size)(void *self);
 	const void * (*get_data_ptr)(void *self);
 	size_t (*append_data)(void *self, struct databuffer *buf, size_t size);
-	int (*is_finished)(void *self);
+	bool (*is_finished)(void *self);
 };
 
 struct obex_hdr * obex_hdr_new(struct obex_hdr_ops *ops, void *data);
@@ -75,8 +76,8 @@ size_t obex_hdr_get_data_size(struct obex_hdr *hdr);
 const void * obex_hdr_get_data_ptr(struct obex_hdr *hdr);
 size_t obex_hdr_append(struct obex_hdr *hdr, struct databuffer *buf,
 		       size_t max_size);
-int obex_hdr_is_splittable(struct obex_hdr *hdr);
-int obex_hdr_is_finished(struct obex_hdr *hdr);
+bool obex_hdr_is_splittable(struct obex_hdr *hdr);
+bool obex_hdr_is_finished(struct obex_hdr *hdr);
 
 struct obex_hdr_it {
 	struct databuffer_list *list;

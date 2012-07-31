@@ -34,7 +34,7 @@ struct obex_hdr_stream {
 	/** Current offset in buf */
 	size_t s_offset;
 	/** End of stream */
-	int s_stop;
+	bool s_stop;
 };
 
 static
@@ -167,5 +167,5 @@ void obex_hdr_stream_set_data(struct obex_hdr *hdr,
 void obex_hdr_stream_finish(struct obex_hdr *hdr)
 {
 	struct obex_hdr_stream *s = hdr->data;
-	s->s_stop = 1;
+	s->s_stop = true;
 }
