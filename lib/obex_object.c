@@ -59,13 +59,14 @@ obex_object_t *obex_object_new(void)
  *    Free all headers in a header queue.
  *
  */
-static void free_headerq(slist_t *q)
+static void free_headerq(slist_t *q, const struct obex_hdr *no_delete)
 {
 	DEBUG(4, "\n");
 	while (!slist_is_empty(q)) {
 		struct obex_hdr *h = slist_get(q);
 		q = slist_remove(q, h);
-		obex_hdr_destroy(h);
+		if (h != no_delete)
+			obex_hdr_destroy(h);
 	}
 }
 
@@ -82,7 +83,7 @@ int obex_object_delete(obex_object_t *object)
 
 	/* Free the headerqueues */
 	obex_hdr_it_destroy(object->tx_it);
-	free_headerq(object->tx_headerq);
+	free_headerq(object->tx_headerq, object->body);
 	/* Free tx non-header data */
 	if (object->tx_nonhdr_data) {
 		buf_delete(object->tx_nonhdr_data);
@@ -93,7 +94,7 @@ int obex_object_delete(obex_object_t *object)
 	/* Free the headerqueues */
 	obex_hdr_it_destroy(object->it);
 	obex_hdr_it_destroy(object->rx_it);
-	free_headerq(object->rx_headerq);
+	free_headerq(object->rx_headerq, object->body);
 	/* Free rx non-header data */
 	if (object->rx_nonhdr_data) {
 		buf_delete(object->rx_nonhdr_data);
