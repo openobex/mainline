@@ -231,13 +231,10 @@ static result_t obex_server_request_tx_prepare(obex_t *self)
 	    (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
 	     self->srm_flags & OBEX_SRM_FLAG_WAIT_REMOTE))
 	{
-		int err;
-
 		if (self->object->abort)
 			return obex_server_abort_by_application(self);
 
-		err = obex_msg_prepare(self, self->object, FALSE);
-		if (err)
+		if (!obex_msg_prepare(self, self->object, FALSE))
 			return RESULT_ERROR;
 
 		self->substate = SUBSTATE_TX;
