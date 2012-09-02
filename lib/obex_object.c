@@ -296,7 +296,7 @@ int obex_object_get_opcode(obex_object_t *object, bool allowfinal,
 
 	switch (mode) {
 	case OBEX_MODE_SERVER:
-		if (allowfinal)
+		if (obex_object_finished(object, allowfinal))
 			opcode = object->lastrsp;
 		else
 			opcode = object->rsp;
