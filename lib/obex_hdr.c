@@ -187,7 +187,34 @@ size_t obex_hdr_append(struct obex_hdr *hdr, struct databuffer *buf,
 				return 0;
 		}
 
-		ret = obex_hdr_append_data(hdr, buf, data_size);
+		if (obex_hdr_get_type(hdr) == OBEX_HDR_TYPE_UINT8
+		    && data_size != 1)
+		{
+			if (data_size < 1)
+			{
+				uint8_t dummy = 0;
+				buf_append(buf, &dummy, 1);
+				ret = 1;
+
+			} else
+				ret = obex_hdr_append_data(hdr, buf, 1);
+
+		} else if (obex_hdr_get_type(hdr) == OBEX_HDR_TYPE_UINT32
+			   && data_size != 4)
+		{
+			if (data_size < 4)
+			{
+				uint32_t dummy = 0;
+				buf_append(buf, &dummy, 4);
+				ret = 1;
+
+			} else
+				ret = obex_hdr_append_data(hdr, buf, 4);
+
+		} else
+			ret = obex_hdr_append_data(hdr, buf, data_size);
+
+
 		actual += ret;
 		if (ret == 0 )
 			break;
