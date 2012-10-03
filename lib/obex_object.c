@@ -193,16 +193,19 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 		/* End of stream marker */
 		if (object->body == NULL)
 			return -1;
-		obex_hdr_stream_set_data(object->body, hv.bs, hv_size);
+		obex_hdr_set_data(object->body, hv.bs, hv_size);
 		obex_hdr_stream_finish(object->body);
 		object->body = NULL;
-		return 1;
+		hdr = obex_hdr_ptr_create(OBEX_HDR_ID_BODY_END,
+					  OBEX_HDR_TYPE_BYTES, NULL, 0);
+		ret = 1;
+		goto out;
 
 	} else if (id == OBEX_HDR_ID_BODY && (flags & OBEX_FL_STREAM_DATA)) {
 		/* Stream data */
 		if (object->body == NULL)
 			return -1;
-		obex_hdr_stream_set_data(object->body, hv.bs, hv_size);
+		obex_hdr_set_data(object->body, hv.bs, hv_size);
 		return 1;
 
 	} else if (id == OBEX_HDR_ID_BODY && (flags & OBEX_FL_STREAM_START)) {
@@ -210,7 +213,8 @@ int obex_object_addheader(obex_t *self, obex_object_t *object, uint8_t hi,
 		DEBUG(3, "Adding stream\n");
 		if (object->body)
 			return -1;
-		hdr = obex_hdr_stream_create(self);
+		hdr = obex_hdr_ptr_create(id, OBEX_HDR_TYPE_BYTES, NULL, 0);
+		hdr = obex_hdr_stream_create(self, hdr);
 		object->body = hdr;
 		ret = 1;
 		goto out;

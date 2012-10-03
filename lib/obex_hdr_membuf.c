@@ -87,12 +87,24 @@ const void * obex_hdr_membuf_get_data_ptr(void *self)
 }
 
 static
+bool obex_hdr_membuf_set_data(void *self, const void *data, size_t size)
+{
+	struct obex_hdr_membuf *hdr = self;
+	buf_clear(hdr->buf, buf_get_length(hdr->buf));
+	if (buf_set_size(hdr->buf, size) != 0)
+		return false;
+	memcpy(buf_get(hdr->buf), data, size);
+	return true;
+}
+
+static
 struct obex_hdr_ops obex_hdr_membuf_ops = {
 	&obex_hdr_membuf_destroy,
 	&obex_hdr_membuf_get_id,
 	&obex_hdr_membuf_get_type,
 	&obex_hdr_membuf_get_data_size,
 	&obex_hdr_membuf_get_data_ptr,
+	&obex_hdr_membuf_set_data,
 	NULL,
 	NULL,
 };

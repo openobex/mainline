@@ -51,9 +51,8 @@ struct obex_hdr * obex_hdr_ptr_create(enum obex_hdr_id id,
 struct obex_hdr * obex_hdr_ptr_parse(const void *msgdata, size_t size);
 
 
-struct obex_hdr * obex_hdr_stream_create(struct obex *obex);
-void obex_hdr_stream_set_data(struct obex_hdr *hdr,
-			      const void *buf, size_t size);
+struct obex_hdr * obex_hdr_stream_create(struct obex *obex,
+					 struct obex_hdr *data);
 void obex_hdr_stream_finish(struct obex_hdr *hdr);
 
 
@@ -63,6 +62,7 @@ struct obex_hdr_ops {
 	enum obex_hdr_type (*get_type)(void *self);
 	size_t (*get_data_size)(void *self);
 	const void * (*get_data_ptr)(void *self);
+	bool (*set_data)(void *self, const void *data, size_t size);
 	size_t (*append_data)(void *self, struct databuffer *buf, size_t size);
 	bool (*is_finished)(void *self);
 };
@@ -74,6 +74,7 @@ enum obex_hdr_type obex_hdr_get_type(struct obex_hdr *hdr);
 size_t obex_hdr_get_size(struct obex_hdr *hdr);
 size_t obex_hdr_get_data_size(struct obex_hdr *hdr);
 const void * obex_hdr_get_data_ptr(struct obex_hdr *hdr);
+bool obex_hdr_set_data(struct obex_hdr *hdr, const void *data, size_t size);
 size_t obex_hdr_append(struct obex_hdr *hdr, struct databuffer *buf,
 		       size_t max_size);
 bool obex_hdr_is_splittable(struct obex_hdr *hdr);

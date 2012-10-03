@@ -126,6 +126,14 @@ const void * obex_hdr_get_data_ptr(struct obex_hdr *hdr)
 		return NULL;
 }
 
+bool obex_hdr_set_data(struct obex_hdr *hdr, const void *data, size_t size)
+{
+	if (hdr->ops && hdr->ops->set_data)
+		return hdr->ops->set_data(hdr->data, data, size);
+	else
+		return false;
+}
+
 bool obex_hdr_is_splittable(struct obex_hdr *hdr)
 {
 	return (obex_hdr_get_id(hdr) == OBEX_HDR_ID_BODY &&
@@ -163,8 +171,7 @@ size_t obex_hdr_append(struct obex_hdr *hdr, struct databuffer *buf,
 	size_t data_size = obex_hdr_get_data_size(hdr);
 
 	if (((hdr_size + data_size) > max_size && !obex_hdr_is_splittable(hdr))
-	    || hdr_size + MIN_DATA_SIZE > max_size
-	    || data_size == 0)
+	    || hdr_size + MIN_DATA_SIZE > max_size)
 		return 0;
 
 	buf_append(buf, NULL, hdr_size);
