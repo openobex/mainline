@@ -40,7 +40,7 @@ static
 void obex_hdr_stream_destroy(void *self)
 {
 	struct obex_hdr_stream *hdr = self;
-	free(hdr->data);
+	obex_hdr_destroy(hdr->data);
 	free(hdr);
 }
 

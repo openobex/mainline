@@ -123,8 +123,14 @@ bool obex_transport_init(obex_t *self, int transport)
 void obex_transport_cleanup(obex_t *self)
 {
 	obex_transport_disconnect(self);
+
 	if (self->trans->ops->cleanup)
 		self->trans->ops->cleanup(self);
+
+	obex_transport_free_interfaces(self);
+
+	free(self->trans);
+	self->trans = NULL;
 }
 
 bool obex_transport_is_server(obex_t *self)

@@ -114,8 +114,6 @@ void obex_destroy(obex_t *self)
 	if (self->rx_msg)
 		buf_delete(self->rx_msg);
 
-	obex_transport_free_interfaces(self);
-
 	free(self);
 }
 
