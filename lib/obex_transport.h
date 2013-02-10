@@ -80,7 +80,9 @@ void obex_transport_cleanup(obex_t *self);
 
 bool obex_transport_is_server(obex_t *self);
 bool obex_transport_accept(obex_t *self, const obex_t *server);
-result_t obex_transport_handle_input(struct obex *self, int64_t timeout);
+int64_t obex_transport_get_timeout(struct obex *self);
+void obex_transport_set_timeout(struct obex *self, int64_t timeout);
+result_t obex_transport_handle_input(struct obex *self);
 bool obex_transport_connect_request(struct obex *self);
 void obex_transport_disconnect(struct obex *self);
 bool obex_transport_listen(struct obex *self);

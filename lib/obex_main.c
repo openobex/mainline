@@ -282,9 +282,9 @@ static result_t obex_mode(obex_t *self)
 	}
 }
 
-result_t obex_handle_input(obex_t *self, int64_t timeout)
+result_t obex_handle_input(obex_t *self)
 {
-	result_t ret = obex_transport_handle_input(self, timeout);
+	result_t ret = obex_transport_handle_input(self);
 
 	if (ret != RESULT_SUCCESS)
 		return ret;
@@ -313,7 +313,7 @@ static bool obex_check_srm_input(obex_t *self)
 	    ((self->mode == OBEX_MODE_CLIENT && self->state == STATE_REQUEST) ||
 	     (self->mode == OBEX_MODE_SERVER && self->state == STATE_RESPONSE)))
 	{
-		result_t ret = obex_handle_input(self, 0);
+		result_t ret = obex_handle_input(self);
 		if (ret == RESULT_TIMEOUT) {
 			self->substate = SUBSTATE_TX_PREPARE;
 			return false;
@@ -323,23 +323,23 @@ static bool obex_check_srm_input(obex_t *self)
 }
 
 /*
- * Function obex_work (self, timeout)
+ * Function obex_work (self)
  *
  *    Do some work on the current transferred object.
  *
  */
-result_t obex_work(obex_t *self, int64_t timeout)
+result_t obex_work(obex_t *self)
 {
 	result_t ret;
 
 	if (self->state == STATE_IDLE) {
-		ret = obex_handle_input(self, timeout);
+		ret = obex_handle_input(self);
 		if (ret != RESULT_SUCCESS)
 			return ret;
 
 	} else if (self->substate == SUBSTATE_RX) {
 		if (obex_check_srm_input(self)) {
-			ret = obex_handle_input(self, timeout);
+			ret = obex_handle_input(self);
 			if (ret != RESULT_SUCCESS)
 				return ret;
 		}

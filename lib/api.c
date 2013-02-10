@@ -296,27 +296,88 @@ out_err:
 }
 
 /**
+	Set the timeout for read/write operations if supported by the underlying
+	transport.
+	\param self OBEX handle
+	\param timeout Maximum time to wait in milliseconds (-1 for infinite)
+ */
+LIB_SYMBOL
+void CALLAPI OBEX_SetTimeout(obex_t *self, int64_t timeout)
+{
+	obex_return_if_fail(self != NULL);
+	obex_transport_set_timeout(self, timeout);	
+}
+
+/**
+	Let the OBEX parser do some work.
+	\param self OBEX handle
+	\return -1 on error, 0 on timeout, positive on success
+
+	Let the OBEX parser read and process incoming data, or prepare and send
+	outgoing data.
+
+	When a request has been sent (client) or you are waiting for an incoming
+	request (server) you should call this function until the request has
+	finished.
+ */
+LIB_SYMBOL
+int CALLAPI OBEX_Work(obex_t *self)
+{
+	DEBUG(4, "\n");
+	obex_return_val_if_fail(self != NULL, -1);
+	return obex_work(self);
+}
+
+/**
 	Let the OBEX parser do some work.
 	\param self OBEX handle
 	\param timeout Maximum time to wait in seconds (-1 for infinite)
 	\return -1 on error, 0 on timeout, positive on success
 
-	Let the OBEX parser read and process incoming data. If no data
-	is available this call will block.
+	Deprecated.
 
-	When a request has been sent (client) or you are waiting for an incoming
-	request (server) you should call this function until the request has
-	finished.
+	Let the OBEX parser read and process incoming data and send the response.
 
-	Like select() this function returns -1 on error, 0 on timeout or
-	positive on success.
+	The timeout parameter is only for the reading part, preparing and sending
+	can take any amount of time.
  */
 LIB_SYMBOL
 int CALLAPI OBEX_HandleInput(obex_t *self, int timeout)
 {
-	DEBUG(4, "\n");
+	int result;
+	int64_t oldTimeout;
+	enum obex_data_direction dir;
+
 	obex_return_val_if_fail(self != NULL, -1);
-	return obex_work(self, timeout * 1000);
+
+	DEBUG(4, "\n");
+
+	oldTimeout = obex_transport_get_timeout(self);
+	dir = obex_get_data_direction(self);
+	obex_transport_set_timeout(self, timeout*1000);
+
+	if (dir == OBEX_DATA_IN) {
+		int result = obex_work(self);
+		if (result <= 0) /* timeout or error */
+			goto timeout_or_error;
+		dir = obex_get_data_direction(self);
+	}
+
+	/* make the following loop more efficient */
+	obex_transport_set_timeout(self, -1);
+
+	while (dir == OBEX_DATA_NONE || dir == OBEX_DATA_OUT) {
+		int result = obex_work(self);
+		if (result < 0) /* error */
+			goto timeout_or_error;
+		dir = obex_get_data_direction(self);
+	}
+
+	result = 1;
+
+timeout_or_error:
+	obex_transport_set_timeout(self, oldTimeout);
+	return result;
 }
 
 /**

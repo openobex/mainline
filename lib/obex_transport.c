@@ -160,15 +160,39 @@ bool obex_transport_accept(obex_t *self, const obex_t *server)
 }
 
 /*
- * Function obex_transport_handle_input(self, timeout)
+ * Function obex_transport_get_timeout(self)
+ *
+ *    Report current timeout
+ *
+ */
+int64_t obex_transport_get_timeout(obex_t *self)
+{
+	DEBUG(4, "\n");
+	return self->trans->timeout;
+}
+
+/*
+ * Function obex_transport_set_timeout(self, timeout)
+ *
+ *    Change timeout
+ *
+ */
+void obex_transport_set_timeout(obex_t *self, int64_t timeout)
+{
+	DEBUG(4, "\n");
+	self->trans->timeout = timeout;
+}
+
+/*
+ * Function obex_transport_handle_input(self)
  *
  *    Used when working in synchronous mode.
  *
  */
-result_t obex_transport_handle_input(obex_t *self, int64_t timeout)
+result_t obex_transport_handle_input(obex_t *self)
 {
 	DEBUG(4, "\n");
-	self->trans->timeout = timeout;
+
 	if (self->trans->connected && obex_msg_rx_status(self)) {
 		DEBUG(4, "full message already in buffer\n");
 		return RESULT_SUCCESS;

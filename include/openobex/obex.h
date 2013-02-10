@@ -82,7 +82,10 @@ OPENOBEX_SYMBOL(void *) OBEX_GetCustomData(obex_t *self);
 OPENOBEX_SYMBOL(int) OBEX_TransportConnect(obex_t *self, struct sockaddr *saddr, int addlen);
 OPENOBEX_SYMBOL(int) OBEX_TransportDisconnect(obex_t *self);
 OPENOBEX_SYMBOL(int) OBEX_CustomDataFeed(obex_t *self, uint8_t *inputbuf, int actual);
-OPENOBEX_SYMBOL(int) OBEX_HandleInput(obex_t *self, int timeout);
+
+OPENOBEX_SYMBOL(void) OBEX_SetTimeout(obex_t *self, int64_t timeout);
+OPENOBEX_SYMBOL(int)  OBEX_Work(obex_t *self);
+OPENOBEX_SYMBOL(int)  OBEX_HandleInput(obex_t *self, int timeout);
 
 OPENOBEX_SYMBOL(int)      OBEX_ServerRegister(obex_t *self, struct sockaddr *saddr, int addrlen);
 OPENOBEX_SYMBOL(obex_t *) OBEX_ServerAccept(obex_t *server, obex_event_t eventcb, void * data);
