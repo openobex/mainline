@@ -35,7 +35,7 @@ First of all you must create an OBEX instance by calling #OBEX_Init.
 In this call you specify what transport you want to use, an event callback, and optional flags.
 #OBEX_Init will return a handle which shall be passed to almost all other functions.
 
-To let the parser do some work you must call #OBEX_HandleInput.
+To let the parser do some work you must call #OBEX_Work.
 It will block for at-most the specified timeout for read and write actions.
 You can call #OBEX_GetFD if you want to do select() yourself (this may not work with all transports).
 
@@ -43,7 +43,7 @@ You can call #OBEX_GetFD if you want to do select() yourself (this may not work 
 
 The event callback shall be a function with the #obex_event_t prototype:
 	\code
-void *obex_event_t(obex_t *handle, obex_object_t *obj, int mode, int event, int obex_cmd, int obex_rsp)
+void my_obex_event(obex_t *handle, obex_object_t *obj, int obex_mode, int obex_event, int obex_cmd, int obex_rsp)
 	\endcode
 
 Arguments:
@@ -61,9 +61,10 @@ To this function events from the library will be passed to you, for example when
 
 First of all you must connect the transport. For this you can use the discovery API by calling functions
 in the following order:
-  * #OBEX_EnumerateInterfaces
-  * #OBEX_GetInterfaceByIndex
-  * #OBEX_InterfaceConnect
+  - #OBEX_EnumerateInterfaces
+  - #OBEX_GetInterfaceByIndex
+  - #OBEX_InterfaceConnect
+
 This is supported for USB and IrDA (bluetooth not implemented, yet).
 
 Instead of the discovery API, you can also use the generic #OBEX_TransportConnect
@@ -111,7 +112,7 @@ hd.bs = body;
 OBEX_ObjectAddHeader(handle, object,
             OBEX_HDR_BODY, hd, body_size, 0);
 
-if(OBEX_Request(handle, object) &lt; 0) {
+if(OBEX_Request(handle, object) < 0) {
 	/* Error */
 }
 	\endcode
