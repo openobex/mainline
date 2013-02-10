@@ -150,6 +150,13 @@ enum obex_mode {
 	OBEX_MODE_SERVER = 1, /**< server mode */
 };
 
+/** Possible data direction */
+enum obex_data_direction {
+	OBEX_DATA_NONE = 0,
+	OBEX_DATA_IN = 1,
+	OBEX_DATA_OUT = 2,
+};
+
 /** Possible events */
 enum obex_event {
 	/** Progress has been made */

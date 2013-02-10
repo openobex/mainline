@@ -14,6 +14,7 @@ OBEX_CustomDataFeed
 OBEX_HandleInput
 OBEX_SetTimeout
 OBEX_Work
+OBEX_GetDataDirection
 OBEX_ServerRegister
 OBEX_ServerAccept
 OBEX_Request

@@ -282,6 +282,21 @@ static result_t obex_mode(obex_t *self)
 	}
 }
 
+enum obex_data_direction obex_get_data_direction(obex_t *self)
+{
+	if (self->state == STATE_IDLE)
+		return OBEX_DATA_IN;
+
+	else if (self->substate == SUBSTATE_RX)
+		return OBEX_DATA_IN;
+
+	else if (self->substate == SUBSTATE_TX)
+		return OBEX_DATA_OUT;
+
+	else
+		return OBEX_DATA_NONE;
+}
+
 result_t obex_handle_input(obex_t *self)
 {
 	result_t ret = obex_transport_handle_input(self);

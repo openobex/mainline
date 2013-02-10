@@ -82,6 +82,7 @@ void obex_deliver_event(obex_t *self, enum obex_event event, enum obex_cmd cmd,
 
 result_t obex_handle_input(obex_t *self);
 result_t obex_work(struct obex *self);
+enum obex_data_direction obex_get_data_direction(obex_t *self);
 int obex_get_buffer_status(struct databuffer *msg);
 int obex_data_indication(struct obex *self);
 void obex_data_receive_finished(obex_t *self);

@@ -329,6 +329,22 @@ int CALLAPI OBEX_Work(obex_t *self)
 }
 
 /**
+	Determine data direction of OBEX_Work()
+	\param self OBEX handle
+
+	Use this to achieve better integration of OBEX_Work() into mainloops.
+	You should call this after each call of OBEX_Work().
+	If #OBEX_DATA_NONE is returned, it depends on your event callback when
+	to re-enable mainloop events.
+ */
+LIB_SYMBOL
+enum obex_data_direction CALLAPI OBEX_GetDataDirection(obex_t *self)
+{
+	DEBUG(4, "\n");
+	return obex_get_data_direction(self);
+}
+
+/**
 	Let the OBEX parser do some work.
 	\param self OBEX handle
 	\param timeout Maximum time to wait in seconds (-1 for infinite)
