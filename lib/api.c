@@ -316,7 +316,7 @@ int CALLAPI OBEX_HandleInput(obex_t *self, int timeout)
 {
 	DEBUG(4, "\n");
 	obex_return_val_if_fail(self != NULL, -1);
-	return obex_work(self, timeout);
+	return obex_work(self, timeout * 1000);
 }
 
 /**

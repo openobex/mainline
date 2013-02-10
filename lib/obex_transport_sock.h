@@ -78,8 +78,8 @@ struct obex_sock * obex_transport_sock_accept(struct obex_sock *sock);
 bool obex_transport_sock_disconnect(struct obex_sock *sock);
 
 ssize_t obex_transport_sock_send(struct obex_sock *sock, struct databuffer *msg,
-				 int timeout);
-result_t obex_transport_sock_wait(struct obex_sock *sock, int timeout);
+				 int64_t timeout);
+result_t obex_transport_sock_wait(struct obex_sock *sock, int64_t timeout);
 ssize_t obex_transport_sock_recv(struct obex_sock *sock, void *buf, int buflen);
 
 result_t obex_transport_sock_handle_input(struct obex_sock *sock, obex_t *self);

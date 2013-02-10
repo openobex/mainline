@@ -165,7 +165,7 @@ bool obex_transport_accept(obex_t *self, const obex_t *server)
  *    Used when working in synchronous mode.
  *
  */
-result_t obex_transport_handle_input(obex_t *self, int timeout)
+result_t obex_transport_handle_input(obex_t *self, int64_t timeout)
 {
 	DEBUG(4, "\n");
 	self->trans->timeout = timeout;

@@ -489,17 +489,17 @@ static bool usbobex_disconnect(obex_t *self)
 	return true;
 }
 
-static unsigned int usbobex_get_timeout(int timeout)
+static unsigned int usbobex_get_timeout(int64_t timeout)
 {
 	/* uses closest to zero, 0 itself means infinite */
 	if (timeout == 0) {
 		return 1;
 
 	} else if (timeout > 0) {
-		if ((unsigned int)timeout > UINT_MAX/1000)
+		if ((uint64_t)timeout > UINT_MAX)
 			return UINT_MAX;
 		else
-			return timeout * 1000;
+			return (unsigned int)timeout;
 
 	}
 	return 0;

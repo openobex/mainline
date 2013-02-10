@@ -458,15 +458,15 @@ static bool usbobex_disconnect(obex_t *self)
 	return true;
 }
 
-static int usbobex_get_timeout(int timeout)
+static int usbobex_get_timeout(int64_t timeout)
 {
-	if (timeout < 0 || timeout > INT_MAX/1000) {
+	if (timeout < 0 || timeout > INT_MAX) {
 		/* libusb-0.x doesn't know about waiting infinitely
 		 * so we try with the largest value possible
 		 */
 		return INT_MAX;
 	}
-	return timeout*1000;
+	return (int)timeout;
 }
 
 static ssize_t usbobex_write(obex_t *self, struct databuffer *msg)

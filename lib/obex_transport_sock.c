@@ -185,18 +185,16 @@ bool obex_transport_sock_set_remote(struct obex_sock *sock,
  *
  * @param sock the socket instance
  * @param msg the message to send
- * @param timeout give up after timeout (in seconds)
+ * @param timeout give up after timeout (in milliseconds)
  * @return -1 on error, else number of sent bytes
  */
 ssize_t obex_transport_sock_send(struct obex_sock *sock, struct databuffer *msg,
-				 int timeout)
+				 int64_t timeout)
 {
 	size_t size = buf_get_length(msg);
 	socket_t fd = sock->fd;
 	ssize_t status;
 	fd_set fdset;
-	struct timeval *time_ptr = NULL;
-	struct timeval time = {timeout, 0};
 
 	if (size == 0)
 		return 0;
@@ -205,9 +203,12 @@ ssize_t obex_transport_sock_send(struct obex_sock *sock, struct databuffer *msg,
 
 	FD_ZERO(&fdset);
 	FD_SET(fd, &fdset);
-	if (timeout >= 0)
-		time_ptr = &time;
-	status = select((int)fd + 1, NULL, &fdset, NULL, time_ptr);
+	if (timeout >= 0) {
+		struct timeval time = {timeout / 1000, timeout % 1000};
+		status = select((int)fd + 1, NULL, &fdset, NULL, &time);
+	} else {
+		status = select((int)fd + 1, NULL, &fdset, NULL, NULL);
+	}
 	if (status == 0)
 		return 0;
 
@@ -377,10 +378,10 @@ err_out:
 /** Wait for incoming data/events
  *
  * @param sock the socket instance
- * @param timeout give up after timeout (in seconds)
+ * @param timeout give up after timeout (in milliseconds)
  * @return -1 on failure, 0 on timeout, >0 on success
  */
-result_t obex_transport_sock_wait(struct obex_sock *sock, int timeout)
+result_t obex_transport_sock_wait(struct obex_sock *sock, int64_t timeout)
 {
 	socket_t fd = sock->fd;
 	fd_set fdset;
@@ -400,7 +401,7 @@ result_t obex_transport_sock_wait(struct obex_sock *sock, int timeout)
 
 	/* Wait for input */
 	if (timeout >= 0) {
-		struct timeval time = {timeout, 0};
+		struct timeval time = {timeout / 1000, timeout % 1000};
 		ret = select((int)fd + 1, &fdset, NULL, NULL, &time);
 	} else {
 		ret = select((int)fd + 1, &fdset, NULL, NULL, NULL);

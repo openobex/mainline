@@ -282,7 +282,7 @@ static result_t obex_mode(obex_t *self)
 	}
 }
 
-result_t obex_handle_input(obex_t *self, int timeout)
+result_t obex_handle_input(obex_t *self, int64_t timeout)
 {
 	result_t ret = obex_transport_handle_input(self, timeout);
 
@@ -328,7 +328,7 @@ static bool obex_check_srm_input(obex_t *self)
  *    Do some work on the current transferred object.
  *
  */
-result_t obex_work(obex_t *self, int timeout)
+result_t obex_work(obex_t *self, int64_t timeout)
 {
 	result_t ret;
 

@@ -97,7 +97,7 @@ static ssize_t fdobex_write(obex_t *self, buf_t *msg)
 	size_t size = buf_get_length(msg);
 	int status;
 	fd_set fdset;
-	struct timeval time = {trans->timeout, 0};
+	struct timeval time = {trans->timeout / 1000, trans->timeout % 1000};
 
 	if (size == 0)
 		return 0;
@@ -132,7 +132,7 @@ static result_t fdobex_handle_input(obex_t *self)
 	struct obex_transport *trans = self->trans;
 	struct fdobex_data *data = self->trans->data;
 	fd_t fd = data->readfd;
-	struct timeval time = {trans->timeout, 0};
+	struct timeval time = {trans->timeout / 1000, trans->timeout % 1000};
 	fd_set fdset;
 	int status;
 

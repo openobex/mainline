@@ -70,7 +70,7 @@ typedef struct obex_transport {
 	struct obex_transport_ops *ops;
 	void *data;		/* Private data for the transport */
 
-	int timeout;		/* set timeout */
+	int64_t timeout;	/* set timeout */
 	bool connected;		/* Link connection state */
 	bool server;		/* Listens on local interface */
 } obex_transport_t;
@@ -80,7 +80,7 @@ void obex_transport_cleanup(obex_t *self);
 
 bool obex_transport_is_server(obex_t *self);
 bool obex_transport_accept(obex_t *self, const obex_t *server);
-result_t obex_transport_handle_input(struct obex *self, int timeout);
+result_t obex_transport_handle_input(struct obex *self, int64_t timeout);
 bool obex_transport_connect_request(struct obex *self);
 void obex_transport_disconnect(struct obex *self);
 bool obex_transport_listen(struct obex *self);

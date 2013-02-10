@@ -95,7 +95,7 @@ static result_t custom_handle_input(obex_t *self)
 {
 	struct obex_transport *trans = self->trans;
 	obex_ctrans_t *ctrans = trans->data;
-	int res = ctrans->handleinput(self, ctrans->customdata, trans->timeout);
+	int res = ctrans->handleinput(self, ctrans->customdata, (int)((trans->timeout+999)/1000));
 
 	if (res < 0)
 		return RESULT_ERROR;
