@@ -109,6 +109,23 @@ static result_t obex_server_bad_request(obex_t *self)
 					    OBEX_EV_PARSEERR);
 }
 
+static result_t obex_server_response_tx_prepare(obex_t *self)
+{
+	DEBUG(4, "STATE: RESPONSE/PREPARE_TX\n");
+
+	if (self->object->abort)
+		return obex_server_abort_by_application(self);
+
+	/* As a server, the final bit is always SET, and the "real final" packet
+	 * is distinguished by being SUCCESS instead of CONTINUE.
+	 * So, force the final bit here. */
+	if (!obex_msg_prepare(self, self->object, TRUE))
+		return RESULT_ERROR;
+
+	self->substate = SUBSTATE_TX;
+	return RESULT_SUCCESS;
+}
+
 static result_t obex_server_response_tx(obex_t *self)
 {
 	int cmd = self->object->cmd;
@@ -130,28 +147,12 @@ static result_t obex_server_response_tx(obex_t *self)
 		   !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL))
 	{
 		self->substate = SUBSTATE_TX_PREPARE;
+		return obex_server_response_tx_prepare(self);
 
 	} else {
 		self->substate = SUBSTATE_RX;
 	}
 
-	return RESULT_SUCCESS;
-}
-
-static result_t obex_server_response_tx_prepare(obex_t *self)
-{
-	DEBUG(4, "STATE: RESPONSE/PREPARE_TX\n");
-
-	if (self->object->abort)
-		return obex_server_abort_by_application(self);
-
-	/* As a server, the final bit is always SET, and the "real final" packet
-	 * is distinguished by being SUCCESS instead of CONTINUE.
-	 * So, force the final bit here. */
-	if (!obex_msg_prepare(self, self->object, TRUE))
-		return RESULT_ERROR;
-
-	self->substate = SUBSTATE_TX;
 	return RESULT_SUCCESS;
 }
 
