@@ -43,7 +43,10 @@ set ( SOURCES
   transport/customtrans.c
 )
 
-include_directories ( ${CMAKE_CURRENT_SOURCE_DIR} )
+include_directories (
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
 set ( HEADERS
   obex_client.h
   obex_connect.h
@@ -59,7 +62,6 @@ set ( HEADERS
   debug.h
   defines.h
   obex_incl.h
-  visibility.h
   cloexec.h
   nonblock.h
   transport/inobex.h
@@ -136,13 +138,8 @@ if ( OPENOBEX_USB )
   )
 endif ( OPENOBEX_USB )
 
-if ( COMPILER_SUPPORT_VISIBILITY )
-  list ( APPEND openobex_COMPILE_DEFINITIONS HAVE_VISIBILITY )
-  set ( openobex_COMPILE_FLAGS "${openobex_COMPILE_FLAGS} ${COMPILER_FLAG_VISIBILITY}" )
-endif ( COMPILER_SUPPORT_VISIBILITY )
-if ( COMPILER_SUPPORT_NOUNDEFINED )
-  set ( openobex_LINK_FLAGS "${openobex_LINK_FLAGS} ${LINKER_FLAG_NOUNDEFINED}" )
-endif ( COMPILER_SUPPORT_NOUNDEFINED )
+set ( openobex_COMPILE_FLAGS "${openobex_COMPILE_FLAGS} ${COMPILER_FLAG_VISIBILITY}" )
+set ( openobex_LINK_FLAGS "${openobex_LINK_FLAGS} ${LINKER_FLAG_NOUNDEFINED}" )
 
 if ( WIN32 )
   if ( CMAKE_COMPILER_IS_GNUCC )
@@ -204,9 +201,7 @@ foreach ( i ${openobex_PROPERTIES} )
   endif ( DEFINED openobex_${i} )
 endforeach ( i )
 
-set_property ( TARGET openobex PROPERTY
-  DEFINE_SYMBOL OPENOBEX_EXPORTS
-)
+generate_export_header( openobex )
 
 install ( TARGETS openobex
   EXPORT openobex-target

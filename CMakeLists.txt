@@ -33,6 +33,10 @@ endif ( NOT CMAKE_BUILD_TYPE )
 include ( MaintainerMode )
 include ( GNUInstallDirs )
 
+# This module currently expects C++ to be enabled in CMake-2.8.10.
+include ( GenerateExportHeader )
+add_compiler_export_flags ( COMPILER_FLAG_VISIBILITY )
+
 #
 # define how to build libraries
 #
@@ -43,13 +47,11 @@ option ( BUILD_SHARED_LIBS "Build shared libraries" ON )
 #
 include ( CheckCCompilerFlag )
 if ( CMAKE_COMPILER_IS_GNUCC )
-  if ( UNIX AND NOT WIN32 )
-    set ( COMPILER_FLAG_VISIBILITY -fvisibility=hidden )
-    check_c_compiler_flag ( ${COMPILER_FLAG_VISIBILITY} COMPILER_SUPPORT_VISIBILITY )
-  endif ( UNIX AND NOT WIN32 )
-
-  set ( LINKER_FLAG_NOUNDEFINED   -Wl,--no-undefined )
+  set ( LINKER_FLAG_NOUNDEFINED -Wl,--no-undefined )
   check_c_compiler_flag ( "${LINKER_FLAG_NOUNDEFINED}" COMPILER_SUPPORT_NOUNDEFINED )
+  if ( NOT COMPILER_SUPPORT_NOUNDEFINED )
+    set ( LINKER_FLAG_NOUNDEFINED )
+  endif ( NOT COMPILER_SUPPORT_NOUNDEFINED )
 endif ( CMAKE_COMPILER_IS_GNUCC )
 
 if ( MSVC )

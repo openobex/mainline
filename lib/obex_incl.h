@@ -2,7 +2,22 @@
 #define OBEX_INCL_H
 
 #include "transport/bluez_compat.h"
-#include "visibility.h"
+
+#if defined(_WIN32)
+#  include <winsock2.h> /* make sure to use version 2 of Windows socket API */
+#  include <windows.h>
+#  define CALLAPI WINAPI
+#endif
+
+#include "openobex_export.h"
+
+#ifndef LIB_SYMBOL
+#define LIB_SYMBOL OPENOBEX_EXPORT
+#endif
+
+#ifndef CALLAPI
+#define CALLAPI
+#endif
 
 /* This overides the define in openobex/obex.h */
 #define OPENOBEX_SYMBOL(retval) LIB_SYMBOL retval CALLAPI
