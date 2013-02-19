@@ -484,27 +484,31 @@ int CALLAPI OBEX_GetFD(obex_t *self)
 	Schedule a request (as client).
 	\param self OBEX handle
 	\param object Object containing request
-	\return -1 on error, 0 on success.
+	\return 0 on success or a negative error code on failure (-EBUSY, -EINVAL, -EIO)
  */
 LIB_SYMBOL
 int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 {
 	DEBUG(4, "\n");
 
-	obex_return_val_if_fail(self != NULL, -1);
+	obex_return_val_if_fail(self != NULL, -EINVAL);
+	obex_return_val_if_fail(object != NULL, -EINVAL);
 
 	if (self->object) {
 		DEBUG(1, "We are busy.\n");
 		return -EBUSY;
 	}
 
-	obex_return_val_if_fail(object != NULL, -1);
-
 	object->rsp_mode = self->rsp_mode;
 	self->object = object;
 	self->mode = OBEX_MODE_CLIENT;
         self->state = STATE_REQUEST;
 	self->substate = SUBSTATE_TX_PREPARE;
+
+	/* Prepare the packet but do not send it */
+	result_t result = obex_client(self);
+	if (result < 0)
+		return -EIO;
 
 	return 0;
 }
