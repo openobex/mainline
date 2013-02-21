@@ -234,7 +234,7 @@ configure_file (
 #
 # Create and copy the openobex-config.cmake files for the installed copy
 #
-set ( CMAKE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/OpenObex-${openobex_VERSION}
+set ( CMAKE_INSTALL_CMAKEBASEDIR ${CMAKE_INSTALL_LIBDIR}/cmake
       CACHE PATH "Where to install the cmake config files" )
 
 file(RELATIVE_PATH CMAKE_INSTALL_REL_INCLUDEDIR
@@ -255,11 +255,11 @@ configure_file (
 install ( FILES
   ${PROJECT_BINARY_DIR}/openobex-config.cmake
   ${PROJECT_BINARY_DIR}/openobex-config-version.cmake
-  DESTINATION ${CMAKE_INSTALL_CMAKEDIR}
+  DESTINATION ${CMAKE_INSTALL_CMAKEBASEDIR}/OpenObex-${openobex_VERSION}
   COMPONENT devel
 )
 install ( EXPORT openobex-target
-  DESTINATION ${CMAKE_INSTALL_CMAKEDIR}
+  DESTINATION ${CMAKE_INSTALL_CMAKEBASEDIR}/OpenObex-${openobex_VERSION}
   COMPONENT devel
 )
 
