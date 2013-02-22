@@ -343,9 +343,19 @@ bool obex_object_append_data(obex_object_t *object, buf_t *txmsg, size_t tx_left
 	/* Take headers from the tx queue and try to stuff as
 	 * many as possible into the tx-msg */
 	if (object->tx_it) {
+		bool has_body_header = false;
 		struct obex_hdr *h = obex_hdr_it_get(object->tx_it);
 		while (h != NULL && !object->suspended && tx_left > 0) {
-			if (obex_hdr_get_id(h) != OBEX_HDR_ID_INVALID) {
+			enum obex_hdr_id id = obex_hdr_get_id(h);
+
+			if (id == OBEX_HDR_ID_BODY || id == OBEX_HDR_ID_BODY_END)
+			{
+				if (has_body_header)
+					break;
+				has_body_header = true;
+			}
+
+			if (id != OBEX_HDR_ID_INVALID) {
 				size_t ret = obex_hdr_append(h, txmsg, tx_left);
 				if (ret == 0)
 					break;
