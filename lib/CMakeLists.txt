@@ -7,7 +7,6 @@
 set ( openobex_PROPERTIES
   VERSION
   SOVERSION
-  PUBLIC_HEADER
   COMPILE_DEFINITIONS
   COMPILE_FLAGS
   LINK_FLAGS
@@ -67,11 +66,6 @@ set ( HEADERS
   transport/inobex.h
   transport/fdobex.h
   transport/customtrans.h
-)
-
-set ( openobex_PUBLIC_HEADER
-  ${openobex_INCLUDE_DIRS}/openobex/obex.h
-  ${openobex_INCLUDE_DIRS}/openobex/obex_const.h
 )
 
 if ( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
@@ -184,7 +178,7 @@ endif ( CYGWIN )
 add_library ( openobex
   ${SOURCES}
   ${HEADERS}
-  ${openobex_PUBLIC_HEADER}
+  ${openobex_PUBLIC_HEADERS}
   ${OPENOBEX_RC_FILE}
   ${OPENOBEX_DEF_FILE}
 )
@@ -213,9 +207,6 @@ install ( TARGETS openobex
     COMPONENT library
   ARCHIVE
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    COMPONENT devel
-  PUBLIC_HEADER
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openobex
     COMPONENT devel
 )
 

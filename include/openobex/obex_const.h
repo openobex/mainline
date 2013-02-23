@@ -35,6 +35,7 @@ extern "C" {
 #endif
 
 #include <inttypes.h>
+#include <openobex/version.h>
 
 /** OBEX object tag information
  */
