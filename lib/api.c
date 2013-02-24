@@ -42,6 +42,7 @@
 #include <errno.h>
 
 #include "obex_main.h"
+#include "obex_client.h"
 #include "obex_object.h"
 #include "obex_body.h"
 #include "obex_msg.h"
@@ -489,6 +490,8 @@ int CALLAPI OBEX_GetFD(obex_t *self)
 LIB_SYMBOL
 int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 {
+	result_t result;
+
 	DEBUG(4, "\n");
 
 	obex_return_val_if_fail(self != NULL, -EINVAL);
@@ -506,7 +509,7 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 	self->substate = SUBSTATE_TX_PREPARE;
 
 	/* Prepare the packet but do not send it */
-	result_t result = obex_client(self);
+	result = obex_client(self);
 	if (result < 0)
 		return -EIO;
 
