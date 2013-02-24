@@ -65,8 +65,12 @@ int get_filesize(const char *filename)
 #else
 	struct stat stats;
 	/*  Need to know the file length */
-	stat(filename, &stats);
-	return (int) stats.st_size;
+	if (stat(filename, &stats) == -1) {
+		printf("stat() error\n");
+		return -1;
+	}
+	else
+		return (int) stats.st_size;
 #endif
 }
 
