@@ -288,6 +288,7 @@ static int ircp_put_file(ircp_client_t *cli, char *localname, char *remotename)
 	cli->fd = open(localname, O_RDONLY, 0);
 	if(cli->fd < 0) {
 		ret = -1;
+		OBEX_ObjectDelete(cli->obexhandle, object);
 	}
 	else {
 		ret = cli_sync_request(cli, object);
