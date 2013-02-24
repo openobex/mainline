@@ -43,6 +43,8 @@ static int str2ba(const char *str, bdaddr_t *ba) {
 
 #if defined(_WIN32)
 #undef HAVE_CABLE_OBEX
+#define in_addr_t unsigned long
+
 #else
 #include "obex_test_cable.h"
 #define HAVE_CABLE_OBEX 1
@@ -57,10 +59,6 @@ static int str2ba(const char *str, bdaddr_t *ba) {
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-
-#ifndef in_addr_t
-#define in_addr_t unsigned long
-#endif
 
 #define TRUE  1
 #define FALSE 0
