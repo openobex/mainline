@@ -63,6 +63,10 @@ static void put_done(obex_object_t *object)
 			body_len = hlen;
 			break;
 		case OBEX_HDR_NAME:
+			if (namebuf) {
+				free(namebuf);
+				name = namebuf = NULL;
+			}
 			if( (namebuf = malloc(hlen / 2)))	{
 				OBEX_UnicodeToChar((uint8_t *) namebuf, hv.bs, hlen);
 				name = namebuf;
