@@ -129,6 +129,7 @@ static void get_server(obex_t *handle, obex_object_t *object)
 	if(buf == NULL) {
 		printf("Can't find file %s\n", name);
 		OBEX_ObjectSetRsp(object, OBEX_RSP_NOT_FOUND, OBEX_RSP_NOT_FOUND);
+		free(namebuf);
 		return;
 	}
 
@@ -137,6 +138,7 @@ static void get_server(obex_t *handle, obex_object_t *object)
 	OBEX_ObjectAddHeader(handle, object, OBEX_HDR_BODY, hv, file_size, 0);
 	hv.bq4 = file_size;
 	OBEX_ObjectAddHeader(handle, object, OBEX_HDR_LENGTH, hv, sizeof(uint32_t), 0);
+	free(namebuf);
 	free(buf);
 	return;
 }
