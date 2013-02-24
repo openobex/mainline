@@ -63,6 +63,10 @@ static void put_server(obex_t *handle, obex_object_t *object)
 			break;
 		case OBEX_HDR_NAME:
 			printf("%s() Found name\n", __FUNCTION__);
+			if (namebuf) {
+				free(namebuf);
+				name = namebuf = NULL;
+			}
 			if( (namebuf = malloc(hlen / 2)))	{
 				OBEX_UnicodeToChar((uint8_t *) namebuf, hv.bs, hlen);
 				name = namebuf;
@@ -75,6 +79,7 @@ static void put_server(obex_t *handle, obex_object_t *object)
 	}
 	if(!body)	{
 		printf("Got a PUT without a body\n");
+		free(namebuf);
 		return;
 	}
 	if(!name)	{
