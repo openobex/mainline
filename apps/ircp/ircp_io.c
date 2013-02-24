@@ -46,12 +46,17 @@ static int get_fileinfo(const char *name, char *lastmod)
 	struct stat stats;
 	struct tm *tm;
 	
-	stat(name, &stats);
-	tm = gmtime(&stats.st_mtime);
-	snprintf(lastmod, 21, "%04d-%02d-%02dT%02d:%02d:%02dZ",
-			tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
-			tm->tm_hour, tm->tm_min, tm->tm_sec);
-	return (int) stats.st_size;
+	if (stat(name, &stats) != -1) {
+		tm = gmtime(&stats.st_mtime);
+		snprintf(lastmod, 21, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+				tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+				tm->tm_hour, tm->tm_min, tm->tm_sec);
+		return (int) stats.st_size;
+	}
+	else {
+		DEBUG(1, "stat() error!\n");
+		return 0;
+	}
 }
 
 
