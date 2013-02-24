@@ -286,12 +286,13 @@ static int ircp_put_file(ircp_client_t *cli, char *localname, char *remotename)
 	object = build_object_from_file(cli->obexhandle, localname, remotename);
 	
 	cli->fd = open(localname, O_RDONLY, 0);
-	if(cli->fd < 0)
+	if(cli->fd < 0) {
 		ret = -1;
-	else
+	}
+	else {
 		ret = cli_sync_request(cli, object);
-	
-	close(cli->fd);
+		close(cli->fd);
+	}
 		
 	if(ret < 0)
 		cli->infocb(IRCP_EV_ERR, localname);
