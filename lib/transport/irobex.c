@@ -117,18 +117,20 @@ static bool irobex_query_ias(obex_t *self, uint32_t addr, const char* class_name
 	socklen_t len = sizeof(ias_query);
 	socket_t fd;
 
+	memset(&ias_query, 0, sizeof(ias_query));
+
 	/* Ask if the requested service exist on this device */
 #ifndef _WIN32
 	ias_query.daddr = addr;
-	strncpy(ias_query.irda_class_name, class_name, IAS_MAX_CLASSNAME);
-	strncpy(ias_query.irda_attrib_name, "IrDA:TinyTP:LsapSel", IAS_MAX_ATTRIBNAME);
+	strncpy(ias_query.irda_class_name, class_name, IAS_MAX_CLASSNAME-1);
+	strncpy(ias_query.irda_attrib_name, "IrDA:TinyTP:LsapSel", IAS_MAX_ATTRIBNAME-1);
 #else
 	ias_query.irdaDeviceID[0] = (addr >> 24) & 0xFF;
 	ias_query.irdaDeviceID[1] = (addr >> 16) & 0xFF;
 	ias_query.irdaDeviceID[2] = (addr >> 8) & 0xFF;
 	ias_query.irdaDeviceID[3] = addr & 0xFF;
-	strncpy(ias_query.irdaClassName, class_name, IAS_MAX_CLASSNAME);
-	strncpy(ias_query.irdaAttribName, "IrDA:TinyTP:LsapSel", IAS_MAX_ATTRIBNAME);
+	strncpy(ias_query.irdaClassName, class_name, IAS_MAX_CLASSNAME-1);
+	strncpy(ias_query.irdaAttribName, "IrDA:TinyTP:LsapSel", IAS_MAX_ATTRIBNAME-1);
 #endif
 
 	fd = create_stream_socket(AF_IRDA, 0, OBEX_FL_CLOEXEC);
@@ -193,7 +195,7 @@ static bool irobex_select_interface(obex_t *self, obex_interface_t *intf)
 	/* remote address */
 	memset(&addr, 0, sizeof(addr));
 	addr.sir_family = AF_IRDA;
-	strncpy(addr.sir_name, intf->irda.service, sizeof(addr.sir_name));
+	strncpy(addr.sir_name, intf->irda.service, sizeof(addr.sir_name)-1);
 #ifndef _WIN32
 	addr.sir_lsap_sel = LSAP_ANY;
 	addr.sir_addr = intf->irda.remote;
