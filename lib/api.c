@@ -510,8 +510,12 @@ int CALLAPI OBEX_Request(obex_t *self, obex_object_t *object)
 
 	/* Prepare the packet but do not send it */
 	result = obex_client(self);
-	if (result < 0)
+	if (result < 0) {
+		self->object = NULL;
+		self->mode = OBEX_MODE_SERVER;
+		self->state = STATE_IDLE;
 		return -EIO;
+	}
 
 	return 0;
 }
