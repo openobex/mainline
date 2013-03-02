@@ -374,7 +374,7 @@ int CALLAPI OBEX_HandleInput(obex_t *self, int timeout)
 	obex_transport_set_timeout(self, timeout*1000);
 
 	if (dir == OBEX_DATA_IN) {
-		int result = obex_work(self);
+		result = obex_work(self);
 		if (result <= 0) /* timeout or error */
 			goto timeout_or_error;
 		dir = obex_get_data_direction(self);
@@ -384,7 +384,7 @@ int CALLAPI OBEX_HandleInput(obex_t *self, int timeout)
 	obex_transport_set_timeout(self, -1);
 
 	while (dir == OBEX_DATA_NONE || dir == OBEX_DATA_OUT) {
-		int result = obex_work(self);
+		result = obex_work(self);
 		if (result < 0) /* error */
 			goto timeout_or_error;
 		dir = obex_get_data_direction(self);
