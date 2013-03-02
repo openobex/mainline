@@ -159,7 +159,10 @@ int ircp_srv_setpath(ircp_server_t *srv, obex_object_t *object)
 	while (OBEX_ObjectGetNextHeader(srv->obexhandle, object, &hi, &hv, &hlen))	{
 		switch(hi)	{
 		case OBEX_HDR_NAME:
-			if( (name = malloc(hlen / 2)))	{
+			if (name != NULL)
+				free(name);
+			name = malloc(hlen / 2);
+			if (name != NULL) {
 				OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen);
 			}
 			break;
@@ -226,7 +229,10 @@ static int new_file(ircp_server_t *srv, obex_object_t *object)
 	while (OBEX_ObjectGetNextHeader(srv->obexhandle, object, &hi, &hv, &hlen))	{
 		switch(hi)	{
 		case OBEX_HDR_NAME:
-			if( (name = malloc(hlen / 2)))	{
+			if (name != NULL)
+				free(name);
+			name = malloc(hlen / 2);
+			if (name != NULL) {
 				OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen);
 			}
 			break;

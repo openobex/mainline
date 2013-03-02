@@ -50,7 +50,6 @@ static void put_server(obex_t *handle, obex_object_t *object)
 	const uint8_t *body = NULL;
 	int body_len = 0;
 	char *name = NULL;
-	char *namebuf = NULL;
 
 	printf("%s()\n", __FUNCTION__);
 
@@ -61,15 +60,14 @@ static void put_server(obex_t *handle, obex_object_t *object)
 			body = hv.bs;
 			body_len = hlen;
 			break;
+
 		case OBEX_HDR_NAME:
 			printf("%s() Found name\n", __FUNCTION__);
-			if (namebuf) {
-				free(namebuf);
-				name = namebuf = NULL;
-			}
-			if( (namebuf = malloc(hlen / 2)))	{
-				OBEX_UnicodeToChar((uint8_t *) namebuf, hv.bs, hlen);
-				name = namebuf;
+			if (name != NULL)
+				free(name);
+			name = malloc(hlen / 2);
+			if (name != NULL) {
+				OBEX_UnicodeToChar((uint8_t *)name, hv.bs, hlen);
 			}
 			break;
 		
@@ -79,16 +77,18 @@ static void put_server(obex_t *handle, obex_object_t *object)
 	}
 	if(!body)	{
 		printf("Got a PUT without a body\n");
-		free(namebuf);
+		free(name);
 		return;
 	}
-	if(!name)	{
+
+	if(!name) {
 		name = "OBEX_PUT_Unknown_object";
 		printf("Got a PUT without a name. Setting name to %s\n", name);
-
+		safe_save_file(name, body, body_len);
+	} else {
+		safe_save_file(name, body, body_len);
+		free(name);
 	}
-	safe_save_file(name, body, body_len);
-	free(namebuf);
 }
 
 //
@@ -104,17 +104,19 @@ static void get_server(obex_t *handle, obex_object_t *object)
 	int file_size;
 
 	char *name = NULL;
-	char *namebuf = NULL;
 
 	printf("%s()\n", __FUNCTION__);
 
 	while (OBEX_ObjectGetNextHeader(handle, object, &hi, &hv, &hlen))	{
 		switch(hi)	{
 		case OBEX_HDR_NAME:
-			printf("%s() Found name\n", __FUNCTION__);
-			if( (namebuf = malloc(hlen / 2)))	{
-				OBEX_UnicodeToChar((uint8_t *) namebuf, hv.bs, hlen);
-				name = namebuf;
+			if (name == NULL)
+				printf("%s() Found name\n", __FUNCTION__);
+			else
+				free(name);
+			name = malloc(hlen / 2);
+			if (name != NULL) {
+				OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen);
 			}
 			break;
 		
@@ -134,7 +136,7 @@ static void get_server(obex_t *handle, obex_object_t *object)
 	if(buf == NULL) {
 		printf("Can't find file %s\n", name);
 		OBEX_ObjectSetRsp(object, OBEX_RSP_NOT_FOUND, OBEX_RSP_NOT_FOUND);
-		free(namebuf);
+		free(name);
 		return;
 	}
 
@@ -143,7 +145,7 @@ static void get_server(obex_t *handle, obex_object_t *object)
 	OBEX_ObjectAddHeader(handle, object, OBEX_HDR_BODY, hv, file_size, 0);
 	hv.bq4 = file_size;
 	OBEX_ObjectAddHeader(handle, object, OBEX_HDR_LENGTH, hv, sizeof(uint32_t), 0);
-	free(namebuf);
+	free(name);
 	free(buf);
 	return;
 }
