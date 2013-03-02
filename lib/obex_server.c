@@ -163,8 +163,7 @@ static result_t obex_server_response_rx(obex_t *self)
 	DEBUG(4, "STATE: RESPONSE/RECEIVE_RX\n");
 
 	if (!obex_msg_rx_status(self)) {
-		if (self->object &&
-		    self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
+		if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE &&
 		    !(self->srm_flags & OBEX_SRM_FLAG_WAIT_LOCAL))
 		{
 			self->substate = SUBSTATE_TX_PREPARE;
@@ -195,8 +194,7 @@ static result_t obex_server_response_rx(obex_t *self)
 		return obex_server_response_tx_prepare(self);
 
 	} else {
-		if (self->object &&
-		    self->object->rsp_mode == OBEX_RSP_MODE_SINGLE)
+		if (self->object->rsp_mode == OBEX_RSP_MODE_SINGLE)
 		{
 			self->substate = SUBSTATE_TX_PREPARE;
 			return obex_server_response_tx_prepare(self);
