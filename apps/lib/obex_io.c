@@ -86,16 +86,16 @@ uint8_t* easy_readfile(const char *filename, int *file_size)
 
 	*file_size = get_filesize(filename);
 	printf("name=%s, size=%d\n", filename, *file_size);
+	if (*file_size == -1)
+		return NULL;
 
 #ifdef _WIN32
 	fd = open(filename, O_RDONLY | O_BINARY, 0);
 #else
 	fd = open(filename, O_RDONLY, 0);
 #endif
-
-	if (fd == -1) {
+	if (fd == -1)
 		return NULL;
-	}
 	
 	buf = malloc(*file_size);
 	if(!buf) {
