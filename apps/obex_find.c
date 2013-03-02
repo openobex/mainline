@@ -60,29 +60,31 @@ static void usb_print(obex_interface_t *intf)
 
 static void irda_print(obex_interface_t *intf)
 {
-	char* charset = NULL;
+	const char* charsets[] = {
+		"ASCII",
+		"ISO-8859-1",
+		"ISO-8859-2",
+		"ISO-8859-3",
+		"ISO-8859-4",
+		"ISO-8859-5",
+		"ISO-8859-6",
+		"ISO-8859-7",
+		"ISO-8859-8",
+		"ISO-8859-9",
+	};
+	const char *charset = "";
 
 	if (intf->irda.local)
 		printf("\tLocal address: %08x\n", intf->irda.local);
 	printf("\tRemote address: %08x\n", intf->irda.remote);
+
 	if (intf->irda.charset == 0xFF) {
-		charset = strdup("Unicode");
-
-	} else if (intf->irda.charset == 0x00) {
-		charset = strdup("ASCII");
-
-	} else if (intf->irda.charset <= 9) {
-		charset = strdup("ISO-8859-1");
-		charset[9] = '0'+intf->irda.charset;
-
-	} else {
-		charset = strdup("");
+		charset = "Unicode";
+	} else if (intf->irda.charset < sizeof(charsets)/sizeof(charsets[0])) {
+		charset = charsets[intf->irda.charset];
 	}
 	printf("\tDescription character set: %s\n", charset);
-	if (charset) {
-		free(charset);
-		charset = NULL;
-	}
+
 	if (intf->irda.charset == 0x00)
 		printf("\tDescription: %s\n", intf->irda.info);
 }
