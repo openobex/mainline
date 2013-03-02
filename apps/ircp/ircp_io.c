@@ -187,8 +187,10 @@ int ircp_checkdir(const char *path, const char *dir, cd_flags flags)
 
 	if (path[0] != 0)
 		snprintf(newpath, sizeof(newpath), "%s/%s", path, dir);
-	else
-		strncpy(newpath, dir, sizeof(newpath));
+	else {
+		memset(newpath, 0, sizeof(newpath));
+		strncpy(newpath, dir, sizeof(newpath)-1);
+	}
 
 	DEBUG(4, "path = %s dir = %s, flags = %d\n", path, dir, flags);
 	if(stat(newpath, &statbuf) == 0) {
