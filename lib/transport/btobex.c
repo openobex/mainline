@@ -192,10 +192,7 @@ static bool btobex_connect_request(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	if (!obex_transport_sock_connect(data->sock))
-		return false;
-
-	return true;
+	return obex_transport_sock_connect(data->sock);
 }
 
 /*

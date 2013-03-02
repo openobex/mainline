@@ -93,7 +93,7 @@ obex_t * CALLAPI OBEX_Init(int transport, obex_event_t eventcb,
 
 	obex_library_init();
 	self = obex_create(eventcb, flags);
-	if (obex_transport_init(self, transport) < 0) {
+	if (!obex_transport_init(self, transport)) {
 		obex_destroy(self);
 		self = NULL;
 	}

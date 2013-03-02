@@ -307,10 +307,7 @@ static bool inobex_connect_request(obex_t *self)
 
 	DEBUG(4, "\n");
 
-	if (obex_transport_sock_connect(data->sock) == -1)
-		return false;
-
-	return true;
+	return obex_transport_sock_connect(data->sock);
 }
 
 /*

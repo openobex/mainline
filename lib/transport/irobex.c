@@ -466,10 +466,7 @@ static bool irobex_connect_request(obex_t *self)
 	if (irobex_no_addr((struct sockaddr_irda *)&data->sock->remote))
 		return false;
 
-	if (obex_transport_sock_connect(data->sock) == -1)
-		return false;
-
-	return true;
+	return obex_transport_sock_connect(data->sock);
 }
 
 /*
