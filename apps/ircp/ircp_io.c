@@ -45,7 +45,7 @@ static int get_fileinfo(const char *name, char *lastmod)
 {
 	struct stat stats;
 	struct tm *tm;
-	
+
 	if (stat(name, &stats) != -1) {
 		tm = gmtime(&stats.st_mtime);
 		snprintf(lastmod, 21, "%04d-%02d-%02dT%02d:%02d:%02dZ",
@@ -70,7 +70,7 @@ obex_object_t *build_object_from_file(obex_t *handle, const char *localname, con
 	uint8_t *ucname;
 	int ucname_len, size;
 	char lastmod[21*2] = {"1970-01-01T00:00:00Z"};
-		
+
 	/* Get filesize and modification-time */
 	size = get_fileinfo(localname, lastmod);
 
@@ -84,6 +84,8 @@ obex_object_t *build_object_from_file(obex_t *handle, const char *localname, con
 		goto err;
 
 	ucname_len = OBEX_CharToUnicode(ucname, (uint8_t *) remotename, ucname_len);
+	if (ucname_len < 0)
+		goto err;
 
 	hdd.bs = ucname;
 	OBEX_ObjectAddHeader(handle, object, OBEX_HDR_NAME, hdd, ucname_len, 0);
@@ -98,7 +100,7 @@ obex_object_t *build_object_from_file(obex_t *handle, const char *localname, con
 	hdd.bs = lastmod;
 	OBEX_ObjectAddHeader(handle, object, OBEX_HDR_TIME, hdd, strlen(lastmod)+1, 0);
 #endif
-		
+
 	hdd.bs = NULL;
 	OBEX_ObjectAddHeader(handle, object, OBEX_HDR_BODY,
 				hdd, 0, OBEX_FL_STREAM_START);
@@ -118,7 +120,7 @@ err:
 static int ircp_nameok(const char *name)
 {
 	DEBUG(4, "\n");
-	
+
 	/* No abs paths */
 	if(name[0] == '/')
 		return FALSE;
@@ -133,7 +135,7 @@ static int ircp_nameok(const char *name)
 	}
 	return TRUE;
 }
-	
+
 //
 // Open a file, but do some sanity-checking first.
 //
@@ -146,26 +148,26 @@ int ircp_open_safe(const char *path, const char *name)
 	int fd;
 
 	DEBUG(4, "\n");
-	
+
 	/* Check for dangerous filenames */
 	if(ircp_nameok(name) == FALSE)
 		return -1;
 
 	if (path == NULL || path[0] == 0)
-	        path = ".";
+		path = ".";
 	if (snprintf(diskname, sizeof(diskname), "%s/%s", path, name) >= (ssize_t) sizeof(diskname))
-	        return -1;
+		return -1;
 
 	/* never overwrite an existing file */
 	fd = open(diskname, O_RDWR | O_CREAT | O_EXCL, DEFFILEMODE);
 #ifndef _WIN32
 	if (fd < 0 &&
 	    snprintf(diskname, sizeof(diskname), "%s/%s_XXXXXX", path, name) < (ssize_t) sizeof(diskname))
-	        fd = mkstemp(diskname);
+		fd = mkstemp(diskname);
 #endif
 
 	if (fd >= 0) {
-	        DEBUG(4, "Creating file %s\n", diskname);
+		DEBUG(4, "Creating file %s\n", diskname);
 	}
 
 	return fd;
