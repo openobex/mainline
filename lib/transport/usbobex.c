@@ -210,10 +210,8 @@ static int get_intf_string(struct usb_dev_handle *usb_handle,
  * Helper function to usbobex_find_interfaces
  */
 static struct obex_usb_intf_transport_t *check_intf(struct usb_device *dev,
-					int c, int i, int a,
-					struct obex_usb_intf_transport_t *current)
+						    int c, int i, int a)
 {
-	struct obex_usb_intf_transport_t *next = NULL;
 	struct usb_interface_descriptor *alt;
 
 	alt = &dev->config[c].interface[i].altsetting[a];
@@ -223,10 +221,12 @@ static struct obex_usb_intf_transport_t *check_intf(struct usb_device *dev,
 		int err;
 		unsigned char *buffer = alt->extra;
 		int buflen = alt->extralen;
+		struct obex_usb_intf_transport_t *next;
 
-		next = malloc(sizeof(*next));
+		next = calloc(1, sizeof(*next));
 		if (next == NULL)
-			return current;
+			return NULL;
+
 		next->device = dev;
 		next->configuration = dev->config[c].bConfigurationValue;
 		next->configuration_description = dev->config[c].iConfiguration;
@@ -239,18 +239,15 @@ static struct obex_usb_intf_transport_t *check_intf(struct usb_device *dev,
 		next->extra_descriptors_len = buflen;
 
 		err = find_obex_data_interface(buffer, buflen, dev->config[c], next);
-		if (err)
+		if (err) {
 			free(next);
-		else {
-			if (current)
-				current->next = next;
-			next->prev = current;
-			next->next = NULL;
-			current = next;
+			return NULL;
 		}
+
+		return next;
 	}
 
-	return current;
+	return NULL;
 }
 
 /*
@@ -263,11 +260,11 @@ static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 	struct usb_bus *busses;
 	struct usb_bus *bus;
 	struct usb_device *dev;
-	int c, i, a, num;
+	int c, i, a;
+	int num = 0;
+	struct obex_usb_intf_transport_t *first = NULL;
 	struct obex_usb_intf_transport_t *current = NULL;
-	struct obex_usb_intf_transport_t *tmp = NULL;
 	obex_interface_t *intf_array = NULL;
-	struct usb_dev_handle *usb_handle;
 
 	usb_init();
 	usb_find_busses();
@@ -285,24 +282,39 @@ static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 					for (a = 0; a < dev->config[c].interface[i].num_altsetting; a++) {
 						/* Check if this interface is OBEX */
 						/* and find data interface */
-						current = check_intf(dev, c, i, a, current);
+						struct obex_usb_intf_transport_t *next;
+
+						next = check_intf(dev, c, i, a);
+						if (next)
+							++num;
+
+						if (current)
+							current->next = next;
+						current = next;
+
+						if (first == NULL)
+							first = current;
 					}
 				}
 			}
 		}
 	}
-	num = 0;
-	if (current)
-		num++;
-	while (current && current->prev) {
-		current = current->prev;
-		num++;
-	}
+
 	intf_array = calloc(num, sizeof(*intf_array));
-	if (intf_array == NULL)
-		goto cleanup_list;
+	if (intf_array == NULL) {
+		while (current) {
+			struct obex_usb_intf_transport_t *tmp = current->next;
+			free(current);
+			current = tmp;
+		}
+		return 0;
+	}
+
 	num = 0;
+	current = first;
 	while (current) {
+		struct usb_dev_handle *usb_handle;
+
 		intf_array[num].usb.intf = current;
 		usb_handle = usb_open(current->device);
 		get_intf_string(usb_handle, &intf_array[num].usb.manufacturer,
@@ -328,18 +340,13 @@ static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 					current->extra_descriptors_len,
 					&intf_array[num].usb.service);
 		usb_close(usb_handle);
-		current = current->next; num++;
+
+		current = current->next;
+		++num;
 	}
+
 	*interfaces = intf_array;
 	return num;
-
-cleanup_list:
-	while (current) {
-		tmp = current->next;
-		free(current);
-		current = tmp;
-	}
-	return 0;
 }
 
 /*

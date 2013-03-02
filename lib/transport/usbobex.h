@@ -32,7 +32,7 @@
 
 /* Information about a USB OBEX interface present on the system */
 struct obex_usb_intf_transport_t {
-	struct obex_usb_intf_transport_t *prev, *next;	/* Next and previous interfaces in the list */
+	struct obex_usb_intf_transport_t *next;	/* Next interface in the list */
 	int configuration;			/* Device configuration */
 	int configuration_description;		/* Configuration string descriptor number */
 	int control_interface;			/* OBEX master interface */

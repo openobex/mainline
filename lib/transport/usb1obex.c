@@ -242,10 +242,8 @@ static int get_intf_string(struct libusb_device_handle *usb_handle, char **strin
  * Helper function to usbobex_find_interfaces
  */
 static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
-					struct libusb_config_descriptor *conf_desc, int i, int a,
-					struct obex_usb_intf_transport_t *current)
+						    struct libusb_config_descriptor *conf_desc, int i, int a)
 {
-	struct obex_usb_intf_transport_t *next = NULL;
 	const struct libusb_interface_descriptor *alt;
 
 	alt = &conf_desc->interface[i].altsetting[a];
@@ -255,10 +253,12 @@ static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
 		int err;
 		const unsigned char *buffer = alt->extra;
 		int buflen = alt->extra_length;
+		struct obex_usb_intf_transport_t *next;
 
-		next = malloc(sizeof(*next));
+		next = calloc(1, sizeof(*next));
 		if (next == NULL)
-			return current;
+			return NULL;
+
 		next->device = dev;
 		libusb_ref_device(dev);
 		next->configuration = conf_desc->bConfigurationValue;
@@ -272,18 +272,15 @@ static struct obex_usb_intf_transport_t *check_intf(struct libusb_device *dev,
 		next->extra_descriptors_len = buflen;
 
 		err = find_obex_data_interface(buffer, buflen, conf_desc, next);
-		if (err)
+		if (err) {
 			free(next);
-		else {
-			if (current)
-				current->next = next;
-			next->prev = current;
-			next->next = NULL;
-			current = next;
+			return NULL;
 		}
+
+		return next;
 	}
 
-	return current;
+	return NULL;
 }
 
 /*
@@ -295,8 +292,10 @@ static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 {
 	struct usbobex_data *data = self->trans->data;
 	struct libusb_context *libusb_ctx = data->ctx;
-	struct obex_usb_intf_transport_t *current = NULL, *tmp = NULL;
-	int i, a, num;
+	struct obex_usb_intf_transport_t *first = NULL;
+	struct obex_usb_intf_transport_t *current = NULL;
+	int i, a;
+	int num = 0;
 	obex_interface_t *intf_array = NULL;
 
 	if (libusb_ctx) {
@@ -308,7 +307,19 @@ static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 			if (libusb_get_active_config_descriptor(list[d], &conf_desc) == 0) {
 				for (i = 0; i < conf_desc->bNumInterfaces; i++) {
 					for (a = 0; a < conf_desc->interface[i].num_altsetting; a++) {
-						current = check_intf(list[d], conf_desc, i, a, current);
+						/* and find data interface */
+						struct obex_usb_intf_transport_t *next;
+
+						next = check_intf(list[d], conf_desc, i, a);
+						if (next)
+							++num;
+
+						if (current)
+							current->next = next;
+						current = next;
+
+						if (first == NULL)
+							first = current;
 					}
 				}
 				libusb_free_config_descriptor(conf_desc);
@@ -317,17 +328,18 @@ static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 		libusb_free_device_list(list, 1);
 	}
 
-	num = 0;
-	if (current)
-		num++;
-	while (current && current->prev) {
-		current = current->prev;
-		num++;
-	}
 	intf_array = calloc(num, sizeof(*intf_array));
-	if (intf_array == NULL)
-		goto cleanup_list;
+	if (intf_array == NULL) {
+		while (current) {
+			struct obex_usb_intf_transport_t *tmp = current->next;
+			free(current);
+			current = tmp;
+		}
+		return 0;
+	}
+
 	num = 0;
+	current = first;
 	while (current) {
 		struct libusb_device_handle *usb_handle;
 
@@ -360,18 +372,13 @@ static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 					&intf_array[num].usb.service);
 			libusb_close(usb_handle);
 		}
-		current = current->next; num++;
+
+		current = current->next;
+		++num;
 	}
+
 	*interfaces = intf_array;
 	return num;
-
-cleanup_list:
-	while (current) {
-		tmp = current->next;
-		free(current);
-		current = tmp;
-	}
-	return 0;
 }
 
 /*
