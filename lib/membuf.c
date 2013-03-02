@@ -52,14 +52,15 @@ static int membuf_set_size(void *self, size_t new_size) {
 	if (new_size == 0 && p->buffer == NULL)
 		return 0;
 
-	tmp = realloc(p->buffer, new_size);
 	if (new_size == 0) {
+		free(p->buffer);
 		p->buffer = NULL;
 		p->data_len = 0;
 		p->buffer_size = 0;
 		return 0;
 	}
 
+	tmp = realloc(p->buffer, new_size);
 	if (!tmp)
 		return -errno;
 
