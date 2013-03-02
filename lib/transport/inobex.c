@@ -75,8 +75,8 @@ static bool set_sock_opts(socket_t fd)
 	 * You will certainly notice later if it failed.
 	 */
 	int v6only = 0;
-	setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY,
-		   (void *) &v6only, sizeof(v6only));
+	(void)setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY,
+			 (void *) &v6only, sizeof(v6only));
 #endif
 	return true;
 }

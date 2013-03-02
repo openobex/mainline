@@ -279,7 +279,7 @@ static bool set_listen_sock_opts(socket_t fd)
 	 * This command is not supported by older kernels,
 	 * so ignore any errors!
 	 */
-	setsockopt(fd, SOL_IRLMP, IRLMP_HINTS_SET, hints, sizeof(hints));
+	(void)setsockopt(fd, SOL_IRLMP, IRLMP_HINTS_SET, hints, sizeof(hints));
 
 #else /* _WIN32 */
 	/* The registry must be changed to set the hint bit. */
