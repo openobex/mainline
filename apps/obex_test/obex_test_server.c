@@ -67,10 +67,13 @@ static void put_server(obex_t *handle, obex_object_t *object)
 				free(name);
 			name = malloc(hlen / 2);
 			if (name != NULL) {
-				OBEX_UnicodeToChar((uint8_t *)name, hv.bs, hlen);
+				if (OBEX_UnicodeToChar((uint8_t *)name, hv.bs, hlen) < 0) {
+					free(name);
+					name = NULL;
+				}
 			}
 			break;
-		
+
 		default:
 			printf("%s() Skipped header %02x\n", __FUNCTION__, hi);
 		}
@@ -116,10 +119,13 @@ static void get_server(obex_t *handle, obex_object_t *object)
 				free(name);
 			name = malloc(hlen / 2);
 			if (name != NULL) {
-				OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen);
+				if (OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen) < 0) {
+					free(name);
+					name = NULL;
+				}
 			}
 			break;
-		
+
 		default:
 			printf("%s() Skipped header %02x\n", __FUNCTION__, hi);
 		}
@@ -241,13 +247,13 @@ void server_done(obex_t *handle, obex_object_t *object, int obex_cmd, int obex_r
 //
 void server_do(obex_t *handle)
 {
-        int ret;
+	int ret;
 	struct context *gt;
 	gt = OBEX_GetUserData(handle);
 
 	gt->serverdone = FALSE;
 	while(!gt->serverdone) {
-	        ret = OBEX_HandleInput(handle, 60);
+		ret = OBEX_HandleInput(handle, 60);
 		if(ret < 0) {
 			printf("Error while doing OBEX_HandleInput()\n");
 			break;

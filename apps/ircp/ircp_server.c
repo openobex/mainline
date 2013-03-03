@@ -32,7 +32,7 @@ static void srv_obex_event(obex_t *handle, obex_object_t *object, int mode,
 {
 	ircp_server_t *srv;
 	int ret;
-		
+
 	srv = OBEX_GetUserData(handle);
 	// DEBUG(4, "\n");
 
@@ -48,11 +48,11 @@ static void srv_obex_event(obex_t *handle, obex_object_t *object, int mode,
 
 		switch(obex_cmd) {
 		case OBEX_CMD_CONNECT:
-			srv->infocb(IRCP_EV_CONNECTIND, "");	
+			srv->infocb(IRCP_EV_CONNECTIND, "");
 			ret = 1;
 			break;
 		case OBEX_CMD_DISCONNECT:
-			srv->infocb(IRCP_EV_DISCONNECTIND, "");	
+			srv->infocb(IRCP_EV_DISCONNECTIND, "");
 			ret = 1;
 			break;
 
@@ -72,7 +72,6 @@ static void srv_obex_event(obex_t *handle, obex_object_t *object, int mode,
 			srv->finished = TRUE;
 			srv->success = FALSE;
 		}
-			
 		break;
 
 	case OBEX_EV_REQHINT:
@@ -85,19 +84,19 @@ static void srv_obex_event(obex_t *handle, obex_object_t *object, int mode,
 			/* Turn streaming on */
 			OBEX_ObjectReadStream(handle, object, NULL);
 			break;
-		
+
 		case OBEX_CMD_SETPATH:
 		case OBEX_CMD_CONNECT:
 		case OBEX_CMD_DISCONNECT:
 			/* Set response to ok! */
 			OBEX_ObjectSetRsp(object, OBEX_RSP_CONTINUE, OBEX_RSP_SUCCESS);
 			break;
-		
+
 		default:
 			DEBUG(0, "Skipping unsupported command:%02x\n", obex_cmd);
 			OBEX_ObjectSetRsp(object, OBEX_RSP_NOT_IMPLEMENTED, OBEX_RSP_NOT_IMPLEMENTED);
 			break;
-		
+
 		}
 		break;
 
@@ -163,7 +162,10 @@ int ircp_srv_setpath(ircp_server_t *srv, obex_object_t *object)
 				free(name);
 			name = malloc(hlen / 2);
 			if (name != NULL) {
-				OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen);
+				if (OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen) < 0) {
+					free(name);
+					name = NULL;
+				}
 			}
 			break;
 		default:
@@ -178,7 +180,7 @@ int ircp_srv_setpath(ircp_server_t *srv, obex_object_t *object)
 		/* Cannot cd above inbox */
 		if(srv->dirdepth == 0)
 			goto out;
-		
+
 		if(chdir("..") == -1)
 			goto out;
 
@@ -187,7 +189,7 @@ int ircp_srv_setpath(ircp_server_t *srv, obex_object_t *object)
 	else {
 		if(name == NULL)
 			goto out;
-		
+
 		// A setpath with empty name meens "goto root"
 		if(strcmp(name, "") == 0) {
 			if(chdir(srv->inbox) == -1)
@@ -200,10 +202,10 @@ int ircp_srv_setpath(ircp_server_t *srv, obex_object_t *object)
 				goto out;
 			if(chdir(name) == -1)
 				goto out;
-			srv->dirdepth++;		
+			srv->dirdepth++;
 		}
 	}
-				
+
 	ret = 1;
 
 out:
@@ -233,7 +235,10 @@ static int new_file(ircp_server_t *srv, obex_object_t *object)
 				free(name);
 			name = malloc(hlen / 2);
 			if (name != NULL) {
-				OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen);
+				if (OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen) < 0) {
+					free(name);
+					name = NULL;
+				}
 			}
 			break;
 		default:
@@ -248,9 +253,9 @@ static int new_file(ircp_server_t *srv, obex_object_t *object)
 		goto out;
 	}
 
-	srv->infocb(IRCP_EV_RECEIVING, name);	
+	srv->infocb(IRCP_EV_RECEIVING, name);
 	srv->fd = ircp_open_safe("", name);
-	
+
 	ret = srv->fd;
 
 out:	free(name);
@@ -270,24 +275,24 @@ int ircp_srv_receive(ircp_server_t *srv, obex_object_t *object, int finished)
 		if(new_file(srv, object) < 0)
 			return 1;
 	}
-	
+
 	if(finished == TRUE) {
-        	/* Recieve done! */
+		/* Recieve done! */
 		DEBUG(4, "Done!...\n");
-		return 1;		
+		return 1;
 	}
 	else if (srv->fd > 0) {
 		/* fd is valid. We are currently receiving a file */
 		body_len = OBEX_ObjectReadStream(srv->obexhandle, object, &body);
 		DEBUG(4, "Got %d bytes of stream-data\n", body_len);
-		
+
 		if(body_len < 0) {
 			/* Error */
 		}
 		else if(body_len == 0) {
 			/* EOS */
 			close(srv->fd);
-	        	srv->fd = -1;
+			srv->fd = -1;
 			srv->infocb(IRCP_EV_OK, "");
 		}
 		else {
@@ -302,7 +307,7 @@ int ircp_srv_receive(ircp_server_t *srv, obex_object_t *object, int finished)
 		return 1;
 	}
 	return -1;
-}	
+}
 
 //
 // Create an ircp server
@@ -351,7 +356,7 @@ void ircp_srv_close(ircp_server_t *srv)
 int ircp_srv_recv(ircp_server_t *srv, char *inbox)
 {
 	int err, ret;
-	
+
 	if(ircp_checkdir("", inbox, CD_ALLOWABS) < 0) {
 		srv->infocb(IRCP_EV_ERRMSG, "Specified desination directory does not exist.");
 		return -1;
@@ -361,14 +366,14 @@ int ircp_srv_recv(ircp_server_t *srv, char *inbox)
 	if(chdir(inbox) == -1)
 		return -1;
 	srv->dirdepth = 0;
-			
+
 	if(IrOBEX_ServerRegister(srv->obexhandle, "OBEX:IrXfer") < 0)
 		return -1;
 	srv->infocb(IRCP_EV_LISTENING, "");
 	srv->inbox = inbox;
-	
+
 	ret = ircp_srv_sync_wait(srv);
-	
+
 	/* Go back to inbox */
 	err = chdir(inbox);
 	if (err < 0)

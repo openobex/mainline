@@ -54,7 +54,6 @@ static void put_done(obex_object_t *object)
 	const uint8_t *body = NULL;
 	int body_len = 0;
 	char *name = NULL;
-	char *namebuf = NULL;
 
 	while (OBEX_ObjectGetNextHeader(handle, object, &hi, &hv, &hlen))	{
 		switch(hi)	{
@@ -62,14 +61,16 @@ static void put_done(obex_object_t *object)
 			body = hv.bs;
 			body_len = hlen;
 			break;
+
 		case OBEX_HDR_NAME:
-			if (namebuf) {
-				free(namebuf);
-				name = namebuf = NULL;
-			}
-			if( (namebuf = malloc(hlen / 2)))	{
-				OBEX_UnicodeToChar((uint8_t *) namebuf, hv.bs, hlen);
-				name = namebuf;
+			if (name)
+				free(name);
+			name = malloc(hlen / 2);
+			if(name) {
+				if (OBEX_UnicodeToChar((uint8_t *) name, hv.bs, hlen) < 0) {
+					free(name);
+					name = NULL;
+				}
 			}
 			break;
 
@@ -80,22 +81,22 @@ static void put_done(obex_object_t *object)
 		case HEADER_CREATOR_ID:
 			printf("CREATORID = %#x\n", hv.bq4);
 			break;
-		
+
 		default:
 			printf("%s() Skipped header %02x\n", __FUNCTION__, hi);
 		}
 	}
-	if(!body)	{
+	if (!body) {
 		printf("Got a PUT without a body\n");
 		return;
 	}
-	if(!name)	{
+	if (!name) {
 		printf("Got a PUT without a name. Setting name to %s\n", name);
 		name = "OBEX_PUT_Unknown_object";
 		safe_save_file(name, body, body_len);
 	} else {
 		safe_save_file(name, body, body_len);
-		free(namebuf);
+		free(name);
 	}
 }
 
