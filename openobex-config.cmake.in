@@ -9,7 +9,10 @@ if (EXISTS "${OpenObex_CMAKE_DIR}/lib/openobex-build.cmake")
   include(${OpenObex_CMAKE_DIR}/lib/openobex-build.cmake)
   include(${OpenObex_CMAKE_DIR}/lib/openobex-build-settings.cmake)
 
-  set(OpenObex_INCLUDE_DIRS ${OpenObex_SOURCE_DIR}/include)
+  set(OpenObex_INCLUDE_DIRS
+    ${OpenObex_CMAKE_DIR}/include
+    ${OpenObex_SOURCE_DIR}/include
+  )
 
 else ()
   #in installed tree
