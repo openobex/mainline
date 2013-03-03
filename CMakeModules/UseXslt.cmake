@@ -48,15 +48,17 @@ function ( XSL_TRANSFORM xslurl infile )
     endif ( XSLT_SAXON_COMMAND )
 
   elseif ( XSLT_PROCESSOR STREQUAL "xalan2" )
-    # Xalan places the output in the source file's directory :-(
     get_filename_component ( infile_name "${infile}" NAME )
-    add_custom_command (
-      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${infile_name}
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${infile}" "${CMAKE_CURRENT_BINARY_DIR}/${infile_name}"
-      DEPENDS ${infile}
-      VERBATIM
-    )
-    set ( infile "${CMAKE_CURRENT_BINARY_DIR}/${infile_name}" )
+    if ( NOT infile STREQUAL "${CMAKE_CURRENT_BINARY_DIR}/${infile_name}" )
+      # Xalan places the output in the source file's directory :-(
+      add_custom_command (
+	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${infile_name}
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${infile}" "${CMAKE_CURRENT_BINARY_DIR}/${infile_name}"
+	DEPENDS ${infile}
+	VERBATIM
+      )
+      set ( infile "${CMAKE_CURRENT_BINARY_DIR}/${infile_name}" )
+    endif ( NOT infile STREQUAL "${CMAKE_CURRENT_BINARY_DIR}/${infile_name}" )
     if ( XSLT_XALAN2_COMMAND )
       add_custom_command (
 	OUTPUT ${ARGN}

@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DocBook XML V4.2//DE" "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<reference id="openobex-apps">
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="referenceinfo.xml" />
+
+  <title>openobex</title>
+
+  <refentry id="obex_tcp">
+    <refmeta>
+      <refentrytitle>obex_tcp</refentrytitle>
+      <manvolnum>1</manvolnum>
+      <refmiscinfo class="manual">User commands</refmiscinfo>
+    </refmeta>
+    <refnamediv>
+      <refname>obex_tcp</refname>
+      <refpurpose>Send or receive files via TCP</refpurpose>
+    </refnamediv>
+    <refsynopsisdiv>
+      <cmdsynopsis>
+	<command>obex_tcp</command>
+	<arg><replaceable>file</replaceable></arg>
+	<arg><replaceable>target</replaceable></arg>
+      </cmdsynopsis>
+    </refsynopsisdiv>
+    <refsect1>
+      <title>Description</title>
+      <para>
+	obex_tcp is a small utility to transfer files
+	from or to a remote machine. The target is either an IPv4 numeric address
+	or a hostname.
+	If no parameter is specified, the program goes into receive mode.
+      </para>
+      <para>
+	This program is designed to be an example application for the openobex
+	library.
+      </para>
+    </refsect1>
+  </refentry>
+</reference>

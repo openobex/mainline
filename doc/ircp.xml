@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DocBook XML V4.2//DE" "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<reference id="openobex-apps">
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="referenceinfo.xml" />
+
+  <title>openobex</title>
+
+  <refentry id="ircp">
+    <refmeta>
+      <refentrytitle>ircp</refentrytitle>
+      <manvolnum>1</manvolnum>
+      <refmiscinfo class="manual">User commands</refmiscinfo>
+    </refmeta>
+    <refnamediv>
+      <refname>ircp</refname>
+      <refpurpose>send or receive files via infrared connection</refpurpose>
+    </refnamediv>
+    <refsynopsisdiv>
+      <cmdsynopsis>
+	<command>ircp</command>
+	<arg choice="opt"><option>-r <replaceable><optional>destination</optional></replaceable></option></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>ircp</command>
+	<arg><replaceable>file...</replaceable></arg>
+      </cmdsynopsis>
+    </refsynopsisdiv>
+    <refsect1>
+      <title>Description</title>
+      <para>
+	ircp is a small utility to transfer files
+	from or to a remote Linux machine, Windows computer, or various PDAs
+	by using an infrared (IrDA) port.
+	It is designed for working e.g. with Quickbeam.
+      </para>
+      <para>
+	This program is designed to be an example application for the openobex
+	library.
+      </para>
+    </refsect1>
+    <refsect1>
+      <title>Options</title>
+      <variablelist>
+	<varlistentry>
+          <term><option>-r</option></term>
+          <listitem>
+            <para>
+	      Use ircp to receive files.  If destination is given, the
+	      received files are stored in that directory; if not, the files
+	      are copied to your current directory.
+	      If this options is not given, the specified files are sent
+	    </para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+    </refsect1>
+    <refsect1>
+      <title>See also</title>
+      <para>irobex_palm3(1), irxfer(1)</para>
+    </refsect1>
+  </refentry>
+</reference>

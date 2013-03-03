@@ -1,0 +1,15 @@
+<?xml version="1.0" ?>
+<!DOCTYPE referenceinfo PUBLIC "-//OASIS//DTD DocBook XML V4.2//DE" "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<referenceinfo>
+  <date>2008-11-23</date>
+  <productname>openobex</productname>
+  <productnumber>1.4</productnumber>
+  <authorgroup>
+    <author>
+      <firstname>Hendrik</firstname>
+      <surname>Sattler</surname>
+      <contrib>initial version of manpage</contrib>
+      <email>post@hendrik-sattler.de</email>
+    </author>
+  </authorgroup>
+</referenceinfo>

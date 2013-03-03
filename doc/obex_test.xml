@@ -1,0 +1,172 @@
+<?xml version="1.0" ?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DocBook XML V4.2//DE" "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<reference id="openobex-apps">
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="referenceinfo.xml" />
+
+  <title>openobex</title>
+
+  <refentry id="obex_test">
+    <refmeta>
+      <refentrytitle>obex_test</refentrytitle>
+      <manvolnum>1</manvolnum>
+      <refmiscinfo class="manual">User commands</refmiscinfo>
+    </refmeta>
+    <refnamediv>
+      <refname>obex_test</refname>
+      <refpurpose>interactive test application for the openobex library</refpurpose>
+    </refnamediv>
+    <refsynopsisdiv>
+      <cmdsynopsis>
+	<command>obex_test</command>
+	<group>
+          <arg>
+	    <option>-s</option>
+	    <replaceable>port</replaceable>
+	  </arg>
+          <arg>
+	    <option>-r</option>
+	    <replaceable>port</replaceable>
+	  </arg>
+          <arg><option>-i</option></arg>
+          <arg>
+	    <option>-b</option>
+	    <replaceable><optional>address</optional></replaceable>
+	    <replaceable><optional>channel</optional></replaceable>
+	  </arg>
+          <arg>
+	    <option>-u</option>
+	    <replaceable>interface</replaceable>
+	  </arg>
+	</group>
+      </cmdsynopsis>
+    </refsynopsisdiv>
+    <refsect1>
+      <title>Description</title>
+      <para>
+	obex_test is a test application for the openobex
+	library. It uses an interactive mode but the access method is
+	selcted with command line arguments.
+      </para>
+      <para>
+	This program is designed to be an example application for the openobex
+	library.
+      </para>
+    </refsect1>
+    <refsect1>
+      <title>Options</title>
+      <variablelist>
+	<varlistentry>
+          <term><option>-s</option></term>
+          <listitem>
+            <para>
+	      This is the default. It selects cable obex.
+	      The port argument is optional (default: /dev/ttyS0)
+            </para>
+          </listitem>
+	</varlistentry>
+	<varlistentry>
+          <term><option>-r</option></term>
+          <listitem>
+            <para>
+	      Select cable obex for the Ericsson R320 mobile phone.
+	      The port argument is optional (default: /dev/ttyS0)
+            </para>
+          </listitem>
+	</varlistentry>
+	<varlistentry>
+          <term><option>-i</option></term>
+          <listitem>
+            <para>
+	      Select obex over IrDA.
+            </para>
+          </listitem>
+	</varlistentry>
+	<varlistentry>
+          <term><option>-b</option></term>
+          <listitem>
+            <para>
+	      Select obex over bluetooth. Both, address and channel are actually
+	      optional. Default channel is 4, default address is ANY.
+            </para>
+          </listitem>
+	</varlistentry>
+	<varlistentry>
+          <term><option>-u</option></term>
+          <listitem>
+            <para>
+	      Select usb obex (CDC). If the interface argument is omitted,
+	      a list of available interface is written to stdout.
+            </para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+    </refsect1>
+    <refsect1>
+      <title>Interactive Mode: Commands</title>
+      <variablelist>
+	<varlistentry>
+          <term><option>c</option></term>
+          <listitem>
+            <para>connect to the remote side (client mode)</para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+          <term><option>d</option></term>
+          <listitem>
+            <para>disconnect from the remote side</para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+          <term><option>g</option></term>
+          <listitem>
+            <para>issue a GET request</para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+          <term><option>p</option></term>
+          <listitem>
+            <para>issue a PUT request</para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+          <term><option>q</option></term>
+          <listitem>
+            <para>quit the program</para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+          <term><option>s</option></term>
+          <listitem>
+            <para>go into server mode</para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+          <term><option>t</option></term>
+          <listitem>
+            <para>change the path on the remote side</para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+          <term><option>x</option></term>
+          <listitem>
+            <para>issue a PUSH request</para>
+          </listitem>
+	</varlistentry>
+      </variablelist>
+    </refsect1>
+  </refentry>
+</reference>

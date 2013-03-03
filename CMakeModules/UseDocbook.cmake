@@ -9,8 +9,17 @@ set ( DOCBOOK_XSL_PREFIX "http://docbook.sourceforge.net/release/xsl/${DOCBOOK_X
 mark_as_advanced ( DOCBOOK_XSL_PREFIX )
 
 function ( _DOCBOOK_GET_HTML_FILES inFile outFileList )
+  find_program ( XMLLINT_EXECUTABLE xmllint )
+  if ( NOT XMLLINT_EXECUTABLE )
+    message ( FATAL_ERROR "Cannot find xmllint program (needed to resolve XIncludes)" )
+  endif ( NOT XMLLINT_EXECUTABLE )
+
+  execute_process (
+    COMMAND "${XMLLINT_EXECUTABLE}" --xinclude "${inFile}"
+    OUTPUT_VARIABLE XML_FILE_CONTENTS
+  )
+
   # This assumes that every refentry has an unique id attribute
-  file ( READ "${inFile}" XML_FILE_CONTENTS )
   string ( REPLACE ";" "" XML_FILE_CONTENTS "${XML_FILE_CONTENTS}" )
   string ( REGEX MATCHALL "<refentry[ ]+[^>]*" XML_REFENTRYTITLE "${XML_FILE_CONTENTS}" )
   foreach ( id ${XML_REFENTRYTITLE} )
@@ -29,7 +38,16 @@ function ( _DOCBOOK_GET_HTML_FILES inFile outFileList )
 endfunction ( )
 
 function ( _DOCBOOK_GET_MANPAGE_FILES inFile outFileList )
-  file ( READ "${inFile}" XML_FILE_CONTENTS )
+  find_program ( XMLLINT_EXECUTABLE xmllint )
+  if ( NOT XMLLINT_EXECUTABLE )
+    message ( FATAL_ERROR "Cannot find xmllint program (needed to resolve XIncludes)" )
+  endif ( NOT XMLLINT_EXECUTABLE )
+
+  execute_process (
+    COMMAND "${XMLLINT_EXECUTABLE}" --xinclude "${inFile}"
+    OUTPUT_VARIABLE XML_FILE_CONTENTS
+  )
+
   string ( REPLACE ";" "" XML_FILE_CONTENTS "${XML_FILE_CONTENTS}" )
   string ( REGEX MATCHALL "<refentry[ ]+.*</refentry>" ENTRIES "${XML_FILE_CONTENTS}" )
   string ( REPLACE "</refentry>" ";" ENTRIES "${ENTRIES}" )
