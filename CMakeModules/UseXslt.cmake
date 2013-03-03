@@ -39,7 +39,7 @@ function ( XSL_TRANSFORM xslurl infile )
     if ( XSLT_SAXON_COMMAND )
       add_custom_command (
 	OUTPUT ${ARGN}
-	COMMAND "${JAVA_RUNTIME}" -cp "${Xslt_SAXON_CLASSPATH}" ${XSLT_SAXON_COMMAND} ${XSLT_SAXON_OPTIONS} "${infile}" "${xslurl}" ${Xslt_PARAMS}
+	COMMAND "${JAVA_RUNTIME}" ${XSLT_JAVA_OPTIONS} -cp "${Xslt_SAXON_CLASSPATH}" ${XSLT_SAXON_COMMAND} ${XSLT_SAXON_OPTIONS} "${infile}" "${xslurl}" ${Xslt_PARAMS}
 	DEPENDS "${infile}"
 	VERBATIM
       )
@@ -62,7 +62,7 @@ function ( XSL_TRANSFORM xslurl infile )
     if ( XSLT_XALAN2_COMMAND )
       add_custom_command (
 	OUTPUT ${ARGN}
-	COMMAND "${JAVA_RUNTIME}" -cp "${Xslt_XALAN2_CLASSPATH}" ${XSLT_XALAN2_COMMAND} ${XSLT_XALAN2_OPTIONS} -in "${infile}" -xsl "${xslurl}"
+	COMMAND "${JAVA_RUNTIME}" ${XSLT_JAVA_OPTIONS} -cp "${Xslt_XALAN2_CLASSPATH}" ${XSLT_XALAN2_COMMAND} ${XSLT_XALAN2_OPTIONS} -in "${infile}" -xsl "${xslurl}"
 	DEPENDS "${infile}"
 	VERBATIM
       )

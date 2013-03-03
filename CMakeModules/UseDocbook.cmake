@@ -15,7 +15,7 @@ function ( _DOCBOOK_GET_HTML_FILES inFile outFileList )
   endif ( NOT XMLLINT_EXECUTABLE )
 
   execute_process (
-    COMMAND "${XMLLINT_EXECUTABLE}" --xinclude "${inFile}"
+    COMMAND "${XMLLINT_EXECUTABLE}" ${XMLLINT_OPTIONS} --xinclude "${inFile}"
     OUTPUT_VARIABLE XML_FILE_CONTENTS
   )
 
@@ -44,7 +44,7 @@ function ( _DOCBOOK_GET_MANPAGE_FILES inFile outFileList )
   endif ( NOT XMLLINT_EXECUTABLE )
 
   execute_process (
-    COMMAND "${XMLLINT_EXECUTABLE}" --xinclude "${inFile}"
+    COMMAND "${XMLLINT_EXECUTABLE}" ${XMLLINT_OPTIONS} --xinclude "${inFile}"
     OUTPUT_VARIABLE XML_FILE_CONTENTS
   )
 

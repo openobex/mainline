@@ -1,9 +1,9 @@
 <?xml version="1.0" ?>
 <!DOCTYPE referenceinfo PUBLIC "-//OASIS//DTD DocBook XML V4.2//DE" "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
 <referenceinfo>
-  <date>2008-11-23</date>
+  <!-- <date>2008-11-23</date> The time of the last content change -->
   <productname>openobex</productname>
-  <productnumber>1.4</productnumber>
+  <productnumber>@VERSION@</productnumber>
   <authorgroup>
     <author>
       <firstname>Hendrik</firstname>

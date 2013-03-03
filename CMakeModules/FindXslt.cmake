@@ -63,6 +63,14 @@ if ( JAVA_RUNTIME )
     list ( APPEND Xslt_CLASSPATH "${JAVA_PROPERTIES_CATALOGMANAGER}" )
   endif ( JAVA_PROPERTIES_CATALOGMANAGER )
 
+  find_file ( JAVA_XERCES_IMPL_LIBRARY
+    NAMES xercesImpl.jar
+    PATH_SUFFIXES share/java
+    DOC "location of Xalan2 Xerces Implementation JAR file"
+    CMAKE_FIND_ROOT_PATH_BOTH
+  )
+  mark_as_advanced ( JAVA_XERCES_IMPL_LIBRARY )
+
   #
   # Find Xalan 2
   #
@@ -80,36 +88,39 @@ if ( JAVA_RUNTIME )
     CMAKE_FIND_ROOT_PATH_BOTH
   )
   mark_as_advanced ( JAVA_XML_APIS_LIBRARY )
-  find_file ( JAVA_XERCES_IMPL_LIBRARY
-    NAMES xercesImpl.jar
-    PATH_SUFFIXES share/java
-    DOC "location of Xalan2 Xerces Implementation JAR file"
-    CMAKE_FIND_ROOT_PATH_BOTH
-  )
-  mark_as_advanced ( JAVA_XERCES_IMPL_LIBRARY )
-  if ( XALAN2 AND JAVA_XML_APIS_LIBRARY AND JAVA_XERCES_IMPL_LIBRARY )
+  if ( XALAN2 AND JAVA_XML_APIS_LIBRARY )
+    set ( XSLT_XALAN2_COMMAND
+      org.apache.xalan.xslt.Process
+    )
     set ( Xslt_XALAN2_CLASSPATH
       ${Xslt_CLASSPATH}
       "${XALAN2}"
       "${JAVA_XML_APIS_LIBRARY}"
-      "${JAVA_XERCES_IMPL_LIBRARY}"
     )
     if ( Xslt_XALAN2_EXTENSIONS )
       list ( APPEND Xslt_XALAN2_CLASSPATH "${Xslt_XALAN2_EXTENSIONS}" )
     endif ( Xslt_XALAN2_EXTENSIONS )
-    if ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
-      string ( REPLACE ";" ":" Xslt_XALAN2_CLASSPATH "${Xslt_XALAN2_CLASSPATH}" )
-    endif ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
-    set ( XSLT_XALAN2_COMMAND
-      org.apache.xalan.xslt.Process
-    )
+
+    if ( JAVA_XERCES_IMPL_LIBRARY )
+      set ( XSLT_JAVA_OPTIONS
+	-Djavax.xml.parsers.DocumentBuilderFactory=org.apache.xerces.jaxp.DocumentBuilderFactoryImpl
+	-Djavax.xml.parsers.SAXParserFactory=org.apache.xerces.jaxp.SAXParserFactoryImpl
+	-Dorg.apache.xerces.xni.parser.XMLParserConfiguration=org.apache.xerces.parsers.XIncludeParserConfiguration
+      )
+      list ( APPEND Xslt_XALAN2_CLASSPATH "${JAVA_XERCES_IMPL_LIBRARY}" )
+    endif ( JAVA_XERCES_IMPL_LIBRARY )
+
     if ( JAVA_RESOLVER_LIBRARY AND JAVA_PROPERTIES_CATALOGMANAGER )
-      list ( APPEND XSLT_XALAN2_COMMAND
+      list ( APPEND XSLT_XALAN2_OPTIONS
 	-ENTITYRESOLVER  org.apache.xml.resolver.tools.CatalogResolver
 	-URIRESOLVER  org.apache.xml.resolver.tools.CatalogResolver
       )
     endif ( JAVA_RESOLVER_LIBRARY AND JAVA_PROPERTIES_CATALOGMANAGER )
-  endif ( XALAN2 AND JAVA_XML_APIS_LIBRARY AND JAVA_XERCES_IMPL_LIBRARY )
+
+    if ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
+      string ( REPLACE ";" ":" Xslt_XALAN2_CLASSPATH "${Xslt_XALAN2_CLASSPATH}" )
+    endif ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
+  endif ( XALAN2 AND JAVA_XML_APIS_LIBRARY )
 
   #
   # Find Saxon 6.5.x
@@ -122,6 +133,9 @@ if ( JAVA_RUNTIME )
   )
   mark_as_advanced ( SAXON )
   if ( SAXON )
+    set ( XSLT_SAXON_COMMAND
+      com.icl.saxon.StyleSheet
+    )
     set ( Xslt_SAXON_CLASSPATH
       ${Xslt_CLASSPATH}
       "${SAXON}"
@@ -129,24 +143,32 @@ if ( JAVA_RUNTIME )
     if ( Xslt_SAXON_EXTENSIONS )
       list ( APPEND Xslt_SAXON_CLASSPATH "${Xslt_SAXON_EXTENSIONS}" )
     endif ( Xslt_SAXON_EXTENSIONS )
-    if ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
-      string ( REPLACE ";" ":" Xslt_SAXON_CLASSPATH "${Xslt_SAXON_CLASSPATH}" )
-    endif ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
-    set ( XSLT_SAXON_COMMAND
-      com.icl.saxon.StyleSheet
-    )
+
+    if ( JAVA_XERCES_IMPL_LIBRARY )
+      set ( XSLT_JAVA_OPTIONS
+	-Djavax.xml.parsers.DocumentBuilderFactory=org.apache.xerces.jaxp.DocumentBuilderFactoryImpl
+	-Djavax.xml.parsers.SAXParserFactory=org.apache.xerces.jaxp.SAXParserFactoryImpl
+	-Dorg.apache.xerces.xni.parser.XMLParserConfiguration=org.apache.xerces.parsers.XIncludeParserConfiguration
+      )
+      list ( APPEND Xslt_SAXON_CLASSPATH "${JAVA_XERCES_IMPL_LIBRARY}" )
+    endif ( JAVA_XERCES_IMPL_LIBRARY )
+
     if ( JAVA_RESOLVER_LIBRARY )
-      list ( APPEND XSLT_SAXON_COMMAND
+      list ( APPEND XSLT_SAXON_OPTIONS
 	-x org.apache.xml.resolver.tools.ResolvingXMLReader
 	-y org.apache.xml.resolver.tools.ResolvingXMLReader
 	-u
       )
       if ( JAVA_PROPERTIES_CATALOGMANAGER )
-	list ( APPEND XSLT_SAXON_COMMAND
+	list ( APPEND XSLT_SAXON_OPTIONS
 	  -r org.apache.xml.resolver.tools.CatalogResolver
 	)
       endif ( JAVA_PROPERTIES_CATALOGMANAGER )
     endif ( JAVA_RESOLVER_LIBRARY )
+
+    if ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
+      string ( REPLACE ";" ":" Xslt_SAXON_CLASSPATH "${Xslt_SAXON_CLASSPATH}" )
+    endif ( NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" )
   endif ( SAXON )
 endif ( JAVA_RUNTIME )
 
@@ -155,6 +177,9 @@ find_program ( XSLT_XSLTPROC_EXECUTABLE
   DOC   "path to the libxslt XSLT processor xsltproc"
 )
 mark_as_advanced ( XSLT_XSLTPROC_EXECUTABLE )
+set ( XSLT_XSLTPROC_OPTIONS
+  --xinclude
+)
 
 set ( Xslt_USE_FILE UseXslt )
 

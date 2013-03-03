@@ -66,8 +66,14 @@ if ( Docbook_FOUND )
     option (BUILD_APPS_HELP_HTML "Build HTML application help files" ON)
   endif ( UNIX )
 
+  configure_file ( referenceinfo.xml.in referenceinfo.xml @ONLY )
   set ( OPENOBEX_APP_XML_FILE "${CMAKE_CURRENT_SOURCE_DIR}/openobex-apps.xml" )
-  set ( XSLT_XSLTPROC_OPTIONS --xinclude )
+  list ( APPEND XMLLINT_OPTIONS
+    --path "${CMAKE_CURRENT_BINARY_DIR}"
+  )
+  list ( APPEND XSLT_XSLTPROC_OPTIONS
+    --path "${CMAKE_CURRENT_BINARY_DIR}"
+  )
   if ( BUILD_APPS_HELP_MAN )
     docbook_generate ( manpage "${OPENOBEX_APP_XML_FILE}" XSLT_FILES_MAN )
     foreach ( file ${XSLT_FILES_MAN} )
