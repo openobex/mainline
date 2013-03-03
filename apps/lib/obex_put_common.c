@@ -92,10 +92,11 @@ static void put_done(obex_object_t *object)
 	if(!name)	{
 		printf("Got a PUT without a name. Setting name to %s\n", name);
 		name = "OBEX_PUT_Unknown_object";
-
+		safe_save_file(name, body, body_len);
+	} else {
+		safe_save_file(name, body, body_len);
+		free(namebuf);
 	}
-	safe_save_file(name, body, body_len);
-	free(namebuf);
 }
 
 
