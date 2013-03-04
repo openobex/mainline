@@ -121,7 +121,7 @@ const void * obex_hdr_get_data_ptr(struct obex_hdr *hdr)
 		if (hdr->ops && hdr->ops->append_data)
 			return hdr->ops->get_data_ptr(hdr->data);
 		else
-			return hdr->ops->get_data_ptr(hdr->data) + hdr->offset;
+			return (uint8_t *)hdr->ops->get_data_ptr(hdr->data) + hdr->offset;
 	else
 		return NULL;
 }
@@ -175,7 +175,7 @@ size_t obex_hdr_append(struct obex_hdr *hdr, struct databuffer *buf,
 		return 0;
 
 	buf_append(buf, NULL, hdr_size);
-	h = buf_get(buf)+buflen;
+	h = (uint8_t *)buf_get(buf) + buflen;
 	actual += hdr_size;
 	while (max_size > actual && data_size != 0) {
 		size_t ret;

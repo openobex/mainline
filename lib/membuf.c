@@ -159,11 +159,11 @@ static void membuf_clear(void *self, size_t len) {
 	if (!p)
 		return;
 	if (len < p->data_len)
-		memmove(membuf_get(self), membuf_get(self)+len,
+		memmove(membuf_get(self), (uint8_t *)membuf_get(self)+len,
 			p->data_len - len);
 
 	p->data_len -= len;
-	memset(membuf_get(self) + p->data_len, 0, len);
+	memset((uint8_t *)membuf_get(self) + p->data_len, 0, len);
 }
 
 static int membuf_append(void *self, const void *data, size_t len) {

@@ -564,7 +564,7 @@ int obex_object_receive_headers(struct obex_object *object, const void *msgdata,
 	DEBUG(4, "\n");
 
 	while (offset < tx_left) {
-		struct obex_hdr *hdr = obex_hdr_ptr_parse(msgdata + offset,
+		struct obex_hdr *hdr = obex_hdr_ptr_parse((uint8_t *)msgdata + offset,
 							  tx_left - offset);
 		size_t hlen;
 		int err = 0;

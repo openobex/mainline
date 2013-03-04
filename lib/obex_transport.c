@@ -313,7 +313,7 @@ ssize_t obex_transport_read(obex_t *self, int max)
 	if (buf_set_size(msg, msglen + self->mtu_rx))
 		return -1;
 
-	buf = buf_get(msg) + msglen;
+	buf = (uint8_t *)buf_get(msg) + msglen;
 
 	if (self->trans->ops->read) {
 		ssize_t ret = self->trans->ops->read(self, buf, max);

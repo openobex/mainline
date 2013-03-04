@@ -124,25 +124,25 @@ struct obex_hdr * obex_hdr_ptr_parse(const void *msgdata, size_t size)
 	case OBEX_HDR_TYPE_BYTES:
 		if (size < 3)
 			goto err;
-		memcpy(&hsize, msgdata + 1, 2);
+		memcpy(&hsize, (uint8_t *)msgdata + 1, 2);
 		ptr->size = ntohs(hsize) - 3;
 		if (size < (3 + ptr->size))
 			goto err;
-		ptr->value = msgdata + 3;
+		ptr->value = (uint8_t *)msgdata + 3;
 		break;
 
 	case OBEX_HDR_TYPE_UINT8:
 		if (size < 2)
 			goto err;
 		ptr->size = 1;
-		ptr->value = msgdata + 1;
+		ptr->value = (uint8_t *)msgdata + 1;
 		break;
 
 	case OBEX_HDR_TYPE_UINT32:
 		if (size < 5)
 			goto err;
 		ptr->size = 4;
-		ptr->value = msgdata + 1;
+		ptr->value = (uint8_t *)msgdata + 1;
 		break;
 
 	default:

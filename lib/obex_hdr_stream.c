@@ -98,7 +98,7 @@ const void * obex_hdr_stream_get_data_ptr(void *self)
 	if (ptr == NULL)
 		return NULL;
 	else
-		return ptr + hdr->s_offset;
+		return (uint8_t *)ptr + hdr->s_offset;
 }
 
 static

@@ -172,7 +172,7 @@ void buf_dump(buf_t *p, const char *label)
 	for (i = 0; i < buf_get_length(p); ++i) {
 		if (n == 0)
 			log_debug("%s%s(%04x):", log_debug_prefix, label, i);
-		log_debug(" %02X", *(uint8_t *)(buf_get(p) + i));
+		log_debug(" %02X", *((uint8_t *)buf_get(p) + i));
 		if (n >= 0xF || i == buf_get_length(p) - 1) {
 			log_debug("\n");
 			n = 0;

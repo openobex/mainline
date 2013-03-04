@@ -205,7 +205,7 @@ int obex_msg_receive_filtered(obex_t *self, obex_object_t *object,
 {
 	buf_t *msg = self->rx_msg;
 	size_t len;
-	const void *data;
+	const uint8_t *data;
 	int hlen;
 
 	DEBUG(4, "\n");
