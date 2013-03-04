@@ -160,7 +160,7 @@ set ( openobex_INCLUDE_DIRS
 include_directories ( "${openobex_INCLUDE_DIRS}" )
 add_subdirectory ( include/openobex )
 if ( MSVC )
-  include_directories ( AFTER SYSTEM "${openobex_INCLUDE_DIRS}/msvc" )
+  include_directories ( AFTER SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/include/msvc" )
 endif ( MSVC )
 
 
