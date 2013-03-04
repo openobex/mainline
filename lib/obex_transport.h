@@ -32,6 +32,8 @@
 #include <sys/time.h>
 #endif
 
+#include <unistd.h>
+
 /* forward declaration for all transport includes */
 struct obex_transport_ops;
 struct obex;
