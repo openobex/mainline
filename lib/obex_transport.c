@@ -287,7 +287,7 @@ bool obex_transport_listen(obex_t *self)
 ssize_t obex_transport_write(obex_t *self, buf_t *msg)
 {
 	if (!self->trans->connected)
-		return false;
+		return 0;
 
 	if (self->trans->ops->write)
 		return self->trans->ops->write(self, msg);
@@ -308,7 +308,7 @@ ssize_t obex_transport_read(obex_t *self, int max)
 	void *buf;
 
 	if (!self->trans->connected)
-		return false;
+		return 0;
 
 	if (buf_set_size(msg, msglen + self->mtu_rx))
 		return -1;
