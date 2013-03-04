@@ -11,6 +11,6 @@
 #define _MSC_UNISTD_H
 
 /* the type returned by function like _write() and send() */
-#define ssize_t int
+typedef long ssize_t;
 
 #endif /* _MSC_UNISTD_H */

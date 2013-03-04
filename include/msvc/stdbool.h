@@ -2,7 +2,7 @@
 #define _STDBOOL_H
 
 #if ! defined(__cplusplus)
-#define bool _Bool;
+typedef int bool;
 #define false 0
 #define true 1
 #endif
