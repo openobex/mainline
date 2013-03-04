@@ -204,7 +204,7 @@ ssize_t obex_transport_sock_send(struct obex_sock *sock, struct databuffer *msg,
 	FD_ZERO(&fdset);
 	FD_SET(fd, &fdset);
 	if (timeout >= 0) {
-		struct timeval time = {timeout / 1000, timeout % 1000};
+		struct timeval time = {(long)(timeout / 1000), (long)(timeout % 1000)};
 		status = select((int)fd + 1, NULL, &fdset, NULL, &time);
 	} else {
 		status = select((int)fd + 1, NULL, &fdset, NULL, NULL);
@@ -401,7 +401,7 @@ result_t obex_transport_sock_wait(struct obex_sock *sock, int64_t timeout)
 
 	/* Wait for input */
 	if (timeout >= 0) {
-		struct timeval time = {timeout / 1000, timeout % 1000};
+		struct timeval time = {(long)(timeout / 1000), (long)(timeout % 1000)};
 		ret = select((int)fd + 1, &fdset, NULL, NULL, &time);
 	} else {
 		ret = select((int)fd + 1, &fdset, NULL, NULL, NULL);
