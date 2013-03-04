@@ -272,4 +272,9 @@ install ( FILES ${CMAKE_CURRENT_BINARY_DIR}/openobex.pc
 
 #  include ( GetPrerequisites )
 #  get_prerequisites ( openobex CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS 0 1 )
+
+# By default, do not warn when built on machines using only VS Express:
+if ( NOT DEFINED CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_NO_WARNINGS )
+  set ( CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_NO_WARNINGS ON )
+endif ( NOT DEFINED CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_NO_WARNINGS )
 include ( InstallRequiredSystemLibraries )
