@@ -1,3 +1,11 @@
+ver 1.7:
+	Add support for CMake config files
+	Internal code reorganisation and rewrite
+	Add new function set for better control than OBEX_HandleInput():
+	  * OBEX_SetTimeout(),
+	  * OBEX_Work() and
+	  * OBEX_GetDataDirection()
+
 ver 1.6:
 	Change ABI from 1 to 2 because:
 	  * Redo the USB changes from version 1.4

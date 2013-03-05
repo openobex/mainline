@@ -6,7 +6,7 @@ project ( openobex C )
 # The project version
 #
 set ( VERSION_MAJOR 1 )
-set ( VERSION_MINOR 6 )
+set ( VERSION_MINOR 7 )
 set ( VERSION_PATCH 0 )
 set ( VERSION "${VERSION_MAJOR}.${VERSION_MINOR}" )
 if ( VERSION_PATCH GREATER 0 )
