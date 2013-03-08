@@ -187,18 +187,19 @@ enum obex_event {
 };
 
 /* For OBEX_Init() */
-#define OBEX_FL_KEEPSERVER	(1 <<  1) /**< Keep the server alive */
-#define OBEX_FL_FILTERHINT	(1 <<  2) /**< Filter devices based on hint bit */
-#define OBEX_FL_FILTERIAS	(1 <<  3) /**< Filter devices based on IAS entry */
-#define OBEX_FL_CLOEXEC		(1 <<  4) /**< Set CLOEXEC flag on file descriptors */
-#define OBEX_FL_NONBLOCK	(1 <<  5) /**< Set the NONBLOCK flag on file descriptors */ 
+#define OBEX_FL_KEEPSERVER      (1 <<  1) /**< Keep the server alive */
+#define OBEX_FL_FILTERHINT      (1 <<  2) /**< Filter devices based on hint bit */
+#define OBEX_FL_FILTERIAS       (1 <<  3) /**< Filter devices based on IAS entry */
+#define OBEX_FL_CLOEXEC         (1 <<  4) /**< Set CLOEXEC flag on file descriptors */
+#define OBEX_FL_NONBLOCK        (1 <<  5) /**< Set the NONBLOCK flag on file descriptors */ 
 
 /* For OBEX_ObjectAddHeader */
-#define OBEX_FL_FIT_ONE_PACKET	(1 <<  0) /**< This header must fit in one packet */
-#define OBEX_FL_STREAM_START	(1 <<  1) /**< Start of streaming body */
-#define OBEX_FL_STREAM_DATA	(1 <<  2) /**< Body-stream data */
-#define OBEX_FL_STREAM_DATAEND	(1 <<  3) /**< Body stream last data */
-#define OBEX_FL_SUSPEND		(1 <<  4) /**< Suspend after sending this header */
+#define OBEX_FL_FIT_ONE_PACKET  (1 <<  0) /**< This header must fit in one packet */
+#define OBEX_FL_STREAM_START    (1 <<  1) /**< Start of streaming body */
+#define OBEX_FL_STREAM_DATA     (1 <<  2) /**< Set data for body stream */
+#define OBEX_FL_STREAM_DATAEND  (1 <<  3) /**< Set data (or no data) for body stream and finish it */
+#define OBEX_FL_SUSPEND         (1 <<  4) /**< Suspend after sending this header */
+#define OBEX_FL_STREAM_CONTINUE (1 <<  5) /**< Continue body stream after all remaining headers */
 
 /** Possible transports */
 enum obex_transport_type {
