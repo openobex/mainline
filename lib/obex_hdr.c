@@ -23,6 +23,8 @@
 #include "obex_hdr.h"
 #include "defines.h"
 
+#include <string.h>
+
 struct obex_hdr * obex_hdr_create(enum obex_hdr_id id, enum obex_hdr_type type,
 				  const void *value, size_t size,
 				  unsigned int flags)

@@ -23,6 +23,8 @@
 #include <membuf.h>
 #include <obex_hdr.h>
 
+#include <string.h>
+
 struct obex_hdr_membuf {
 	enum obex_hdr_id id;
 	enum obex_hdr_type type;

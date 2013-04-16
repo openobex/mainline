@@ -20,10 +20,13 @@
  * along with OpenOBEX. If not, see <http://www.gnu.org/>.
  */
 
-#include <string.h>
-
 #include "obex_hdr.h"
 #include "debug.h"
+
+#ifndef _WIN32
+#include <arpa/inet.h>
+#endif
+#include <string.h>
 
 struct obex_hdr_ptr {
 	enum obex_hdr_id id;
