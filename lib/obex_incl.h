@@ -23,7 +23,7 @@
 #define OPENOBEX_SYMBOL(retval) LIB_SYMBOL retval CALLAPI
 
 /* Visual Studio C++ Compiler 7.1 does not know about Bluetooth */
-#if defined(_MSC_VER) && _MSC_VER < 1400
+#if ( defined(_MSC_VER) && _MSC_VER < 1400 ) || !defined(HAVE_BLUETOOTH)
 #define bt_addr_t void
 #endif
 
