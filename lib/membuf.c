@@ -156,8 +156,9 @@ static void* membuf_get(const void *self) {
 static void membuf_clear(void *self, size_t len) {
 	struct membuf_data *p = self;
 
-	if (!p)
+	if (!p || !p->data_len)
 		return;
+
 	if (len < p->data_len)
 		memmove(membuf_get(self), (uint8_t *)membuf_get(self)+len,
 			p->data_len - len);

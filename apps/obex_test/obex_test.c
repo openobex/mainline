@@ -349,7 +349,7 @@ int main (int argc, char *argv[])
 			}
 			interfaces_number = OBEX_EnumerateInterfaces(handle);
 			for (k = 0; k < interfaces_number; k++) {
-				obex_intf = OBEX_GetInterfaceByIndex(handle, i);
+				obex_intf = OBEX_GetInterfaceByIndex(handle, k);
 				printf("Interface %d: idVendor: %#x, "
 				       "idProduct: %#x, bus %d, dev %d, "
 				       "intf %d, %s %s %s\n", k,

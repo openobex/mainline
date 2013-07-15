@@ -285,9 +285,10 @@ static int usbobex_find_interfaces(obex_t *self, obex_interface_t **interfaces)
 						struct obex_usb_intf_transport_t *next;
 
 						next = check_intf(dev, c, i, a);
-						if (next)
-							++num;
+						if (!next)
+							continue;
 
+						++num;
 						if (current)
 							current->next = next;
 						current = next;
