@@ -1,9 +1,16 @@
 Upgrade guide from previous version of openobex
 ===============================================
 
+Upgrading to version 1.7
+------------------------
 
-version 1.5 -> 1.6
-------------------
+When using an event loop that triggers on incoming data, you must call
+OBEX_HandleInput() after each call to OBEX_Request() to actually send the
+request.
+
+
+Upgrading to version 1.6
+------------------------
 
 The function OBEX_UnicodeToAscii() and its counterpart OBEX_AsciiToUnicode()
 are gone. Please use the more complete functionality from your toolkit.
