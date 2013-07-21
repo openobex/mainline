@@ -7,7 +7,7 @@ project ( openobex C )
 #
 set ( VERSION_MAJOR 1 )
 set ( VERSION_MINOR 7 )
-set ( VERSION_PATCH 0 )
+set ( VERSION_PATCH 1 )
 set ( VERSION "${VERSION_MAJOR}.${VERSION_MINOR}" )
 if ( VERSION_PATCH GREATER 0 )
   set ( VERSION "${VERSION}.${VERSION_PATCH}" )
