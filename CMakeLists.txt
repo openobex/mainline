@@ -35,7 +35,7 @@ include ( GNUInstallDirs )
 
 # This module currently expects C++ to be enabled in CMake-2.8.10.
 include ( GenerateExportHeader )
-add_compiler_export_flags ( COMPILER_FLAG_VISIBILITY )
+add_compiler_export_flags ( C )
 
 #
 # define how to build libraries

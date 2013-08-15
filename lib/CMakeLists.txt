@@ -8,7 +8,6 @@ set ( openobex_PROPERTIES
   VERSION
   SOVERSION
   COMPILE_DEFINITIONS
-  COMPILE_FLAGS
   LINK_FLAGS
 )
 
@@ -132,7 +131,6 @@ if ( OPENOBEX_USB )
   )
 endif ( OPENOBEX_USB )
 
-set ( openobex_COMPILE_FLAGS "${openobex_COMPILE_FLAGS} ${COMPILER_FLAG_VISIBILITY}" )
 set ( openobex_LINK_FLAGS "${openobex_LINK_FLAGS} ${LINKER_FLAG_NOUNDEFINED}" )
 
 if ( WIN32 )

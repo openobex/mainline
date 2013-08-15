@@ -374,16 +374,9 @@ function(GENERATE_EXPORT_HEADER TARGET_LIBRARY)
   _do_generate_export_header(${TARGET_LIBRARY} ${ARGN})
 endfunction()
 
-function(add_compiler_export_flags)
-  if(DEFINED CMAKE_CXX_COMPILER)
-    _test_compiler_hidden_visibility(CXX)
-    _test_compiler_has_deprecated(CXX)
-  elseif(DEFINED CMAKE_C_COMPILER)
-    _test_compiler_hidden_visibility(C)
-    _test_compiler_has_deprecated(C)
-  else()
-    message ( FATAL_ERROR "No supported language enabled." )
-  endif()
+function(add_compiler_export_flags lang)
+  _test_compiler_hidden_visibility(lang)
+  _test_compiler_has_deprecated(lang)
 
   if(NOT (USE_COMPILER_HIDDEN_VISIBILITY AND COMPILER_HAS_HIDDEN_VISIBILITY))
     # Just return if there are no flags to add.
@@ -392,15 +385,15 @@ function(add_compiler_export_flags)
 
   set (EXTRA_FLAGS "-fvisibility=hidden")
 
-  if(COMPILER_HAS_HIDDEN_INLINE_VISIBILITY)
+  if(lang STREQUAL "CXX" AND COMPILER_HAS_HIDDEN_INLINE_VISIBILITY)
     set (EXTRA_FLAGS "${EXTRA_FLAGS} -fvisibility-inlines-hidden")
   endif()
 
   # Either return the extra flags needed in the supplied argument, or to the
   # CMAKE_CXX_FLAGS if no argument is supplied.
-  if(ARGV0)
-    set(${ARGV0} "${EXTRA_FLAGS}" PARENT_SCOPE)
+  if(ARGV1)
+    set(${ARGV1} "${EXTRA_FLAGS}" PARENT_SCOPE)
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_FLAGS}" PARENT_SCOPE)
+    set(CMAKE_${lang}_FLAGS "${CMAKE_${lang}_FLAGS} ${EXTRA_FLAGS}" PARENT_SCOPE)
   endif()
 endfunction()
