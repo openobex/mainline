@@ -184,6 +184,7 @@ static bool irobex_select_interface(obex_t *self, obex_interface_t *intf)
 	/* local address */
 	memset(&addr, 0, sizeof(addr));
 	addr.sir_family = AF_IRDA;
+	addr.sir_lsap_sel = LSAP_ANY;
 #ifndef _WIN32
 	addr.sir_addr = intf->irda.local;
 #else
