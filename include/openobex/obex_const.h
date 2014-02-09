@@ -184,6 +184,10 @@ enum obex_event {
 	OBEX_EV_UNEXPECTED = 10,
 	/** First packet of an incoming request has been parsed */
 	OBEX_EV_REQCHECK = 11,
+	/** A Continue response was received and a new request is about to be sent.
+	 *  CancelRequest() can be used to stop the request processing.
+	 */
+	OBEX_EV_CONTINUE = 12,
 };
 
 /* For OBEX_Init() */

@@ -188,7 +188,18 @@ static result_t obex_client_response_rx(obex_t *self)
 
 	/* Are we done yet? */
 	if (rsp == OBEX_RSP_CONTINUE) {
+		enum obex_cmd cmd = self->object->cmd;
+
 		DEBUG(3, "Continue...\n");
+		obex_deliver_event(self, OBEX_EV_CONTINUE, cmd, rsp, false);
+
+		/* Return if the user cancelled the request without sending ABORT.
+		 * If ABORT is being sent, we continue as usual and let the normal
+		 * tx_prepare() handle it.
+		 */
+		if (self->object == NULL)
+			return RESULT_SUCCESS;
+
 		self->substate = SUBSTATE_TX_PREPARE;
 		return obex_client_response_tx_prepare(self);
 
