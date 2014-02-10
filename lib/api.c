@@ -1036,7 +1036,7 @@ int CALLAPI IrOBEX_TransportConnect(obex_t *self, const char *service)
 
 	err = OBEX_EnumerateInterfaces(self);
 	if (err <= 0)
-		return err;
+		return -1;
 
 	intf = OBEX_GetInterfaceByIndex(self, 0);
 	intf->irda.service = service;
