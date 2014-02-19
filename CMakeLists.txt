@@ -1,5 +1,8 @@
 cmake_minimum_required ( VERSION 2.8.5 FATAL_ERROR )
 
+set ( CMAKE_POLICY_DEFAULT_CMP0022 OLD )
+cmake_policy ( VERSION 2.8.5 )
+
 project ( openobex C )
 
 #
