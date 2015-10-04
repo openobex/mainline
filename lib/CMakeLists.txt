@@ -182,10 +182,9 @@ add_library ( openobex
 )
 
 target_link_libraries ( openobex
-  ${openobex_LIBRARIES}
+  PRIVATE
+    ${openobex_LIBRARIES}
 )
-#disable link chaining
-set_property(TARGET openobex PROPERTY LINK_INTERFACE_LIBRARIES "")
 
 foreach ( i ${openobex_PROPERTIES} )
   if ( DEFINED openobex_${i} )

@@ -35,8 +35,7 @@ endif ( WIN32 )
 foreach ( prog ${OPENOBEX_APPS} )
   add_executable ( ${prog} EXCLUDE_FROM_ALL ${${prog}_SOURCES} )
   target_link_libraries ( ${prog} ${${prog}_LIBS} )
-  get_target_property ( ${prog}_EXECUTABLE ${prog} LOCATION )
-  install ( PROGRAMS ${${prog}_EXECUTABLE}
+  install ( PROGRAMS $<TARGET_FILE:${prog}>
     DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT applications
     OPTIONAL

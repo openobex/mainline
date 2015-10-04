@@ -25,8 +25,7 @@ if ( WIN32 )
   target_link_libraries ( obex_test ws2_32 )
 endif ( WIN32 )
 
-get_target_property ( obex_test_EXECUTABLE obex_test LOCATION )
-install ( PROGRAMS ${obex_test_EXECUTABLE}
+install ( PROGRAMS $<TARGET_FILE:obex_test>
   DESTINATION ${CMAKE_INSTALL_BINDIR}
   COMPONENT applications
   OPTIONAL

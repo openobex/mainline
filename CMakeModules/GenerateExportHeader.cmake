@@ -206,11 +206,11 @@ macro(_test_compiler_hidden_visibility lang)
     mark_as_advanced(USE_COMPILER_HIDDEN_VISIBILITY)
 
     if(USE_COMPILER_HIDDEN_VISIBILITY)
-      if("${lang}" MATCHES "^CXX$")
+      if(lang MATCHES "^CXX$")
 	check_cxx_compiler_flag(-fvisibility=hidden COMPILER_HAS_HIDDEN_VISIBILITY)
 	check_cxx_compiler_flag(-fvisibility-inlines-hidden
 	  COMPILER_HAS_HIDDEN_INLINE_VISIBILITY)
-      elseif("${lang}" MATCHES "^C$")
+      elseif(lang MATCHES "^C$")
 	check_c_compiler_flag(-fvisibility=hidden COMPILER_HAS_HIDDEN_VISIBILITY)
       endif()
     endif(USE_COMPILER_HIDDEN_VISIBILITY)
@@ -226,10 +226,10 @@ macro(_test_compiler_has_deprecated lang)
     set(COMPILER_HAS_DEPRECATED "" CACHE INTERNAL
       "Compiler support for a deprecated attribute")
   else()
-    if("${lang}" MATCHES "^CXX$")
+    if(lang MATCHES "^CXX$")
       _check_cxx_compiler_attribute("__attribute__((__deprecated__))"
 	COMPILER_HAS_DEPRECATED_ATTR)
-    elseif("${lang}" MATCHES "^C$")
+    elseif(lang MATCHES "^C$")
       _check_c_compiler_attribute("__attribute__((__deprecated__))"
 	COMPILER_HAS_DEPRECATED_ATTR)
     endif()
