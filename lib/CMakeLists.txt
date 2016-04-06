@@ -11,10 +11,6 @@ set ( openobex_PROPERTIES
   LINK_FLAGS
 )
 
-# the library version always matches the project version
-foreach ( i VERSION VERSION_MAJOR VERSION_MINOR VERSION_PATCH )
-  set ( openobex_${i}   "${${i}}" )
-endforeach ( i )
 # the ABI version, must be increased on incompatible changes
 set ( openobex_SOVERSION "2" )
 

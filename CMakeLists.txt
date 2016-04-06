@@ -1,19 +1,9 @@
-cmake_minimum_required ( VERSION 3.0.2 FATAL_ERROR )
+cmake_minimum_required ( VERSION 3.1 FATAL_ERROR )
 
-cmake_policy ( VERSION 3.0.2 )
-
-project ( openobex C )
-
-#
-# The project version
-#
-set ( VERSION_MAJOR 1 )
-set ( VERSION_MINOR 7 )
-set ( VERSION_PATCH 1 )
-set ( VERSION "${VERSION_MAJOR}.${VERSION_MINOR}" )
-if ( VERSION_PATCH GREATER 0 )
-  set ( VERSION "${VERSION}.${VERSION_PATCH}" )
-endif ( VERSION_PATCH GREATER 0 )
+project ( openobex
+  LANGUAGES C
+  VERSION 1.7.1
+)
 
 #
 # The path for our own CMake modules
@@ -209,10 +199,10 @@ set ( CPACK_PACKAGE_VENDOR "The OpenObex Development Team" )
 set ( CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING.LIB" )
 set ( CPACK_RESOURCE_FILE_README  "${CMAKE_CURRENT_SOURCE_DIR}/README" )
 
-set ( CPACK_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}" )
-set ( CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}" )
-set ( CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}" )
-set ( CPACK_PACKAGE_VERSION       "${VERSION}" )
+set ( CPACK_PACKAGE_VERSION_MAJOR "${openobex_VERSION_MAJOR}" )
+set ( CPACK_PACKAGE_VERSION_MINOR "${openobex_VERSION_MINOR}" )
+set ( CPACK_PACKAGE_VERSION_PATCH "${openobex_VERSION_PATCH}" )
+set ( CPACK_PACKAGE_VERSION       "${openobex_VERSION}" )
 
 if ( UNIX )
   set ( CPACK_GENERATOR "TGZ" )
