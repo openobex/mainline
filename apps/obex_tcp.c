@@ -23,6 +23,7 @@
 #include <config.h>
 #endif
 #define _XOPEN_SOURCE 520
+#define _POSIX_C_SOURCE 201112L // for getaddrinfo()
 
 #ifdef _WIN32
 #include <winsock2.h>

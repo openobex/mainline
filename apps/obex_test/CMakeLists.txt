@@ -5,12 +5,6 @@ set ( obex_test_SOURCES
   obex_test_server.c obex_test_server.h
 )
 
-if ( NOT WIN32 )
-  list ( APPEND obex_test_SOURCES
-    obex_test_cable.c obex_test_cable.h
-  )
-endif ( NOT WIN32 )
-
 add_executable ( obex_test EXCLUDE_FROM_ALL
   ${obex_test_SOURCES}
 )

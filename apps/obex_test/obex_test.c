@@ -42,12 +42,9 @@ static int str2ba(const char *str, bdaddr_t *ba) {
 #include "obex_test_server.h"
 
 #if defined(_WIN32)
-#undef HAVE_CABLE_OBEX
 #define in_addr_t unsigned long
 
 #else
-#include "obex_test_cable.h"
-#define HAVE_CABLE_OBEX 1
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -191,11 +188,6 @@ int main (int argc, char *argv[])
 	int usbobex = FALSE;
 	obex_interface_t *obex_intf = NULL;
 #endif
-#ifdef HAVE_CABLE_OBEX
-	int cobex = FALSE, r320 = FALSE;
-	char *port;
-	obex_ctrans_t custfunc;
-#endif
 
 	if (argc == 2 && strcmp(argv[1], "-h") == 0) {
 		printf(
@@ -203,10 +195,6 @@ int main (int argc, char *argv[])
 			"\n"
 			"Options:\n"
 			"    -f [flags]        Set some flags: n=non-blocking\n"
-#ifdef HAVE_CABLE_OBEX
-			"    -s [tty]          Use cable transport (Sony-Ericsson phones/DCU-11 cable)\n"
-			"    -r [tty]          Use cable transport for R320\n"
-#endif
 #ifdef HAVE_BLUETOOTH
 			"    -b [addr] [chan]  Use bluetooth RFCOMM transport\n"
 #endif
@@ -241,14 +229,6 @@ int main (int argc, char *argv[])
 		}
 	}
 
-#ifdef HAVE_CABLE_OBEX
-	if ((argc == i+1 || argc == i+2) && strcmp(argv[i], "-s") == 0)
-		cobex = TRUE;
-	if ((argc == i+1 || argc == i+2) && strcmp(argv[i], "-r") == 0) {
-		cobex = TRUE;
-		r320 = TRUE;
-	}
-#endif
 #ifdef HAVE_BLUETOOTH
 	if (argc >= i+1 && strcmp(argv[i], "-b") == 0)
 		btobex = 1;
@@ -260,42 +240,6 @@ int main (int argc, char *argv[])
 	if (argc == i+1 && strcmp(argv[i], "-i") == 0)
 		tcpobex = TRUE;
 
-#ifdef HAVE_CABLE_OBEX
-	if (cobex) {
-		if (argc == i+2)
-			port = argv[i+1];
-		else
-			port = "/dev/ttyS0";
-
-		if (r320)
-			printf("OBEX to R320 on %s!\n", port);
-		else
-			printf("OBEX on %s!\n", port);
-
-		custfunc.customdata = cobex_open(port, r320);
-
-		if (custfunc.customdata == NULL) {
-			printf("cobex_open() failed\n");
-			return -1;
-		}
-
-		handle = OBEX_Init(OBEX_TRANS_CUSTOM, obex_event, flags);
-		if (!handle) {
-			perror( "OBEX_Init failed");
-			return -1;
-		}
-
-		custfunc.connect = cobex_connect;
-		custfunc.disconnect = cobex_disconnect;
-		custfunc.write = cobex_write;
-		custfunc.handleinput = cobex_handle_input;
-		custfunc.listen = cobex_connect;	// Listen and connect is 100% same on cable
-
-		if (OBEX_RegisterCTransport(handle, &custfunc) < 0)
-			printf("Custom transport callback-registration failed\n");
-
-	} else
-#endif
 #ifdef HAVE_BLUETOOTH
 	if (btobex) {
 		const char *channel_arg = NULL;
@@ -446,14 +390,6 @@ int main (int argc, char *argv[])
 			break;
 			case 'c':
 				/* First connect transport */
-#ifdef HAVE_CABLE_OBEX
-				if (cobex) {
-					if (OBEX_TransportConnect(handle, (void*) 1, 0) < 0) {
-						printf("Transport connect error! (Serial)\n");
-						break;
-					}
-				} else
-#endif
 #ifdef HAVE_BLUETOOTH
 				if (btobex) {
 					if (bacmp(&bdaddr, BDADDR_ANY) == 0) {
@@ -493,14 +429,6 @@ int main (int argc, char *argv[])
 			break;
 			case 's':
 				/* First register server */
-#ifdef HAVE_CABLE_OBEX
-				if (cobex) {
-					if (OBEX_ServerRegister(handle, (void*) 1, 0) < 0) {
-						printf("Server register error! (Serial)\n");
-						break;
-					}
-				} else
-#endif
 #ifdef HAVE_BLUETOOTH
 				if (btobex) {
 					if (BtOBEX_ServerRegister(handle, BDADDR_ANY, channel) < 0) {
@@ -534,10 +462,6 @@ int main (int argc, char *argv[])
 				printf("Unknown command %s\n", cmd);
 		}
 	}
-#ifdef HAVE_CABLE_OBEX
-	if (cobex)
-		cobex_close(custfunc.customdata);
-#endif
 
 	return 0;
 }
